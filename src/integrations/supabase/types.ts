@@ -14,6 +14,38 @@ export type Database = {
   }
   public: {
     Tables: {
+      drop_alerts: {
+        Row: {
+          contact: string
+          created_at: string | null
+          drop_id: string | null
+          id: string
+          type: string
+        }
+        Insert: {
+          contact: string
+          created_at?: string | null
+          drop_id?: string | null
+          id?: string
+          type: string
+        }
+        Update: {
+          contact?: string
+          created_at?: string | null
+          drop_id?: string | null
+          id?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "drop_alerts_drop_id_fkey"
+            columns: ["drop_id"]
+            isOneToOne: false
+            referencedRelation: "drops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       drops: {
         Row: {
           created_at: string | null
