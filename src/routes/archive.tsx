@@ -1,5 +1,5 @@
 'use client';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import Header from '@/components/Header';
 import { supabase, type Product } from '@/lib/supabase';
@@ -136,7 +136,7 @@ function ArchivePage() {
                     </div>
                   </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}
