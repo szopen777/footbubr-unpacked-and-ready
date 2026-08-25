@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Header from '@/components/Header';
 import { supabase, Product } from '@/lib/supabase';
 import { Archive, Lock, CheckCircle2 } from 'lucide-react';
-import Image from 'next/image';
+
 
 export default function ArchivePage() {
   const [soldProducts, setSoldProducts] = useState<Product[]>([]);

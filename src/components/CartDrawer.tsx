@@ -1,9 +1,8 @@
-'use client';
 
 import { useCart } from '@/lib/cart-context';
 import { X, ShoppingBag, ArrowRight, Trash2 } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
-import Link from 'next/link';
+import { Link } from '@tanstack/react-router';
 
 export default function CartDrawer() {
   const { items, removeItem, isOpen, closeCart, total, discountAmount, discountedTotal, promoCode } = useCart();

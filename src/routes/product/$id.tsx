@@ -1,4 +1,3 @@
-'use client';
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
@@ -8,13 +7,13 @@ import CartDrawer from '@/components/CartDrawer';
 import { cn, formatPrice, SURFACE_LABELS, CONDITION_COLORS } from '@/lib/utils';
 import { ShoppingBag, ArrowLeft, AlertCircle, Package, CheckCircle2, XCircle, ChevronLeft, ChevronRight, Loader2, ZoomIn, Zap } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { Link } from '@tanstack/react-router';
+import { useNavigate } from '@tanstack/react-router';
 import { toast } from 'sonner';
 
 export default function ProductPage() {
   const params = useParams();
-  const router = useRouter();
+  const navigate = useNavigate();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeImage, setActiveImage] = useState(0);
@@ -48,7 +47,7 @@ export default function ProductPage() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4">
         <p className="text-neutral-400">Produkt nie znaleziony</p>
-        <Link href="/" className="text-[#FF6B00] hover:underline text-sm">Wróć do katalogu</Link>
+        <Link to="/" className="text-[#FF6B00] hover:underline text-sm">Wróć do katalogu</Link>
       </div>
     );
   }
@@ -64,7 +63,7 @@ export default function ProductPage() {
 
   const handleBuyNow = () => {
     if (!inCart) addItem(product);
-    router.push('/checkout');
+    navigate({ to: '/checkout' });
   };
 
   return (
@@ -75,7 +74,7 @@ export default function ProductPage() {
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-6 sm:py-8">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 mb-6 text-sm text-neutral-500 animate-fade-in overflow-hidden">
-          <Link href="/" className="hover:text-white transition-colors flex items-center gap-1 flex-shrink-0">
+          <Link to="/" className="hover:text-white transition-colors flex items-center gap-1 flex-shrink-0">
             <ArrowLeft className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Katalog</span>
           </Link>

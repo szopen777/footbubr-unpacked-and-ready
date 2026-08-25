@@ -1,4 +1,3 @@
-'use client';
 
 import { useState } from 'react';
 import { useCart } from '@/lib/cart-context';
@@ -7,7 +6,7 @@ import { formatPrice, INPUT_CLASS } from '@/lib/utils';
 import Header from '@/components/Header';
 import CartDrawer from '@/components/CartDrawer';
 import { ArrowLeft, Package, Truck, CreditCard, CheckCircle2, Loader2, MapPin, Tag, X, Check, AlertCircle } from 'lucide-react';
-import Link from 'next/link';
+import { Link } from '@tanstack/react-router';
 
 export default function CheckoutPage() {
   const { items, total, discountedTotal, discountAmount, promoCode, applyPromo, removePromo, clearCart } = useCart();
@@ -114,7 +113,7 @@ export default function CheckoutPage() {
         <CartDrawer />
         <div className="max-w-md mx-auto px-4 py-24 text-center">
           <p className="text-neutral-400 mb-4">Twój koszyk jest pusty</p>
-          <Link href="/" className="text-[#FF6B00] hover:underline">Wróć do katalogu</Link>
+          <Link to="/" className="text-[#FF6B00] hover:underline">Wróć do katalogu</Link>
         </div>
       </div>
     );
@@ -152,7 +151,7 @@ export default function CheckoutPage() {
 
       <div className="max-w-5xl mx-auto px-3 sm:px-4 lg:px-8 py-6 sm:py-8">
         <div className="flex items-center gap-3 mb-6 sm:mb-8 animate-fade-in">
-          <Link href="/" className="text-neutral-500 hover:text-white transition-colors active:scale-90">
+          <Link to="/" className="text-neutral-500 hover:text-white transition-colors active:scale-90">
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <h1 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">Kasa</h1>

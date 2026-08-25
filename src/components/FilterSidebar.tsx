@@ -1,4 +1,3 @@
-'use client';
 
 import { useState } from 'react';
 import { ChevronDown, SlidersHorizontal, X, ArrowUpDown } from 'lucide-react';

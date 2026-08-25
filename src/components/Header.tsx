@@ -1,6 +1,5 @@
-'use client';
 
-import Link from 'next/link';
+import { Link } from '@tanstack/react-router';
 import { ShoppingBag, Search, Menu, X, Footprints, Archive } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
 import { useState } from 'react';
@@ -20,7 +19,7 @@ export default function Header({ searchValue = '', onSearchChange }: HeaderProps
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
         <div className="flex items-center justify-between h-16 gap-2 sm:gap-4">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 flex-shrink-0 group">
+          <Link to="/" className="flex items-center gap-2 flex-shrink-0 group">
             <div className="w-9 h-9 bg-[#FF6B00] rounded-xl flex items-center justify-center transition-transform group-hover:scale-110 group-hover:rotate-3 duration-300 shadow-[0_4px_15px_rgba(255,107,0,0.3)]">
               <Footprints className="w-4 h-4 text-black" />
             </div>

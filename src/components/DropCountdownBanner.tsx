@@ -1,4 +1,3 @@
-'use client';
 
 import { useState } from 'react';
 import { Flame, Bell, Check, Loader2, Smartphone, Mail } from 'lucide-react';

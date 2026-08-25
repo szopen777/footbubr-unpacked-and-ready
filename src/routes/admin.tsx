@@ -1,4 +1,3 @@
-'use client';
 
 import { useEffect, useState } from 'react';
 import { supabase, Product, Order, Drop, PRODUCT_LEVELS } from '@/lib/supabase';
@@ -8,7 +7,7 @@ import {
   Package, ShoppingCart, LogOut, Eye, EyeOff, Loader2,
   Trash2, Edit2, X, Check, AlertCircle, ArrowLeft, ChevronDown, Zap, Calendar, Menu, Sparkles,
 } from 'lucide-react';
-import Link from 'next/link';
+import { Link } from '@tanstack/react-router';
 
 const ADMIN_PASSWORD = '123';
 
@@ -293,7 +292,7 @@ export default function AdminPage() {
             <button onClick={handleLogin} className="w-full bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-black py-3 rounded-xl transition-all hover:scale-[1.02] active:scale-95 shadow-[0_4px_15px_rgba(255,107,0,0.25)]">
               Zaloguj się
             </button>
-            <Link href="/" className="flex items-center justify-center gap-1.5 text-sm text-neutral-500 hover:text-white/80 transition-colors">
+            <Link to="/" className="flex items-center justify-center gap-1.5 text-sm text-neutral-500 hover:text-white/80 transition-colors">
               <ArrowLeft className="w-3.5 h-3.5" /> Wróć do sklepu
             </Link>
           </div>
@@ -416,7 +415,7 @@ export default function AdminPage() {
 
       {/* Mobile top bar */}
       <div className="lg:hidden sticky top-0 z-30 bg-[#0c0c0c] border-b border-neutral-800 px-4 py-3 flex items-center justify-between">
-        <Link href="/" className="font-black text-lg text-white uppercase">Foot<span className="text-[#FF6B00]">Bubr</span></Link>
+        <Link to="/" className="font-black text-lg text-white uppercase">Foot<span className="text-[#FF6B00]">Bubr</span></Link>
         <button onClick={() => setSidebarOpen(true)} className="p-2 text-neutral-400 hover:text-white">
           <Menu className="w-5 h-5" />
         </button>
@@ -428,7 +427,7 @@ export default function AdminPage() {
           <div className="fixed inset-0 bg-black/60 z-40 lg:hidden animate-backdrop-in" onClick={() => setSidebarOpen(false)} />
           <aside className="fixed left-0 top-0 h-full w-64 bg-[#0c0c0c] border-r border-neutral-800/80 flex flex-col z-40 lg:hidden animate-slide-in-right" style={{ animationName: 'slide-in-right', transform: 'translateX(0)' }}>
             <div className="p-5 border-b border-neutral-800/80 flex items-center justify-between">
-              <Link href="/" className="font-black text-lg text-white uppercase">Foot<span className="text-[#FF6B00]">Bubr</span></Link>
+              <Link to="/" className="font-black text-lg text-white uppercase">Foot<span className="text-[#FF6B00]">Bubr</span></Link>
               <button onClick={() => setSidebarOpen(false)} className="p-1 text-neutral-500 hover:text-white"><X className="w-5 h-5" /></button>
             </div>
             <AdminNav view={view} setView={(v) => { setView(v); setSidebarOpen(false); }} setForm={setForm} setEditingId={setEditingId} productsCount={products.length} ordersCount={orders.length} onLogout={() => setAuthed(false)} />
@@ -440,7 +439,7 @@ export default function AdminPage() {
         {/* Desktop sidebar */}
         <aside className="hidden lg:flex w-56 bg-[#0c0c0c] border-r border-neutral-800/80 flex-col fixed h-full z-10">
           <div className="p-5 border-b border-neutral-800/80">
-            <Link href="/" className="flex items-center gap-2">
+            <Link to="/" className="flex items-center gap-2">
               <span className="font-black text-lg text-white uppercase">Foot<span className="text-[#FF6B00]">Bubr</span></span>
             </Link>
             <p className="text-xs text-neutral-600 mt-0.5">Panel admina</p>

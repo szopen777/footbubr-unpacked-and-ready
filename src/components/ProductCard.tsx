@@ -1,11 +1,10 @@
-'use client';
 
 import { Product } from '@/lib/supabase';
 import { cn, formatPrice, CONDITION_COLORS } from '@/lib/utils';
 import { ShoppingBag, Eye, Zap } from 'lucide-react';
-import Link from 'next/link';
+import { Link } from '@tanstack/react-router';
 import { useCart } from '@/lib/cart-context';
-import { useRouter } from 'next/navigation';
+import { useNavigate } from '@tanstack/react-router';
 import { toast } from 'sonner';
 
 interface ProductCardProps {
@@ -14,7 +13,7 @@ interface ProductCardProps {
 
 export default function ProductCard({ product }: ProductCardProps) {
   const { addItem, addItemSilent, items } = useCart();
-  const router = useRouter();
+  const navigate = useNavigate();
   const inCart = items.some((i) => i.product.id === product.id);
   const isSold = product.status === 'sold';
 
@@ -32,7 +31,7 @@ export default function ProductCard({ product }: ProductCardProps) {
     e.preventDefault();
     e.stopPropagation();
     if (!inCart) addItem(product);
-    router.push('/checkout');
+    navigate({ to: '/checkout' });
   };
 
   return (
@@ -44,7 +43,7 @@ export default function ProductCard({ product }: ProductCardProps) {
       )}
     >
       {/* Image */}
-      <Link href={`/product/${product.id}`} className="block relative aspect-square overflow-hidden bg-[#1a1a1a]">
+      <Link to={`/product/${product.id}`} className="block relative aspect-square overflow-hidden bg-[#1a1a1a]">
         {product.images[0] ? (
           <img
             src={product.images[0]}
