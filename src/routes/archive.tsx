@@ -82,10 +82,13 @@ function ArchivePage() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {soldProducts.map((boot) => (
-              <div
+              <Link
                 key={boot.id}
-                className="group relative bg-[#121212] border-2 border-neutral-800 rounded-xl overflow-hidden shadow-[4px_4px_0_0_#1c1c1c] hover:border-neutral-700 transition-all"
+                to="/product/$id"
+                params={{ id: boot.id }}
+                className="group relative block bg-[#121212] border-2 border-neutral-800 rounded-xl overflow-hidden shadow-[4px_4px_0_0_#1c1c1c] hover:border-[#FF6B00]/40 transition-all"
               >
+
                 {/* Zdjęcie z filtrem Grayscale */}
                 <div className="relative aspect-square w-full bg-neutral-950 overflow-hidden">
                   {boot.images && boot.images[0] ? (
