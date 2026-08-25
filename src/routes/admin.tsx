@@ -561,7 +561,9 @@ function AdminPage() {
                             <option value="available">Dostępny</option>
                             <option value="sold">Wyprzedany</option>
                             <option value="draft">Szkic</option>
+                            <option value="archived">Archiwum</option>
                           </select>
+
                           <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 pointer-events-none opacity-50" />
                         </div>
                         <button onClick={() => handleEdit(p)} className="p-2 text-neutral-500 hover:text-white bg-white/5 rounded-xl transition-all hover:bg-white/10 active:scale-90">
