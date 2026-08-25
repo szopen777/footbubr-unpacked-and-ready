@@ -11,7 +11,7 @@ export type ProductCondition =
   | 'Używane 8/10'
   | 'Używane 7/10'
   | 'Używane 6/10';
-export type ProductStatus = 'available' | 'sold' | 'draft';
+export type ProductStatus = 'available' | 'sold' | 'draft' | 'archived';
 export type DropStatus = 'scheduled' | 'published' | 'cancelled';
 
 export interface Drop {

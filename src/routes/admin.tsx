@@ -555,6 +555,7 @@ function AdminPage() {
                               p.status === 'available' && 'text-emerald-400 border-emerald-400/30 bg-[#1a1a1a]',
                               p.status === 'sold' && 'text-red-400 border-red-400/30 bg-[#1a1a1a]',
                               p.status === 'draft' && 'text-blue-400 border-blue-400/30 bg-[#1a1a1a]',
+                              p.status === 'archived' && 'text-neutral-400 border-neutral-600 bg-[#1a1a1a]',
                             )}
                           >
                             <option value="available">Dostępny</option>
@@ -700,7 +701,7 @@ function AdminPage() {
                 <div className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-4 sm:p-5">
                   <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-3">Status i drop</h3>
                   <div className="flex flex-wrap gap-2 mb-4">
-                    {(['available', 'sold', 'draft'] as const).map((s) => (
+                    {(['available', 'sold', 'draft', 'archived'] as const).map((s) => (
                       <button
                         key={s}
                         onClick={() => setForm({ ...form, status: s })}
@@ -709,11 +710,12 @@ function AdminPage() {
                           form.status === s
                             ? s === 'available' ? 'bg-emerald-400/15 border-emerald-400/40 text-emerald-400'
                               : s === 'sold' ? 'bg-red-400/15 border-red-400/40 text-red-400'
+                              : s === 'archived' ? 'bg-neutral-400/15 border-neutral-400/40 text-neutral-300'
                               : 'bg-blue-400/15 border-blue-400/40 text-blue-400'
                             : 'bg-white/5 border-neutral-800 text-neutral-500 hover:text-neutral-300'
                         )}
                       >
-                        {s === 'available' ? 'Dostępny' : s === 'sold' ? 'Wyprzedany' : 'Szkic'}
+                        {s === 'available' ? 'Dostępny' : s === 'sold' ? 'Wyprzedany' : s === 'archived' ? 'Archiwum' : 'Szkic'}
                       </button>
                     ))}
                   </div>

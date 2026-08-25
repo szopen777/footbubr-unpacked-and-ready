@@ -31,7 +31,7 @@ function ArchivePage() {
           const { data, error } = await supabase
             .from('products')
             .select('*')
-            .eq('status', 'sold')
+            .eq('status', 'archived')
             .order('created_at', { ascending: false });
 
           if (!error && data) {
