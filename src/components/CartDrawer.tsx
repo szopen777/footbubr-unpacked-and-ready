@@ -90,7 +90,7 @@ export default function CartDrawer() {
             </div>
             <p className="text-neutral-600 text-xs">Kod rabatowy możesz zastosować przy kasie</p>
             <Link
-              href="/checkout"
+              to="/checkout"
               onClick={closeCart}
               className="flex items-center justify-center gap-2 w-full bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-bold py-3.5 rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98] shadow-[0_4px_15px_rgba(255,107,0,0.25)]"
             >

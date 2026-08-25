@@ -132,7 +132,7 @@ function CheckoutPage() {
           <p className="text-neutral-600 text-sm mb-8">Nr zamówienia: <span className="text-neutral-300 font-mono">{orderId.slice(0, 8).toUpperCase()}</span></p>
           <p className="text-neutral-500 text-sm mb-8">Szczegóły wysłaliśmy na adres email. Skontaktujemy się w ciągu 24h.</p>
           <Link
-            href="/"
+            to="/"
             className="inline-flex items-center gap-2 bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-bold px-6 py-3 rounded-xl transition-all hover:scale-105 active:scale-95 shadow-[0_4px_15px_rgba(255,107,0,0.25)]"
           >
             Wróć do sklepu

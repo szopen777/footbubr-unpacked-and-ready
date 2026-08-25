@@ -45,7 +45,7 @@ export default function Header({ searchValue = '', onSearchChange }: HeaderProps
           {/* Nav actions */}
           <div className="flex items-center gap-2">
             <Link
-              href="/archive"
+              to="/archive"
               className="flex items-center gap-1.5 text-sm text-neutral-300 hover:text-[#FF6B00] transition-colors px-3 py-2 font-bold tracking-wide uppercase text-xs sm:text-sm"
             >
               <Archive className="w-4 h-4 text-[#FF6B00]" />
@@ -53,7 +53,7 @@ export default function Header({ searchValue = '', onSearchChange }: HeaderProps
             </Link>
 
             <Link
-              href="/admin"
+              to="/admin"
               className="hidden md:block text-sm text-neutral-400 hover:text-white transition-colors px-3 py-2 font-medium"
             >
               Panel
@@ -99,7 +99,7 @@ export default function Header({ searchValue = '', onSearchChange }: HeaderProps
             </div>
             <div className="flex flex-col pt-1">
               <Link
-                href="/archive"
+                to="/archive"
                 onClick={() => setMenuOpen(false)}
                 className="flex items-center gap-2 text-sm text-neutral-200 hover:text-[#FF6B00] py-2 font-bold uppercase transition-colors"
               >
@@ -107,7 +107,7 @@ export default function Header({ searchValue = '', onSearchChange }: HeaderProps
                 Archiwum Dropów
               </Link>
               <Link
-                href="/admin"
+                to="/admin"
                 onClick={() => setMenuOpen(false)}
                 className="block text-sm text-neutral-400 hover:text-white py-2 transition-colors"
               >
