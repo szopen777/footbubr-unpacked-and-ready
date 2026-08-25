@@ -32,10 +32,10 @@ function ArchivePage() {
             .from('products')
             .select('*')
             .eq('status', 'sold')
-            .order('updated_at', { ascending: false });
+            .order('created_at', { ascending: false });
 
           if (!error && data) {
-            setSoldProducts(data);
+            setSoldProducts(data as Product[]);
           }
         }
       } catch {
@@ -89,11 +89,11 @@ function ArchivePage() {
                 {/* Zdjęcie z filtrem Grayscale */}
                 <div className="relative aspect-square w-full bg-neutral-950 overflow-hidden">
                   {boot.images && boot.images[0] ? (
-                    <Image
+                    <img
                       src={boot.images[0]}
                       alt={boot.name}
-                      fill
-                      className="object-cover grayscale contrast-125 group-hover:scale-105 transition-transform duration-500 opacity-75"
+                      loading="lazy"
+                      className="absolute inset-0 w-full h-full object-cover grayscale contrast-125 group-hover:scale-105 transition-transform duration-500 opacity-75"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-neutral-700 font-mono text-xs">
