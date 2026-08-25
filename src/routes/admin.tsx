@@ -8,6 +8,10 @@ import {
   Trash2, Edit2, X, Check, AlertCircle, ArrowLeft, ChevronDown, Zap, Calendar, Menu, Sparkles,
 } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
+import type { Database } from '@/integrations/supabase/types';
+
+type ProductInsert = Database['public']['Tables']['products']['Insert'];
+type ProductUpdate = Database['public']['Tables']['products']['Update'];
 
 const ADMIN_PASSWORD = '123';
 
@@ -131,7 +135,7 @@ function AdminPage() {
     if (!form.name || !form.brand || !form.price || !form.size_eu) return;
     setSaving(true);
 
-    const payload: Record<string, unknown> = {
+    const payload: ProductInsert = {
       name: form.name,
       brand: form.brand,
       model: form.model || form.name,
@@ -201,7 +205,7 @@ function AdminPage() {
   };
 
   const handleStatusChange = async (id: string, status: string) => {
-    const updates: Record<string, unknown> = { status };
+    const updates: ProductUpdate = { status };
     if (status !== 'draft') updates.drop_scheduled_at = null;
     await supabase.from('products').update(updates).eq('id', id);
     await loadProducts();
