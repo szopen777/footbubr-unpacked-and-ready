@@ -14,13 +14,169 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      drops: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          scheduled_at: string
+          status: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          scheduled_at: string
+          status?: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          scheduled_at?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      orders: {
+        Row: {
+          created_at: string | null
+          customer_email: string
+          customer_name: string
+          customer_phone: string | null
+          id: string
+          paczkomat_code: string | null
+          payment_method: string
+          product_id: string | null
+          shipping_address: string | null
+          shipping_method: string
+          status: string
+          total_price: number
+        }
+        Insert: {
+          created_at?: string | null
+          customer_email: string
+          customer_name: string
+          customer_phone?: string | null
+          id?: string
+          paczkomat_code?: string | null
+          payment_method: string
+          product_id?: string | null
+          shipping_address?: string | null
+          shipping_method: string
+          status?: string
+          total_price: number
+        }
+        Update: {
+          created_at?: string | null
+          customer_email?: string
+          customer_name?: string
+          customer_phone?: string | null
+          id?: string
+          paczkomat_code?: string | null
+          payment_method?: string
+          product_id?: string | null
+          shipping_address?: string | null
+          shipping_method?: string
+          status?: string
+          total_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          bag_included: boolean
+          box_included: boolean
+          brand: string
+          condition: string
+          condition_detail: string | null
+          created_at: string | null
+          drop_id: string | null
+          drop_scheduled_at: string | null
+          extras_description: string | null
+          id: string
+          images: string[]
+          insole_length_cm: number | null
+          level: string
+          model: string
+          name: string
+          original_price: number | null
+          price: number
+          size_eu: number
+          status: string
+          surface_type: string
+        }
+        Insert: {
+          bag_included?: boolean
+          box_included?: boolean
+          brand: string
+          condition: string
+          condition_detail?: string | null
+          created_at?: string | null
+          drop_id?: string | null
+          drop_scheduled_at?: string | null
+          extras_description?: string | null
+          id?: string
+          images?: string[]
+          insole_length_cm?: number | null
+          level: string
+          model: string
+          name: string
+          original_price?: number | null
+          price: number
+          size_eu: number
+          status?: string
+          surface_type: string
+        }
+        Update: {
+          bag_included?: boolean
+          box_included?: boolean
+          brand?: string
+          condition?: string
+          condition_detail?: string | null
+          created_at?: string | null
+          drop_id?: string | null
+          drop_scheduled_at?: string | null
+          extras_description?: string | null
+          id?: string
+          images?: string[]
+          insole_length_cm?: number | null
+          level?: string
+          model?: string
+          name?: string
+          original_price?: number | null
+          price?: number
+          size_eu?: number
+          status?: string
+          surface_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_drop_id_fkey"
+            columns: ["drop_id"]
+            isOneToOne: false
+            referencedRelation: "drops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      publish_due_drops: { Args: never; Returns: number }
     }
     Enums: {
       [_ in never]: never
