@@ -1,4 +1,4 @@
-
+import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { supabase, Product, Order, Drop, PRODUCT_LEVELS } from '@/lib/supabase';
 import { publishDueDrops } from '@/lib/drops';
@@ -50,7 +50,7 @@ interface DropForm {
 
 const EMPTY_DROP_FORM: DropForm = { name: '', description: '', scheduled_at: '' };
 
-export default function AdminPage() {
+function AdminPage() {
   const [authed, setAuthed] = useState(false);
   const [pwInput, setPwInput] = useState('');
   const [showPw, setShowPw] = useState(false);
@@ -894,3 +894,16 @@ function AdminNav({
     </>
   );
 }
+
+export const Route = createFileRoute('/admin')({
+  component: AdminPage,
+  head: () => ({
+    meta: [
+      { title: 'Panel administracyjny — FootBubr' },
+      { name: 'description', content: 'Zarządzanie produktami, dropami i zamówieniami sklepu FootBubr.' },
+      { name: 'robots', content: 'noindex, nofollow' },
+      { property: 'og:title', content: 'Panel administracyjny — FootBubr' },
+      { property: 'og:description', content: 'Zarządzanie produktami, dropami i zamówieniami FootBubr.' },
+    ],
+  }),
+});

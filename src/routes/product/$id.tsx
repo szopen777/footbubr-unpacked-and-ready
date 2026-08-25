@@ -1,18 +1,16 @@
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
 import { supabase, Product } from '@/lib/supabase';
 import Header from '@/components/Header';
 import CartDrawer from '@/components/CartDrawer';
 import { cn, formatPrice, SURFACE_LABELS, CONDITION_COLORS } from '@/lib/utils';
 import { ShoppingBag, ArrowLeft, AlertCircle, Package, CheckCircle2, XCircle, ChevronLeft, ChevronRight, Loader2, ZoomIn, Zap } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
-import { Link } from '@tanstack/react-router';
-import { useNavigate } from '@tanstack/react-router';
+import { Link, useNavigate, createFileRoute } from '@tanstack/react-router';
 import { toast } from 'sonner';
 
-export default function ProductPage() {
-  const params = useParams();
+function ProductPage() {
+  const { id } = Route.useParams();
   const navigate = useNavigate();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
@@ -27,13 +25,13 @@ export default function ProductPage() {
       const { data, error } = await supabase
         .from('products')
         .select('*')
-        .eq('id', params.id)
+        .eq('id', id)
         .maybeSingle();
       if (!error && data) setProduct(data as Product);
       setLoading(false);
     };
     fetch();
-  }, [params.id]);
+  }, [id]);
 
   if (loading) {
     return (
@@ -281,3 +279,15 @@ export default function ProductPage() {
     </div>
   );
 }
+
+export const Route = createFileRoute('/product/$id')({
+  component: ProductPage,
+  head: () => ({
+    meta: [
+      { title: 'Korki 1 of 1 — FootBubr' },
+      { name: 'description', content: 'Szczegóły unikatowej pary korków: rozmiar, stan, podeszwa i dodatki. Jedna sztuka — kto pierwszy, ten lepszy.' },
+      { property: 'og:title', content: 'Korki 1 of 1 — FootBubr' },
+      { property: 'og:description', content: 'Szczegóły unikatowej pary korków w dropie FootBubr.' },
+    ],
+  }),
+});

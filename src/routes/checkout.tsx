@@ -1,4 +1,4 @@
-
+import { createFileRoute } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useCart } from '@/lib/cart-context';
 import { supabase } from '@/lib/supabase';
@@ -8,7 +8,7 @@ import CartDrawer from '@/components/CartDrawer';
 import { ArrowLeft, Package, Truck, CreditCard, CheckCircle2, Loader2, MapPin, Tag, X, Check, AlertCircle } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 
-export default function CheckoutPage() {
+function CheckoutPage() {
   const { items, total, discountedTotal, discountAmount, promoCode, applyPromo, removePromo, clearCart } = useCart();
   const [step, setStep] = useState<'summary' | 'success'>('summary');
   const [submitting, setSubmitting] = useState(false);
@@ -382,3 +382,15 @@ export default function CheckoutPage() {
     </div>
   );
 }
+
+export const Route = createFileRoute('/checkout')({
+  component: CheckoutPage,
+  head: () => ({
+    meta: [
+      { title: 'Kasa — FootBubr' },
+      { name: 'description', content: 'Dokończ zamówienie korków FootBubr: wysyłka InPost lub kurier, BLIK, karta i Apple Pay.' },
+      { property: 'og:title', content: 'Kasa — FootBubr' },
+      { property: 'og:description', content: 'Dokończ zamówienie korków FootBubr.' },
+    ],
+  }),
+});

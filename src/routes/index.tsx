@@ -1,4 +1,4 @@
-
+import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState, useCallback } from 'react';
 import { supabase, Product, Drop } from '@/lib/supabase';
 import Header from '@/components/Header';
@@ -19,7 +19,7 @@ const DEFAULT_FILTERS: FilterState = {
   priceMax: '',
 };
 
-export default function HomePage() {
+function HomePage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -270,3 +270,15 @@ export default function HomePage() {
     </div>
   );
 }
+
+export const Route = createFileRoute('/')({
+  component: HomePage,
+  head: () => ({
+    meta: [
+      { title: 'FootBubr — unikatowe korki piłkarskie w dropach 1 of 1' },
+      { name: 'description', content: 'Resale korków piłkarskich 1-of-1: Nike, Adidas, Puma. Każda para to unikat — gdy sprzedana, znika na zawsze.' },
+      { property: 'og:title', content: 'FootBubr — unikatowe korki piłkarskie' },
+      { property: 'og:description', content: 'Dropy korków 1 of 1. Nike, Adidas, Puma i więcej. Wysyłka InPost lub kurier.' },
+    ],
+  }),
+});
