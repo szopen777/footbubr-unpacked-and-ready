@@ -254,10 +254,8 @@ function CheckoutPage() {
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {([
                   { value: 'blik', label: 'BLIK' },
-                  { value: 'card', label: 'Karta' },
-                  { value: 'apple_pay', label: 'Apple Pay' },
-                  { value: 'google_pay', label: 'Google Pay' },
                   { value: 'transfer', label: 'Szybki przelew' },
+                  { value: 'card', label: 'Karta' },
                 ] as const).map(({ value, label }) => (
                   <button
                     key={value}
@@ -268,10 +266,32 @@ function CheckoutPage() {
                   </button>
                 ))}
               </div>
+
+              {form.paymentMethod === 'blik' && (
+                <div className="mt-4 border border-[#FF6B00]/30 bg-[#FF6B00]/5 rounded-xl p-4 animate-fade-in">
+                  <p className="text-xs font-black uppercase tracking-widest text-[#FF6B00] mb-2">
+                    Kod BLIK
+                  </p>
+                  <input
+                    inputMode="numeric"
+                    maxLength={6}
+                    placeholder="000000"
+                    value={form.blikCode}
+                    onChange={(e) => setForm({ ...form, blikCode: e.target.value.replace(/\D/g, '').slice(0, 6) })}
+                    className="w-full bg-black/60 border-2 border-neutral-800 rounded-xl px-4 py-3 text-center font-mono text-2xl tracking-[0.5em] text-white placeholder:text-neutral-700 focus:outline-none focus:border-[#FF6B00]/70 transition-all"
+                  />
+                  {errors.blikCode && <p className="text-red-400 text-xs mt-2">{errors.blikCode}</p>}
+                  <p className="text-xs text-neutral-500 mt-2">
+                    Wpisz 6-cyfrowy kod z aplikacji bankowej, a następnie potwierdź płatność w telefonie.
+                  </p>
+                </div>
+              )}
+
               <p className="text-xs text-neutral-600 mt-3 flex items-center gap-1.5">
                 <CreditCard className="w-3.5 h-3.5" />
-                Płatność obsługiwana przez Stripe — środowisko testowe
+                Płatność w środowisku testowym — symulacja
               </p>
+
             </div>
           </div>
 
