@@ -20,8 +20,12 @@ function CheckoutPage() {
     shippingMethod: 'paczkomat' as 'paczkomat' | 'kurier',
     paczkomatCode: '',
     address: '',
-    paymentMethod: 'blik' as 'blik' | 'card' | 'apple_pay' | 'google_pay' | 'transfer',
+    postalCode: '',
+    city: '',
+    paymentMethod: 'blik' as 'blik' | 'card' | 'transfer',
+    blikCode: '',
   });
+  const [blikStep, setBlikStep] = useState<'idle' | 'waiting' | 'confirmed'>('idle');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [promoInput, setPromoInput] = useState('');
   const [promoStatus, setPromoStatus] = useState<'idle' | 'success' | 'error'>('idle');
@@ -34,7 +38,12 @@ function CheckoutPage() {
     if (!form.name.trim()) e.name = 'Imię i nazwisko jest wymagane';
     if (!form.email.trim() || !form.email.includes('@')) e.email = 'Podaj prawidłowy email';
     if (form.shippingMethod === 'paczkomat' && !form.paczkomatCode.trim()) e.paczkomatCode = 'Podaj kod paczkomatu';
-    if (form.shippingMethod === 'kurier' && !form.address.trim()) e.address = 'Podaj adres dostawy';
+    if (form.shippingMethod === 'kurier') {
+      if (!form.address.trim()) e.address = 'Podaj ulicę i numer';
+      if (!form.postalCode.trim()) e.postalCode = 'Podaj kod pocztowy';
+      if (!form.city.trim()) e.city = 'Podaj miasto';
+    }
+    if (form.paymentMethod === 'blik' && form.blikCode.length !== 6) e.blikCode = 'Kod BLIK musi mieć 6 cyfr';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -57,6 +66,14 @@ function CheckoutPage() {
     if (items.length === 0) return;
 
     setSubmitting(true);
+
+    if (form.paymentMethod === 'blik') {
+      setBlikStep('waiting');
+      await new Promise((r) => setTimeout(r, 2200));
+      setBlikStep('confirmed');
+      await new Promise((r) => setTimeout(r, 700));
+    }
+
     try {
       const orderIds: string[] = [];
       for (const { product } of items) {
@@ -81,7 +98,10 @@ function CheckoutPage() {
             customer_phone: form.phone || null,
             shipping_method: form.shippingMethod,
             paczkomat_code: form.shippingMethod === 'paczkomat' ? form.paczkomatCode : null,
-            shipping_address: form.shippingMethod === 'kurier' ? form.address : null,
+            shipping_address:
+              form.shippingMethod === 'kurier'
+                ? `${form.address}, ${form.postalCode} ${form.city}`
+                : null,
             payment_method: form.paymentMethod,
             total_price: itemTotal,
           })
@@ -103,6 +123,7 @@ function CheckoutPage() {
       // handle silently
     } finally {
       setSubmitting(false);
+      setBlikStep('idle');
     }
   };
 
@@ -148,6 +169,29 @@ function CheckoutPage() {
     <div className="min-h-screen">
       <Header />
       <CartDrawer />
+
+      {blikStep !== 'idle' && (
+        <div className="fixed inset-0 z-[100] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+          <div className="w-full max-w-sm bg-[#111] border-2 border-[#FF6B00]/40 rounded-2xl p-6 text-center shadow-[0_0_40px_rgba(255,107,0,0.2)]">
+            {blikStep === 'waiting' ? (
+              <>
+                <Loader2 className="w-10 h-10 text-[#FF6B00] animate-spin mx-auto mb-4" />
+                <h3 className="text-white font-black uppercase tracking-tight text-lg">Potwierdź w aplikacji banku</h3>
+                <p className="text-neutral-400 text-sm mt-2">
+                  Wysłaliśmy żądanie BLIK dla kodu <span className="font-mono text-white">{form.blikCode}</span>.
+                  Zatwierdź płatność w telefonie.
+                </p>
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto mb-4 animate-scale-in" />
+                <h3 className="text-white font-black uppercase tracking-tight text-lg">Płatność potwierdzona</h3>
+                <p className="text-neutral-400 text-sm mt-2">BLIK zaakceptowany — finalizujemy zamówienie.</p>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="max-w-5xl mx-auto px-3 sm:px-4 lg:px-8 py-6 sm:py-8">
         <div className="flex items-center gap-3 mb-6 sm:mb-8 animate-fade-in">
@@ -210,7 +254,7 @@ function CheckoutPage() {
                   </div>
                   <Truck className="w-4 h-4 text-neutral-400 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-white">Kurier (DPD / InPost / DHL)</p>
+                    <p className="text-sm font-semibold text-white">Kurier InPost</p>
                     <p className="text-xs text-neutral-500 hidden sm:block">Dostawa pod adres</p>
                   </div>
                   <span className="text-sm font-bold text-white flex-shrink-0">18 zł</span>
@@ -232,14 +276,36 @@ function CheckoutPage() {
                 )}
 
                 {form.shippingMethod === 'kurier' && (
-                  <div className="animate-fade-in">
-                    <input
-                      className={inp}
-                      placeholder="Ulica, nr domu, kod pocztowy, miasto *"
-                      value={form.address}
-                      onChange={(e) => setForm({ ...form, address: e.target.value })}
-                    />
-                    {errors.address && <p className="text-red-400 text-xs mt-1">{errors.address}</p>}
+                  <div className="animate-fade-in space-y-2">
+                    <div>
+                      <input
+                        className={inp}
+                        placeholder="Ulica i numer domu / lokalu *"
+                        value={form.address}
+                        onChange={(e) => setForm({ ...form, address: e.target.value })}
+                      />
+                      {errors.address && <p className="text-red-400 text-xs mt-1">{errors.address}</p>}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <input
+                          className={inp}
+                          placeholder="Kod pocztowy *"
+                          value={form.postalCode}
+                          onChange={(e) => setForm({ ...form, postalCode: e.target.value })}
+                        />
+                        {errors.postalCode && <p className="text-red-400 text-xs mt-1">{errors.postalCode}</p>}
+                      </div>
+                      <div>
+                        <input
+                          className={inp}
+                          placeholder="Miasto *"
+                          value={form.city}
+                          onChange={(e) => setForm({ ...form, city: e.target.value })}
+                        />
+                        {errors.city && <p className="text-red-400 text-xs mt-1">{errors.city}</p>}
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -254,10 +320,8 @@ function CheckoutPage() {
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {([
                   { value: 'blik', label: 'BLIK' },
-                  { value: 'card', label: 'Karta' },
-                  { value: 'apple_pay', label: 'Apple Pay' },
-                  { value: 'google_pay', label: 'Google Pay' },
                   { value: 'transfer', label: 'Szybki przelew' },
+                  { value: 'card', label: 'Karta' },
                 ] as const).map(({ value, label }) => (
                   <button
                     key={value}
@@ -268,10 +332,32 @@ function CheckoutPage() {
                   </button>
                 ))}
               </div>
+
+              {form.paymentMethod === 'blik' && (
+                <div className="mt-4 border border-[#FF6B00]/30 bg-[#FF6B00]/5 rounded-xl p-4 animate-fade-in">
+                  <p className="text-xs font-black uppercase tracking-widest text-[#FF6B00] mb-2">
+                    Kod BLIK
+                  </p>
+                  <input
+                    inputMode="numeric"
+                    maxLength={6}
+                    placeholder="000000"
+                    value={form.blikCode}
+                    onChange={(e) => setForm({ ...form, blikCode: e.target.value.replace(/\D/g, '').slice(0, 6) })}
+                    className="w-full bg-black/60 border-2 border-neutral-800 rounded-xl px-4 py-3 text-center font-mono text-2xl tracking-[0.5em] text-white placeholder:text-neutral-700 focus:outline-none focus:border-[#FF6B00]/70 transition-all"
+                  />
+                  {errors.blikCode && <p className="text-red-400 text-xs mt-2">{errors.blikCode}</p>}
+                  <p className="text-xs text-neutral-500 mt-2">
+                    Wpisz 6-cyfrowy kod z aplikacji bankowej, a następnie potwierdź płatność w telefonie.
+                  </p>
+                </div>
+              )}
+
               <p className="text-xs text-neutral-600 mt-3 flex items-center gap-1.5">
                 <CreditCard className="w-3.5 h-3.5" />
-                Płatność obsługiwana przez Stripe — środowisko testowe
+                Płatność w środowisku testowym — symulacja
               </p>
+
             </div>
           </div>
 
