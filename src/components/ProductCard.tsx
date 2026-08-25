@@ -43,7 +43,7 @@ export default function ProductCard({ product }: ProductCardProps) {
       )}
     >
       {/* Image */}
-      <Link to={`/product/${product.id}`} className="block relative aspect-square overflow-hidden bg-[#1a1a1a]">
+      <Link to="/product/$id" params={{ id: product.id }} className="block relative aspect-square overflow-hidden bg-[#1a1a1a]">
         {product.images[0] ? (
           <img
             src={product.images[0]}

@@ -1,12 +1,26 @@
 'use client';
-
+import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import Header from '@/components/Header';
-import { supabase, Product } from '@/lib/supabase';
+import { supabase, type Product } from '@/lib/supabase';
 import { Archive, Lock, CheckCircle2 } from 'lucide-react';
 
+export const Route = createFileRoute('/archive')({
+  component: ArchivePage,
+  head: () => ({
+    meta: [
+      { title: 'Archiwum dropów — FootBubr' },
+      {
+        name: 'description',
+        content: 'Sprzedane korki 1-of-1 z minionych dropów FootBubr. Grail Vault z historycznymi parami.',
+      },
+      { property: 'og:title', content: 'Archiwum dropów — FootBubr' },
+      { property: 'og:description', content: 'Sprzedane korki 1-of-1 z minionych dropów FootBubr.' },
+    ],
+  }),
+});
 
-export default function ArchivePage() {
+function ArchivePage() {
   const [soldProducts, setSoldProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
