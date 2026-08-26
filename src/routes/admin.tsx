@@ -207,9 +207,14 @@ function AdminPage() {
   const handleStatusChange = async (id: string, status: string) => {
     const updates: ProductUpdate = { status };
     if (status !== 'draft') updates.drop_scheduled_at = null;
-    await supabase.from('products').update(updates).eq('id', id);
+    if (status === 'archived') updates.drop_id = null;
+    const { error } = await supabase.from('products').update(updates).eq('id', id).select('id');
     await loadProducts();
-    showToast('Status zaktualizowany');
+    if (error) {
+      showToast(`Nie udało się zapisać statusu: ${error.message}`);
+      return;
+    }
+    showToast(status === 'archived' ? 'Produkt przeniesiony do archiwum' : 'Status zaktualizowany');
   };
 
   const handlePublishAllDrafts = async () => {

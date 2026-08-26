@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { Flame, Bell, Check, Loader2, Smartphone, Mail } from 'lucide-react';
+import { Flame, Bell, Check, Loader2, Mail } from 'lucide-react';
 import { Drop, supabase } from '@/lib/supabase';
 
 export interface Countdown {
@@ -61,35 +61,29 @@ export default function DropCountdownBanner({ drop, pairCount, countdown }: Drop
 
   const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!contactValue.trim()) return;
+    const email = contactValue.trim();
+    if (!email || !email.includes('@')) return;
 
     setLoading(true);
-    const isEmail = contactValue.includes('@');
 
     try {
-      if (supabase) {
-        await supabase.from('drop_alerts').insert([
-          {
-            drop_id: drop?.id || null,
-            contact: contactValue.trim(),
-            type: isEmail ? 'email' : 'phone',
-            created_at: new Date().toISOString(),
-          },
-        ]);
-      }
+      await supabase.from('drop_alerts').insert([
+        {
+          drop_id: drop?.id || null,
+          contact: email,
+          type: 'email',
+          created_at: new Date().toISOString(),
+        },
+      ]);
     } catch {
-      // Fallback do localStorage jeśli tabela w Supabase nie jest jeszcze utworzona
+      // Fallback do localStorage jeśli baza jest chwilowo niedostępna
       const stored = JSON.parse(localStorage.getItem('footbubr_alerts') || '[]');
-      stored.push({ contact: contactValue, drop_id: drop?.id, date: new Date().toISOString() });
+      stored.push({ contact: email, drop_id: drop?.id, date: new Date().toISOString() });
       localStorage.setItem('footbubr_alerts', JSON.stringify(stored));
     } finally {
       setLoading(false);
       setSubscribed(true);
-      setToastMessage(
-        isEmail
-          ? '🔥 ZAPISANO! Powiadomienie wyślemy przed startem dropu.'
-          : '🔥 ZAPISANO SMS! Dostaniesz cynk tuż przed dropem.'
-      );
+      setToastMessage('🔥 ZAPISANO! Powiadomienie wyślemy przed startem dropu.');
       setTimeout(() => setToastMessage(null), 5000);
     }
   };
@@ -162,11 +156,11 @@ export default function DropCountdownBanner({ drop, pairCount, countdown }: Drop
                     <Mail className="w-4 h-4" />
                   </div>
                   <input
-                    type="text"
+                    type="email"
                     required
                     value={contactValue}
                     onChange={(e) => setContactValue(e.target.value)}
-                    placeholder="E-mail lub numer telefonu..."
+                    placeholder="Twój e-mail..."
                     className="w-full pl-9 pr-3 py-2.5 bg-white border-2 border-black font-mono text-xs sm:text-sm font-bold placeholder:text-black/50 text-black outline-none focus:shadow-[3px_3px_0_0_#000]"
                   />
                 </div>

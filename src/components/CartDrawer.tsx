@@ -1,7 +1,8 @@
 
 import { useCart } from '@/lib/cart-context';
-import { X, ShoppingBag, ArrowRight, Trash2 } from 'lucide-react';
+import { X, ShoppingBag, ArrowRight, Trash2, Truck } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
+import { FREE_SHIPPING_THRESHOLD } from '@/lib/shipping';
 import { Link } from '@tanstack/react-router';
 
 export default function CartDrawer() {
@@ -73,6 +74,30 @@ export default function CartDrawer() {
         {/* Footer */}
         {items.length > 0 && (
           <div className="px-4 sm:px-6 py-4 border-t border-neutral-800 space-y-3">
+            {/* Pasek postępu darmowej dostawy */}
+            <div className="bg-white/5 border border-neutral-800 rounded-xl px-3 py-2.5">
+              {discountedTotal >= FREE_SHIPPING_THRESHOLD ? (
+                <p className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                  <Truck className="w-3.5 h-3.5" />
+                  Masz DARMOWĄ dostawę!
+                </p>
+              ) : (
+                <p className="text-xs text-neutral-400">
+                  Do darmowej dostawy brakuje{' '}
+                  <span className="text-[#FF6B00] font-bold">
+                    {formatPrice(FREE_SHIPPING_THRESHOLD - discountedTotal)}
+                  </span>
+                </p>
+              )}
+              <div className="mt-2 h-1.5 w-full bg-neutral-800 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-[#FF6B00] rounded-full transition-all duration-500"
+                  style={{
+                    width: `${Math.min(100, (discountedTotal / FREE_SHIPPING_THRESHOLD) * 100)}%`,
+                  }}
+                />
+              </div>
+            </div>
             {discountAmount > 0 && promoCode && (
               <div className="flex items-center justify-between text-sm">
                 <span className="text-emerald-400">Rabat (-10%)</span>

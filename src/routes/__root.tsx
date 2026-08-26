@@ -13,6 +13,8 @@ import { Toaster } from "sonner";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { CartProvider } from "../lib/cart-context";
+import TopAnnouncementBar from "../components/TopAnnouncementBar";
+import Footer from "../components/Footer";
 
 function NotFoundComponent() {
   return (
@@ -137,8 +139,10 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <CartProvider>
+        <TopAnnouncementBar />
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
+        <Footer />
         <Toaster
           position="bottom-center"
           theme="dark"
