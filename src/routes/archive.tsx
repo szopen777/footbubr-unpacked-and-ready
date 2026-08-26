@@ -3,7 +3,7 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import Header from '@/components/Header';
 import { supabase, type Product } from '@/lib/supabase';
-import { Archive, Lock, CheckCircle2 } from 'lucide-react';
+import { Archive, Lock, CircleCheck as CheckCircle2 } from 'lucide-react';
 
 export const Route = createFileRoute('/archive')({
   component: ArchivePage,
@@ -31,7 +31,7 @@ function ArchivePage() {
           const { data, error } = await supabase
             .from('products')
             .select('*')
-            .eq('status', 'archived')
+            .eq('status', 'sold')
             .order('created_at', { ascending: false });
 
           if (!error && data) {

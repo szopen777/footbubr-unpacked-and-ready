@@ -6,7 +6,7 @@ import CartDrawer from '@/components/CartDrawer';
 import ProductCard from '@/components/ProductCard';
 import FilterSidebar, { FilterState, SortOption } from '@/components/FilterSidebar';
 import DropCountdownBanner, { Countdown, calculateCountdown } from '@/components/DropCountdownBanner';
-import { Zap, Package2, ShieldCheck, Loader2, ChevronDown } from 'lucide-react';
+import { Zap, Package2, ShieldCheck, Loader as Loader2, ChevronDown } from 'lucide-react';
 import { publishDueDrops } from '@/lib/drops';
 
 const DEFAULT_FILTERS: FilterState = {
@@ -35,7 +35,7 @@ function HomePage() {
     const { data, error } = await supabase
       .from('products')
       .select('*')
-      .in('status', ['available', 'sold'])
+      .eq('status', 'available')
       .order('created_at', { ascending: false });
 
     if (!error && data) setProducts(data as Product[]);
@@ -146,9 +146,7 @@ function HomePage() {
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
 
-  const available = filtered.filter((p) => p.status === 'available');
-  const sold = filtered.filter((p) => p.status === 'sold');
-  const allShown = [...available, ...sold];
+  const allShown = filtered;
 
   const sortOptions = [
     { value: 'newest', label: 'Najnowsze' },

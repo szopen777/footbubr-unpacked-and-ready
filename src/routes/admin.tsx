@@ -3,10 +3,7 @@ import { useEffect, useState } from 'react';
 import { supabase, Product, Order, Drop, PRODUCT_LEVELS } from '@/lib/supabase';
 import { publishDueDrops } from '@/lib/drops';
 import { formatPrice, INPUT_CLASS, SELECT_CLASS, cn } from '@/lib/utils';
-import {
-  Package, ShoppingCart, LogOut, Eye, EyeOff, Loader2,
-  Trash2, Edit2, X, Check, AlertCircle, ArrowLeft, ChevronDown, Zap, Calendar, Menu, Sparkles,
-} from 'lucide-react';
+import { Package, ShoppingCart, LogOut, Eye, EyeOff, Loader as Loader2, Trash2, CreditCard as Edit2, X, Check, CircleAlert as AlertCircle, ArrowLeft, ChevronDown, Zap, Calendar, Menu, Sparkles } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -151,7 +148,7 @@ function AdminPage() {
       box_included: form.box_included,
       bag_included: form.bag_included,
       extras_description: form.extras_description || null,
-      status: form.status,
+      status: form.status === 'archived' ? 'sold' : form.status,
     };
 
     const assignedDropId = form.drop_id && form.drop_id !== 'none' ? form.drop_id : null;
@@ -205,7 +202,10 @@ function AdminPage() {
   };
 
   const handleStatusChange = async (id: string, status: string) => {
-    const updates: ProductUpdate = { status };
+    // 'archived' is a UI-only label — the DB only allows available/sold/draft,
+    // so we persist 'sold' and treat it as archived in the archive page.
+    const dbStatus = status === 'archived' ? 'sold' : status;
+    const updates: ProductUpdate = { status: dbStatus };
     if (status !== 'draft') updates.drop_scheduled_at = null;
     if (status === 'archived') updates.drop_id = null;
     const { error } = await supabase.from('products').update(updates).eq('id', id).select('id');
