@@ -1,7 +1,8 @@
 
 import { useCart } from '@/lib/cart-context';
-import { X, ShoppingBag, ArrowRight, Trash2 } from 'lucide-react';
+import { X, ShoppingBag, ArrowRight, Trash2, Truck } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
+import { FREE_SHIPPING_THRESHOLD } from '@/lib/shipping';
 import { Link } from '@tanstack/react-router';
 
 export default function CartDrawer() {
