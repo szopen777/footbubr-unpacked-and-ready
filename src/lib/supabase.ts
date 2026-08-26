@@ -48,6 +48,7 @@ export interface Product {
 
 export interface Order {
   id: string;
+  order_number: number | null;
   product_id: string;
   customer_name: string;
   customer_email: string;
@@ -58,7 +59,16 @@ export interface Order {
   payment_method: 'blik' | 'card' | 'apple_pay' | 'google_pay' | 'transfer';
   status: 'pending' | 'paid' | 'shipped' | 'completed' | 'cancelled';
   total_price: number;
+  tracking_number: string | null;
   created_at: string;
+}
+
+export function formatOrderNumber(order: Order): string {
+  if (!order.order_number) return `#${order.id.slice(0, 8).toUpperCase()}`;
+  const year = order.created_at
+    ? new Date(order.created_at).getFullYear()
+    : new Date().getFullYear();
+  return `#FB-${year}-${String(order.order_number).padStart(3, '0')}`;
 }
 
 export const PRODUCT_LEVELS: { value: ProductLevel; label: string }[] = [

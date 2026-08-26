@@ -8,6 +8,7 @@ import FilterSidebar, { FilterState, SortOption } from '@/components/FilterSideb
 import DropCountdownBanner, { Countdown, calculateCountdown } from '@/components/DropCountdownBanner';
 import { Zap, Package2, ShieldCheck, Loader as Loader2, ChevronDown } from 'lucide-react';
 import { publishDueDrops } from '@/lib/drops';
+import HeroDropPanel from '@/components/HeroDropPanel';
 
 const DEFAULT_FILTERS: FilterState = {
   sizes: [],

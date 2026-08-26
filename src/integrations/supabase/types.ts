@@ -80,6 +80,7 @@ export type Database = {
           customer_name: string
           customer_phone: string | null
           id: string
+          order_number: number | null
           paczkomat_code: string | null
           payment_method: string
           product_id: string | null
@@ -87,6 +88,7 @@ export type Database = {
           shipping_method: string
           status: string
           total_price: number
+          tracking_number: string | null
         }
         Insert: {
           created_at?: string | null
@@ -94,6 +96,7 @@ export type Database = {
           customer_name: string
           customer_phone?: string | null
           id?: string
+          order_number?: number | null
           paczkomat_code?: string | null
           payment_method: string
           product_id?: string | null
@@ -101,6 +104,7 @@ export type Database = {
           shipping_method: string
           status?: string
           total_price: number
+          tracking_number?: string | null
         }
         Update: {
           created_at?: string | null
@@ -108,6 +112,7 @@ export type Database = {
           customer_name?: string
           customer_phone?: string | null
           id?: string
+          order_number?: number | null
           paczkomat_code?: string | null
           payment_method?: string
           product_id?: string | null
@@ -115,6 +120,7 @@ export type Database = {
           shipping_method?: string
           status?: string
           total_price?: number
+          tracking_number?: string | null
         }
         Relationships: [
           {
