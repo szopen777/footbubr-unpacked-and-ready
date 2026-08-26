@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { Flame, Bell, Check, Loader2, Smartphone, Mail } from 'lucide-react';
+import { Flame, Bell, Check, Loader2, Mail } from 'lucide-react';
 import { Drop, supabase } from '@/lib/supabase';
 
 export interface Countdown {
