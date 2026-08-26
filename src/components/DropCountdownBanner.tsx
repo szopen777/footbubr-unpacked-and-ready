@@ -156,11 +156,11 @@ export default function DropCountdownBanner({ drop, pairCount, countdown }: Drop
                     <Mail className="w-4 h-4" />
                   </div>
                   <input
-                    type="text"
+                    type="email"
                     required
                     value={contactValue}
                     onChange={(e) => setContactValue(e.target.value)}
-                    placeholder="E-mail lub numer telefonu..."
+                    placeholder="Twój e-mail..."
                     className="w-full pl-9 pr-3 py-2.5 bg-white border-2 border-black font-mono text-xs sm:text-sm font-bold placeholder:text-black/50 text-black outline-none focus:shadow-[3px_3px_0_0_#000]"
                   />
                 </div>
