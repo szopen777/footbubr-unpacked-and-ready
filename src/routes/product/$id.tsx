@@ -4,10 +4,11 @@ import { supabase, Product } from '@/lib/supabase';
 import Header from '@/components/Header';
 import CartDrawer from '@/components/CartDrawer';
 import { cn, formatPrice, SURFACE_LABELS, CONDITION_COLORS } from '@/lib/utils';
-import { ShoppingBag, ArrowLeft, AlertCircle, Package, CheckCircle2, XCircle, ChevronLeft, ChevronRight, Loader2, ZoomIn, Zap } from 'lucide-react';
+import { ShoppingBag, ArrowLeft, CircleAlert as AlertCircle, Package, CircleCheck as CheckCircle2, Circle as XCircle, ChevronLeft, ChevronRight, Loader as Loader2, ZoomIn, Zap, Ruler, ShieldCheck, Truck, Lock } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
 import { Link, useNavigate, createFileRoute } from '@tanstack/react-router';
 import { toast } from 'sonner';
+import SizeChartModal from '@/components/SizeChartModal';
 
 function ProductPage() {
   const { id } = Route.useParams();
@@ -16,6 +17,7 @@ function ProductPage() {
   const [loading, setLoading] = useState(true);
   const [activeImage, setActiveImage] = useState(0);
   const [zoomed, setZoomed] = useState(false);
+  const [showSizeChart, setShowSizeChart] = useState(false);
   const { addItem, addItemSilent, items } = useCart();
 
   const inCart = product ? items.some((i) => i.product.id === product.id) : false;
@@ -190,6 +192,15 @@ function ProductPage() {
                   </span>
                 )}
               </div>
+
+              {/* Size chart button */}
+              <button
+                onClick={() => setShowSizeChart(true)}
+                className="flex items-center gap-2 text-sm text-neutral-400 hover:text-[#FF6B00] transition-colors mt-3 active:scale-95"
+              >
+                <Ruler className="w-4 h-4" />
+                Tabela rozmiarów (EU → CM)
+              </button>
             </div>
 
             {/* Specs table */}
@@ -273,9 +284,29 @@ function ProductPage() {
                 </button>
               </div>
             )}
+
+            {/* Trust badges */}
+            {!isSold && (
+              <div className="grid grid-cols-3 gap-2 sm:gap-3 mt-1">
+                <div className="flex flex-col items-center gap-1.5 bg-[#141414] border border-neutral-800/80 rounded-xl px-2 py-3 text-center">
+                  <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                  <span className="text-[10px] sm:text-xs font-semibold text-neutral-300 leading-tight">100% Oryginał</span>
+                </div>
+                <div className="flex flex-col items-center gap-1.5 bg-[#141414] border border-neutral-800/80 rounded-xl px-2 py-3 text-center">
+                  <Truck className="w-5 h-5 text-[#FF6B00]" />
+                  <span className="text-[10px] sm:text-xs font-semibold text-neutral-300 leading-tight">Paczkomat 24h</span>
+                </div>
+                <div className="flex flex-col items-center gap-1.5 bg-[#141414] border border-neutral-800/80 rounded-xl px-2 py-3 text-center">
+                  <Lock className="w-5 h-5 text-blue-400" />
+                  <span className="text-[10px] sm:text-xs font-semibold text-neutral-300 leading-tight">Bezpieczny BLIK</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
+
+      <SizeChartModal open={showSizeChart} onClose={() => setShowSizeChart(false)} highlightEu={product.size_eu} />
     </div>
   );
 }

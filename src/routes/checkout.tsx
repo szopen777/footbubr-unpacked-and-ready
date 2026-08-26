@@ -3,9 +3,10 @@ import { useState } from 'react';
 import { useCart } from '@/lib/cart-context';
 import { supabase } from '@/lib/supabase';
 import { formatPrice, INPUT_CLASS } from '@/lib/utils';
+import { shippingCostFor, FREE_SHIPPING_THRESHOLD } from '@/lib/shipping';
 import Header from '@/components/Header';
 import CartDrawer from '@/components/CartDrawer';
-import { ArrowLeft, Package, Truck, CreditCard, CheckCircle2, Loader2, MapPin, Tag, X, Check, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Package, Truck, CreditCard, CircleCheck as CheckCircle2, Loader as Loader2, MapPin, Tag, X, Check, CircleAlert as AlertCircle } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 
 function CheckoutPage() {
@@ -14,7 +15,8 @@ function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [orderId, setOrderId] = useState('');
   const [form, setForm] = useState({
-    name: '',
+    firstName: '',
+    lastName: '',
     email: '',
     phone: '',
     shippingMethod: 'paczkomat' as 'paczkomat' | 'kurier',
@@ -30,13 +32,15 @@ function CheckoutPage() {
   const [promoInput, setPromoInput] = useState('');
   const [promoStatus, setPromoStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
-  const shippingCost = form.shippingMethod === 'paczkomat' ? 12 : 18;
+  const shippingCost = shippingCostFor(form.shippingMethod, discountedTotal);
   const orderTotal = discountedTotal + shippingCost;
 
   const validate = () => {
     const e: Record<string, string> = {};
-    if (!form.name.trim()) e.name = 'Imię i nazwisko jest wymagane';
+    if (!form.firstName.trim()) e.firstName = 'Imię jest wymagane';
+    if (!form.lastName.trim()) e.lastName = 'Nazwisko jest wymagane';
     if (!form.email.trim() || !form.email.includes('@')) e.email = 'Podaj prawidłowy email';
+    if (!form.phone.trim()) e.phone = 'Numer telefonu jest wymagany';
     if (form.shippingMethod === 'paczkomat' && !form.paczkomatCode.trim()) e.paczkomatCode = 'Podaj kod paczkomatu';
     if (form.shippingMethod === 'kurier') {
       if (!form.address.trim()) e.address = 'Podaj ulicę i numer';
@@ -93,7 +97,7 @@ function CheckoutPage() {
           .from('orders')
           .insert({
             product_id: product.id,
-            customer_name: form.name,
+            customer_name: `${form.firstName} ${form.lastName}`,
             customer_email: form.email,
             customer_phone: form.phone || null,
             shipping_method: form.shippingMethod,
@@ -211,15 +215,24 @@ function CheckoutPage() {
                 Dane kontaktowe
               </h2>
               <div className="space-y-3">
-                <div>
-                  <input className={inp} placeholder="Imię i nazwisko *" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-                  {errors.name && <p className="text-red-400 text-xs mt-1">{errors.name}</p>}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <input className={inp} placeholder="Imię *" value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} />
+                    {errors.firstName && <p className="text-red-400 text-xs mt-1">{errors.firstName}</p>}
+                  </div>
+                  <div>
+                    <input className={inp} placeholder="Nazwisko *" value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} />
+                    {errors.lastName && <p className="text-red-400 text-xs mt-1">{errors.lastName}</p>}
+                  </div>
                 </div>
                 <div>
                   <input className={inp} placeholder="Adres email *" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
                   {errors.email && <p className="text-red-400 text-xs mt-1">{errors.email}</p>}
                 </div>
-                <input className={inp} placeholder="Numer telefonu (opcjonalnie)" type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+                <div>
+                  <input className={inp} placeholder="Numer telefonu *" type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+                  {errors.phone && <p className="text-red-400 text-xs mt-1">{errors.phone}</p>}
+                </div>
               </div>
             </div>
 
@@ -242,7 +255,7 @@ function CheckoutPage() {
                     <p className="text-sm font-semibold text-white">Paczkomat InPost</p>
                     <p className="text-xs text-neutral-500 hidden sm:block">Dostawa do paczkomatu</p>
                   </div>
-                  <span className="text-sm font-bold text-white flex-shrink-0">12 zł</span>
+                  <span className="text-sm font-bold text-white flex-shrink-0">{formatPrice(shippingCostFor('paczkomat', discountedTotal))}</span>
                 </label>
 
                 <label
@@ -257,7 +270,7 @@ function CheckoutPage() {
                     <p className="text-sm font-semibold text-white">Kurier InPost</p>
                     <p className="text-xs text-neutral-500 hidden sm:block">Dostawa pod adres</p>
                   </div>
-                  <span className="text-sm font-bold text-white flex-shrink-0">18 zł</span>
+                  <span className="text-sm font-bold text-white flex-shrink-0">{formatPrice(shippingCostFor('kurier', discountedTotal))}</span>
                 </label>
 
                 {form.shippingMethod === 'paczkomat' && (
@@ -441,8 +454,13 @@ function CheckoutPage() {
                 )}
                 <div className="flex justify-between text-sm">
                   <span className="text-neutral-500">Wysyłka</span>
-                  <span className="text-white">{formatPrice(shippingCost)}</span>
+                  <span className="text-white">{shippingCost === 0 ? <span className="text-emerald-400 font-bold">DARMOWA</span> : formatPrice(shippingCost)}</span>
                 </div>
+                {discountedTotal < FREE_SHIPPING_THRESHOLD && (
+                  <p className="text-xs text-neutral-600 pt-1">
+                    Darmowa dostawa od {formatPrice(FREE_SHIPPING_THRESHOLD)} — brakuje {formatPrice(FREE_SHIPPING_THRESHOLD - discountedTotal)}
+                  </p>
+                )}
                 <div className="flex justify-between font-bold mt-3 pt-3 border-t border-neutral-800">
                   <span className="text-white">Razem</span>
                   <div className="text-right">
