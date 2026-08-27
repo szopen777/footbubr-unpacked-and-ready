@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
-import { supabase, Product, Order, Drop, DropSettings, PRODUCT_LEVELS, formatOrderNumber } from '@/lib/supabase';
-import { publishDueDrops } from '@/lib/drops';
+import { supabase, Product, Order, DropSettings, PRODUCT_LEVELS, formatOrderNumber } from '@/lib/supabase';
+
 import { formatPrice, INPUT_CLASS, SELECT_CLASS, cn } from '@/lib/utils';
 import { Package, ShoppingCart, LogOut, Eye, EyeOff, Loader as Loader2, Trash2, CreditCard as Edit2, X, Check, CircleAlert as AlertCircle, ArrowLeft, ChevronDown, Zap, Calendar, Menu, Sparkles, Copy, Truck, Phone as PhoneIcon, MapPin } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
@@ -43,14 +43,6 @@ const EMPTY_FORM: ProductForm = {
   drop_scheduled_at: '', drop_id: '',
 };
 
-interface DropForm {
-  name: string;
-  description: string;
-  scheduled_at: string;
-}
-
-const EMPTY_DROP_FORM: DropForm = { name: '', description: '', scheduled_at: '' };
-
 function AdminPage() {
   const [authed, setAuthed] = useState(false);
   const [pwInput, setPwInput] = useState('');
@@ -59,7 +51,6 @@ function AdminPage() {
   const [view, setView] = useState<View>('products');
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<(Order & { product?: Product })[]>([]);
-  const [drops, setDrops] = useState<Drop[]>([]);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState<ProductForm>(EMPTY_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -67,9 +58,6 @@ function AdminPage() {
   const [toast, setToast] = useState('');
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [publishing, setPublishing] = useState(false);
-  const [showDropModal, setShowDropModal] = useState(false);
-  const [dropForm, setDropForm] = useState<DropForm>(EMPTY_DROP_FORM);
-  const [savingDrop, setSavingDrop] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showProductModal, setShowProductModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<(Order & { product?: Product }) | null>(null);
@@ -168,11 +156,6 @@ function AdminPage() {
     setLoading(false);
   };
 
-  const loadDrops = async () => {
-    const { data } = await supabase.from('drops').select('*').order('scheduled_at', { ascending: true });
-    if (data) setDrops(data as Drop[]);
-  };
-
   const loadDropSettings = async () => {
     const { data } = await supabase
       .from('drop_settings')
@@ -213,25 +196,16 @@ function AdminPage() {
       showToast(`Błąd zapisu ustawień: ${error.message}`);
       return;
     }
-    showToast('Ustawienia dropu zapisane');
+    showToast('Data dropu zapisana');
     await loadDropSettings();
   };
 
   useEffect(() => {
     if (!authed) return;
     const boot = async () => {
-      await publishDueDrops();
-      await Promise.all([loadProducts(), loadOrders(), loadDrops(), loadDropSettings()]);
+      await Promise.all([loadProducts(), loadOrders(), loadDropSettings()]);
     };
     boot();
-    const interval = setInterval(async () => {
-      const changed = await publishDueDrops();
-      if (changed) {
-        await loadProducts();
-        await loadDrops();
-      }
-    }, 15000);
-    return () => clearInterval(interval);
   }, [authed]);
 
   const handleLogin = () => {
@@ -359,43 +333,6 @@ function AdminPage() {
     }
   };
 
-  const handleCreateDrop = async () => {
-    if (!dropForm.name || !dropForm.scheduled_at) return;
-    setSavingDrop(true);
-    const { data, error } = await supabase
-      .from('drops')
-      .insert({
-        name: dropForm.name,
-        description: dropForm.description || null,
-        scheduled_at: new Date(dropForm.scheduled_at).toISOString(),
-        status: 'scheduled',
-      })
-      .select('id')
-      .maybeSingle();
-
-    if (!error && data) {
-      showToast('Drop zaplanowany');
-      setDropForm(EMPTY_DROP_FORM);
-      setShowDropModal(false);
-      await loadDrops();
-    }
-    setSavingDrop(false);
-  };
-
-  const handleDeleteDrop = async (id: string) => {
-    if (!confirm('Usunąć ten drop? Przypisane produkty zostaną bez dropu.')) return;
-    await supabase.from('drops').delete().eq('id', id);
-    await loadDrops();
-    showToast('Drop usunięty');
-  };
-
-  const scheduledDrops = drops.filter((d) => d.status === 'scheduled');
-  const dropNameById = (id: string | null) => {
-    if (!id) return null;
-    const d = drops.find((d) => d.id === id);
-    return d ? d.name : null;
-  };
-
   const inp = INPUT_CLASS;
   const sel = SELECT_CLASS;
 
@@ -484,71 +421,6 @@ function AdminPage() {
         </>
       )}
 
-      {/* Schedule drop modal */}
-      {showDropModal && (
-        <>
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 animate-backdrop-in" onClick={() => setShowDropModal(false)} />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
-            <div className="bg-[#141414] border border-neutral-800 rounded-2xl p-6 max-w-md w-full animate-scale-in pointer-events-auto">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-blue-500/15 border border-blue-500/30 rounded-xl flex items-center justify-center">
-                  <Calendar className="w-5 h-5 text-blue-400" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-white">Zaplanuj drop</h3>
-                  <p className="text-xs text-neutral-500">Utwórz nazwany drop event</p>
-                </div>
-              </div>
-              <div className="space-y-3 mb-6">
-                <div>
-                  <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5 block">Nazwa Dropu</label>
-                  <input
-                    className={inp}
-                    placeholder="DROP #01: VINTAGE MERCURIALS & PREDATORS"
-                    value={dropForm.name}
-                    onChange={(e) => setDropForm({ ...dropForm, name: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5 block">Data i Godzina publikacji</label>
-                  <input
-                    type="datetime-local"
-                    className={`${inp} [&::-webkit-calendar-picker-indicator]:invert`}
-                    value={dropForm.scheduled_at}
-                    onChange={(e) => setDropForm({ ...dropForm, scheduled_at: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5 block">Krótki opis / zajawka</label>
-                  <textarea
-                    className={`${inp} resize-none`}
-                    rows={2}
-                    placeholder="10 unikatowych par w wersji Elite"
-                    value={dropForm.description}
-                    onChange={(e) => setDropForm({ ...dropForm, description: e.target.value })}
-                  />
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={handleCreateDrop}
-                  disabled={savingDrop || !dropForm.name || !dropForm.scheduled_at}
-                  className="flex-1 bg-blue-500 hover:bg-blue-400 text-white font-bold py-3 rounded-xl transition-all active:scale-95 disabled:opacity-40"
-                >
-                  {savingDrop ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Zaplanuj drop'}
-                </button>
-                <button
-                  onClick={() => { setShowDropModal(false); setDropForm(EMPTY_DROP_FORM); }}
-                  className="px-6 py-3 rounded-xl text-neutral-400 hover:text-white bg-white/5 hover:bg-white/10 font-medium text-sm transition-all active:scale-95"
-                >
-                  Anuluj
-                </button>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-
       {/* Mobile top bar */}
       <div className="lg:hidden sticky top-0 z-30 bg-[#0c0c0c] border-b border-neutral-800 px-4 py-3 flex items-center justify-between">
         <Link to="/" className="font-black text-lg text-white uppercase">Foot<span className="text-[#FF6B00]">Bubr</span></Link>
@@ -611,40 +483,8 @@ function AdminPage() {
                       <span className="bg-emerald-500 text-black text-xs font-black w-5 h-5 rounded-full flex items-center justify-center">{draftCount}</span>
                     )}
                   </button>
-                  <button
-                    onClick={() => setShowDropModal(true)}
-                    className="flex items-center gap-2 bg-blue-500/15 border border-blue-500/40 text-blue-400 hover:bg-blue-500/25 font-bold px-3 sm:px-4 py-2.5 rounded-xl transition-all hover:scale-[1.02] active:scale-95 text-sm"
-                  >
-                    <Calendar className="w-4 h-4" />
-                    Zaplanuj drop
-                  </button>
                 </div>
               </div>
-
-              {/* Scheduled drops list */}
-              {scheduledDrops.length > 0 && (
-                <div className="mb-6 space-y-2">
-                  {scheduledDrops.map((d) => {
-                    const dropProductCount = products.filter((p) => p.drop_id === d.id).length;
-                    return (
-                      <div key={d.id} className="flex items-center gap-3 bg-blue-500/5 border border-blue-500/20 rounded-xl p-3">
-                        <Calendar className="w-4 h-4 text-blue-400 flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold text-white truncate">{d.name}</p>
-                          {d.description && <p className="text-xs text-neutral-500 truncate">{d.description}</p>}
-                          <p className="text-xs text-blue-400 mt-0.5">
-                            {new Date(d.scheduled_at).toLocaleDateString('pl-PL', { day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit' })}
-                            {dropProductCount > 0 && <span className="text-neutral-500"> · {dropProductCount} {dropProductCount === 1 ? 'produkt' : dropProductCount < 5 ? 'produkty' : 'produktów'}</span>}
-                          </p>
-                        </div>
-                        <button onClick={() => handleDeleteDrop(d.id)} className="p-1.5 text-neutral-600 hover:text-red-400 transition-colors active:scale-90">
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
 
               {loading ? (
                 <div className="flex items-center justify-center py-16">
@@ -661,13 +501,7 @@ function AdminPage() {
                         <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                           <span className="text-xs font-bold text-[#FF6B00] uppercase tracking-wider">{p.brand}</span>
                           <span className="text-xs text-neutral-500">EU {p.size_eu}</span>
-                          {p.drop_id && dropNameById(p.drop_id) && (
-                            <span className="text-xs text-blue-400 flex items-center gap-1 truncate max-w-[120px]">
-                              <Sparkles className="w-3 h-3" />
-                              {dropNameById(p.drop_id)}
-                            </span>
-                          )}
-                          {p.drop_scheduled_at && p.status === 'draft' && !p.drop_id && (
+                          {p.drop_scheduled_at && p.status === 'draft' && (
                             <span className="text-xs text-blue-400 flex items-center gap-1">
                               <Calendar className="w-3 h-3" />
                               {new Date(p.drop_scheduled_at).toLocaleDateString('pl-PL', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
@@ -833,7 +667,7 @@ function AdminPage() {
 
                 {/* Status & Drop Assignment */}
                 <div className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-4 sm:p-5">
-                  <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-3">Status i drop</h3>
+                  <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-3">Status</h3>
                   <div className="flex flex-wrap gap-2 mb-4">
                     {(['available', 'sold', 'draft', 'archived'] as const).map((s) => (
                       <button
@@ -854,55 +688,23 @@ function AdminPage() {
                     ))}
                   </div>
 
-                  {/* Drop Assignment */}
-                  <div className="space-y-3">
-                    <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5" />
-                      Przypisz do utworzonego dropu
-                    </label>
-                    <div className="relative">
-                      <select
-                        className={sel}
-                        value={form.drop_id || 'none'}
-                        onChange={(e) => {
-                          const dropId = e.target.value === 'none' ? '' : e.target.value;
-                          setForm({ ...form, drop_id: dropId, status: dropId ? 'draft' : form.status });
-                        }}
-                      >
-                        <option value="none">Brak / Samodzielny drop</option>
-                        {scheduledDrops.map((d) => (
-                          <option key={d.id} value={d.id}>{d.name}</option>
-                        ))}
-                      </select>
-                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none" />
+                  {form.status === 'draft' && (
+                    <div className="animate-fade-in space-y-2">
+                      <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5" />
+                        Indywidualna data publikacji (opcjonalnie)
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={form.drop_scheduled_at}
+                        onChange={(e) => setForm({ ...form, drop_scheduled_at: e.target.value })}
+                        className={`${inp} [&::-webkit-calendar-picker-indicator]:invert`}
+                      />
+                      <p className="text-xs text-neutral-600">
+                        Gdy timer osiągnie 0, produkt automatycznie zmieni status na "Dostępny". Pozostaw puste dla ręcznej publikacji.
+                      </p>
                     </div>
-
-                    {/* Individual scheduled drop — only when no drop campaign is selected and status is draft */}
-                    {(form.drop_id || 'none') === 'none' && form.status === 'draft' && (
-                      <div className="animate-fade-in space-y-2">
-                        <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider flex items-center gap-1.5">
-                          <Calendar className="w-3.5 h-3.5" />
-                          Indywidualna data publikacji
-                        </label>
-                        <input
-                          type="datetime-local"
-                          value={form.drop_scheduled_at}
-                          onChange={(e) => setForm({ ...form, drop_scheduled_at: e.target.value })}
-                          className={`${inp} [&::-webkit-calendar-picker-indicator]:invert`}
-                        />
-                        <p className="text-xs text-neutral-600">
-                          Gdy timer osiągnie 0, produkt automatycznie zmieni status na "Dostępny". Pozostaw puste dla ręcznej publikacji.
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Drop campaign info */}
-                    {form.drop_id && form.drop_id !== 'none' && (
-                      <div className="animate-fade-in bg-blue-500/5 border border-blue-500/20 rounded-xl p-3 text-xs text-blue-300">
-                        Produkt zostanie opublikowany automatycznie, gdy timer dropu osiągnie zero.
-                      </div>
-                    )}
-                  </div>
+                  )}
                 </div>
 
                 <div className="flex gap-3">

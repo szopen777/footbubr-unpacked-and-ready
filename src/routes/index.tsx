@@ -1,14 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState, useCallback } from 'react';
-import { supabase, Product, Drop, DropSettings } from '@/lib/supabase';
+import { supabase, Product, DropSettings } from '@/lib/supabase';
 import Header from '@/components/Header';
 import CartDrawer from '@/components/CartDrawer';
 import ProductCard from '@/components/ProductCard';
 import FilterSidebar, { FilterState, SortOption } from '@/components/FilterSidebar';
 import DropCountdownBanner, { Countdown, calculateCountdown } from '@/components/DropCountdownBanner';
 import { Zap, Package2, ShieldCheck, Loader as Loader2, ChevronDown } from 'lucide-react';
-import { publishDueDrops } from '@/lib/drops';
-import HeroDropPanel from '@/components/HeroDropPanel';
 
 const DEFAULT_FILTERS: FilterState = {
   sizes: [],
@@ -26,9 +24,6 @@ function HomePage() {
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const [sortBy, setSortBy] = useState<SortOption>('newest');
-  const [nextDrop, setNextDrop] = useState<Drop | null>(null);
-  const [nextDropProductCount, setNextDropProductCount] = useState(0);
-  const [nextIndividualDrop, setNextIndividualDrop] = useState<string | null>(null);
   const [countdown, setCountdown] = useState<Countdown | null>(null);
   const [dropSettings, setDropSettings] = useState<DropSettings | null>(null);
   const [featuredProduct, setFeaturedProduct] = useState<Product | null>(null);
@@ -45,16 +40,15 @@ function HomePage() {
     setLoading(false);
   }, []);
 
-  const fetchNextDrop = useCallback(async () => {
-    // Check drop_settings first
-    const { data: settingsData } = await supabase
+  const fetchDropSettings = useCallback(async () => {
+    const { data } = await supabase
       .from('drop_settings')
       .select('*')
       .eq('id', 1)
       .maybeSingle();
 
-    if (settingsData) {
-      const s = settingsData as DropSettings;
+    if (data) {
+      const s = data as DropSettings;
       setDropSettings(s);
 
       if (s.featured_product_id) {
@@ -67,99 +61,21 @@ function HomePage() {
       } else {
         setFeaturedProduct(null);
       }
-
-      // If drop_settings has a valid future date, use it as the countdown target
-      if (!s.is_tbd && s.drop_date) {
-        // Still check for scheduled drop campaigns as well
-        const { data: dropData } = await supabase
-          .from('drops')
-          .select('*')
-          .eq('status', 'scheduled')
-          .gt('scheduled_at', new Date().toISOString())
-          .order('scheduled_at', { ascending: true })
-          .limit(1)
-          .maybeSingle();
-
-        if (dropData) {
-          const drop = dropData as Drop;
-          setNextDrop(drop);
-          const { count } = await supabase
-            .from('products')
-            .select('*', { count: 'exact', head: true })
-            .eq('drop_id', drop.id)
-            .eq('status', 'draft');
-          setNextDropProductCount(count || 0);
-          setNextIndividualDrop(null);
-          return;
-        }
-        setNextDrop(null);
-        setNextDropProductCount(0);
-        setNextIndividualDrop(null);
-        return;
-      }
-    }
-
-    // Fall back to scheduled drop campaigns
-    const { data: dropData } = await supabase
-      .from('drops')
-      .select('*')
-      .eq('status', 'scheduled')
-      .gt('scheduled_at', new Date().toISOString())
-      .order('scheduled_at', { ascending: true })
-      .limit(1)
-      .maybeSingle();
-
-    if (dropData) {
-      const drop = dropData as Drop;
-      setNextDrop(drop);
-      const { count } = await supabase
-        .from('products')
-        .select('*', { count: 'exact', head: true })
-        .eq('drop_id', drop.id)
-        .eq('status', 'draft');
-      setNextDropProductCount(count || 0);
-      setNextIndividualDrop(null);
-      return;
-    }
-
-    setNextDrop(null);
-    setNextDropProductCount(0);
-
-    // Fall back to individual scheduled products
-    const { data: prodData } = await supabase
-      .from('products')
-      .select('drop_scheduled_at')
-      .eq('status', 'draft')
-      .not('drop_scheduled_at', 'is', null)
-      .order('drop_scheduled_at', { ascending: true })
-      .limit(1)
-      .maybeSingle();
-
-    if (prodData?.drop_scheduled_at) {
-      setNextIndividualDrop(prodData.drop_scheduled_at);
-      const { count } = await supabase
-        .from('products')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'draft')
-        .not('drop_scheduled_at', 'is', null);
-      setNextDropProductCount(count || 0);
-    } else {
-      setNextIndividualDrop(null);
     }
   }, []);
 
   useEffect(() => {
     const boot = async () => {
-      await publishDueDrops();
       await fetchProducts();
-      await fetchNextDrop();
+      await fetchDropSettings();
     };
     boot();
-  }, [fetchProducts, fetchNextDrop]);
+  }, [fetchProducts, fetchDropSettings]);
 
   const countdownTarget = dropSettings && !dropSettings.is_tbd && dropSettings.drop_date
     ? dropSettings.drop_date
-    : nextDrop?.scheduled_at || nextIndividualDrop;
+    : null;
+
   useEffect(() => {
     if (!countdownTarget) {
       setCountdown(null);
@@ -168,19 +84,11 @@ function HomePage() {
     const update = () => {
       const cd = calculateCountdown(countdownTarget);
       setCountdown(cd);
-      if (!cd) {
-        publishDueDrops().then((changed) => {
-          if (changed) {
-            fetchProducts();
-            fetchNextDrop();
-          }
-        });
-      }
     };
     update();
     const interval = setInterval(update, 1000);
     return () => clearInterval(interval);
-  }, [countdownTarget, fetchProducts, fetchNextDrop]);
+  }, [countdownTarget]);
 
   const filtered = products
     .filter((p) => {
@@ -222,55 +130,43 @@ function HomePage() {
         <div className="absolute top-0 right-0 w-96 h-96 bg-[#FF6B00]/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
         <div className="absolute inset-0 bg-radial-grid opacity-50" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-24 relative">
-          <div className="grid lg:grid-cols-[1fr_auto] gap-8 lg:gap-12 items-start">
-            <div className="max-w-2xl">
-              <div className="inline-flex items-center gap-2 bg-[#FF6B00]/10 border border-[#FF6B00]/20 backdrop-blur-md rounded-full px-4 py-1.5 mb-4 sm:mb-6 animate-fade-in-up">
-                <Zap className="w-3.5 h-3.5 text-[#FF6B00]" />
-                <span className="text-xs font-bold text-[#FF6B00] uppercase tracking-wider">Dropy 1 of 1</span>
-              </div>
-              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white leading-[1.1] mb-3 sm:mb-4 uppercase tracking-tight animate-fade-in-up delay-100">
-                Unikatowe korki<br />
-                piłkarskie w<br />
-                <span className="text-[#FF6B00]">dropach 1 of 1</span>
-              </h1>
-              <p className="text-neutral-400 text-base sm:text-lg leading-relaxed mb-6 sm:mb-8 max-w-xl animate-fade-in-up delay-200">
-                Każda para to unikat. Gdy sprzedana — znika na zawsze. Nie przegap swojego rozmiaru.
-              </p>
-              <div className="flex flex-wrap items-center gap-3 sm:gap-6 text-xs sm:text-sm text-neutral-500 animate-fade-in-up delay-300">
-                <div className="flex items-center gap-1.5">
-                  <Package2 className="w-4 h-4 text-[#FF6B00]" />
-                  Wysyłka InPost / Kurier
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <ShieldCheck className="w-4 h-4 text-[#FF6B00]" />
-                  Weryfikacja autentyczności
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Zap className="w-4 h-4 text-[#FF6B00]" />
-                  {products.filter((p) => p.status === 'available').length} par dostępnych
-                </div>
-              </div>
+          <div className="max-w-2xl mx-auto text-center">
+            <div className="inline-flex items-center gap-2 bg-[#FF6B00]/10 border border-[#FF6B00]/20 backdrop-blur-md rounded-full px-4 py-1.5 mb-4 sm:mb-6 animate-fade-in-up">
+              <Zap className="w-3.5 h-3.5 text-[#FF6B00]" />
+              <span className="text-xs font-bold text-[#FF6B00] uppercase tracking-wider">Dropy 1 of 1</span>
             </div>
-            <div className="w-full lg:w-[280px] xl:w-[320px] flex-shrink-0">
-              <HeroDropPanel
-                drop={nextDrop}
-                countdownTarget={countdownTarget}
-                pairCount={nextDropProductCount}
-                dropSettings={dropSettings}
-                featuredProduct={featuredProduct}
-              />
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white leading-[1.1] mb-3 sm:mb-4 uppercase tracking-tight animate-fade-in-up delay-100">
+              Unikatowe korki<br />
+              piłkarskie w<br />
+              <span className="text-[#FF6B00]">dropach 1 of 1</span>
+            </h1>
+            <p className="text-neutral-400 text-base sm:text-lg leading-relaxed mb-6 sm:mb-8 max-w-xl mx-auto animate-fade-in-up delay-200">
+              Każda para to unikat. Gdy sprzedana — znika na zawsze. Nie przegap swojego rozmiaru.
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 text-xs sm:text-sm text-neutral-500 animate-fade-in-up delay-300">
+              <div className="flex items-center gap-1.5">
+                <Package2 className="w-4 h-4 text-[#FF6B00]" />
+                Wysyłka InPost / Kurier
+              </div>
+              <div className="flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-[#FF6B00]" />
+                Weryfikacja autentyczności
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Zap className="w-4 h-4 text-[#FF6B00]" />
+                {products.filter((p) => p.status === 'available').length} par dostępnych
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {countdown && (
-        <DropCountdownBanner
-          drop={nextDrop}
-          pairCount={nextDropProductCount}
-          countdown={countdown}
-        />
-      )}
+      {/* Full-width orange countdown banner — the sole countdown UI */}
+      <DropCountdownBanner
+        dropSettings={dropSettings}
+        featuredProduct={featuredProduct}
+        countdown={countdown}
+      />
 
       {/* Main content */}
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-6 sm:py-8">
