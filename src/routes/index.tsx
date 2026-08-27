@@ -166,32 +166,41 @@ function HomePage() {
         <div className="absolute top-0 right-0 w-96 h-96 bg-[#FF6B00]/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
         <div className="absolute inset-0 bg-radial-grid opacity-50" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-24 relative">
-          <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 bg-[#FF6B00]/10 border border-[#FF6B00]/20 backdrop-blur-md rounded-full px-4 py-1.5 mb-4 sm:mb-6 animate-fade-in-up">
-              <Zap className="w-3.5 h-3.5 text-[#FF6B00]" />
-              <span className="text-xs font-bold text-[#FF6B00] uppercase tracking-wider">Dropy 1 of 1</span>
+          <div className="grid lg:grid-cols-[1fr_auto] gap-8 lg:gap-12 items-start">
+            <div className="max-w-2xl">
+              <div className="inline-flex items-center gap-2 bg-[#FF6B00]/10 border border-[#FF6B00]/20 backdrop-blur-md rounded-full px-4 py-1.5 mb-4 sm:mb-6 animate-fade-in-up">
+                <Zap className="w-3.5 h-3.5 text-[#FF6B00]" />
+                <span className="text-xs font-bold text-[#FF6B00] uppercase tracking-wider">Dropy 1 of 1</span>
+              </div>
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white leading-[1.1] mb-3 sm:mb-4 uppercase tracking-tight animate-fade-in-up delay-100">
+                Unikatowe korki<br />
+                piłkarskie w<br />
+                <span className="text-[#FF6B00]">dropach 1 of 1</span>
+              </h1>
+              <p className="text-neutral-400 text-base sm:text-lg leading-relaxed mb-6 sm:mb-8 max-w-xl animate-fade-in-up delay-200">
+                Każda para to unikat. Gdy sprzedana — znika na zawsze. Nie przegap swojego rozmiaru.
+              </p>
+              <div className="flex flex-wrap items-center gap-3 sm:gap-6 text-xs sm:text-sm text-neutral-500 animate-fade-in-up delay-300">
+                <div className="flex items-center gap-1.5">
+                  <Package2 className="w-4 h-4 text-[#FF6B00]" />
+                  Wysyłka InPost / Kurier
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-[#FF6B00]" />
+                  Weryfikacja autentyczności
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Zap className="w-4 h-4 text-[#FF6B00]" />
+                  {products.filter((p) => p.status === 'available').length} par dostępnych
+                </div>
+              </div>
             </div>
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white leading-[1.1] mb-3 sm:mb-4 uppercase tracking-tight animate-fade-in-up delay-100">
-              Unikatowe korki<br />
-              piłkarskie w<br />
-              <span className="text-[#FF6B00]">dropach 1 of 1</span>
-            </h1>
-            <p className="text-neutral-400 text-base sm:text-lg leading-relaxed mb-6 sm:mb-8 max-w-xl animate-fade-in-up delay-200">
-              Każda para to unikat. Gdy sprzedana — znika na zawsze. Nie przegap swojego rozmiaru.
-            </p>
-            <div className="flex flex-wrap items-center gap-3 sm:gap-6 text-xs sm:text-sm text-neutral-500 animate-fade-in-up delay-300">
-              <div className="flex items-center gap-1.5">
-                <Package2 className="w-4 h-4 text-[#FF6B00]" />
-                Wysyłka InPost / Kurier
-              </div>
-              <div className="flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-[#FF6B00]" />
-                Weryfikacja autentyczności
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Zap className="w-4 h-4 text-[#FF6B00]" />
-                {products.filter((p) => p.status === 'available').length} par dostępnych
-              </div>
+            <div className="w-full lg:w-[280px] xl:w-[320px] flex-shrink-0">
+              <HeroDropPanel
+                drop={nextDrop}
+                countdownTarget={countdownTarget}
+                pairCount={nextDropProductCount}
+              />
             </div>
           </div>
         </div>

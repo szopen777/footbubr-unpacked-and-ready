@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useCart } from '@/lib/cart-context';
-import { supabase } from '@/lib/supabase';
+import { supabase, formatOrderNumber, Order } from '@/lib/supabase';
 import { formatPrice, INPUT_CLASS } from '@/lib/utils';
 import { shippingCostFor, FREE_SHIPPING_THRESHOLD } from '@/lib/shipping';
 import Header from '@/components/Header';
@@ -14,6 +14,7 @@ function CheckoutPage() {
   const [step, setStep] = useState<'summary' | 'success'>('summary');
   const [submitting, setSubmitting] = useState(false);
   const [orderId, setOrderId] = useState('');
+  const [orderRecord, setOrderRecord] = useState<Order | null>(null);
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
@@ -109,11 +110,12 @@ function CheckoutPage() {
             payment_method: form.paymentMethod,
             total_price: itemTotal,
           })
-          .select('id')
+          .select('*')
           .maybeSingle();
 
         if (!orderError && order) {
           orderIds.push(order.id);
+          if (!orderRecord) setOrderRecord(order as Order);
           await supabase.from('products').update({ status: 'sold' }).eq('id', product.id);
         }
       }
@@ -154,7 +156,7 @@ function CheckoutPage() {
           </div>
           <h1 className="text-2xl sm:text-3xl font-black text-white mb-3 uppercase tracking-tight">Zamówienie złożone!</h1>
           <p className="text-neutral-400 mb-2">Dziękujemy za zakup w FootBubr.</p>
-          <p className="text-neutral-600 text-sm mb-8">Nr zamówienia: <span className="text-neutral-300 font-mono">{orderId.slice(0, 8).toUpperCase()}</span></p>
+          <p className="text-neutral-600 text-sm mb-8">Nr zamówienia: <span className="text-neutral-300 font-mono">{orderRecord ? formatOrderNumber(orderRecord) : orderId.slice(0, 8).toUpperCase()}</span></p>
           <p className="text-neutral-500 text-sm mb-8">Szczegóły wysłaliśmy na adres email. Skontaktujemy się w ciągu 24h.</p>
           <Link
             to="/"

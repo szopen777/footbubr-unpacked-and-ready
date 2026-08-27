@@ -57,7 +57,7 @@ export interface Order {
   paczkomat_code: string | null;
   shipping_address: string | null;
   payment_method: 'blik' | 'card' | 'apple_pay' | 'google_pay' | 'transfer';
-  status: 'pending' | 'paid' | 'shipped' | 'completed' | 'cancelled';
+  status: 'pending' | 'paid' | 'processing' | 'shipped' | 'completed' | 'cancelled';
   total_price: number;
   tracking_number: string | null;
   created_at: string;
