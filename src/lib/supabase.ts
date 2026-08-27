@@ -14,6 +14,17 @@ export type ProductCondition =
 export type ProductStatus = 'available' | 'sold' | 'draft';
 export type DropStatus = 'scheduled' | 'published' | 'cancelled';
 
+export interface DropSettings {
+  id: number;
+  drop_date: string | null;
+  is_tbd: boolean;
+  featured_product_id: string | null;
+  title: string;
+  subtitle: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Drop {
   id: string;
   name: string;

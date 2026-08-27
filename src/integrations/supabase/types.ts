@@ -46,6 +46,76 @@ export type Database = {
           },
         ]
       }
+      drop_settings: {
+        Row: {
+          id: number
+          drop_date: string | null
+          is_tbd: boolean
+          featured_product_id: string | null
+          title: string
+          subtitle: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          drop_date?: string | null
+          is_tbd?: boolean
+          featured_product_id?: string | null
+          title?: string
+          subtitle?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          drop_date?: string | null
+          is_tbd?: boolean
+          featured_product_id?: string | null
+          title?: string
+          subtitle?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "drop_settings_featured_product_id_fkey"
+            columns: ["featured_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      drop_subscribers: {
+        Row: {
+          id: string
+          email: string
+          drop_settings_id: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          email: string
+          drop_settings_id?: number | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          email?: string
+          drop_settings_id?: number | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "drop_subscribers_drop_settings_id_fkey"
+            columns: ["drop_settings_id"]
+            isOneToOne: false
+            referencedRelation: "drop_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       drops: {
         Row: {
           created_at: string | null

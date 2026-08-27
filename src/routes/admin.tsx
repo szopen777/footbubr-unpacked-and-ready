@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
-import { supabase, Product, Order, Drop, PRODUCT_LEVELS, formatOrderNumber } from '@/lib/supabase';
+import { supabase, Product, Order, Drop, DropSettings, PRODUCT_LEVELS, formatOrderNumber } from '@/lib/supabase';
 import { publishDueDrops } from '@/lib/drops';
 import { formatPrice, INPUT_CLASS, SELECT_CLASS, cn } from '@/lib/utils';
 import { Package, ShoppingCart, LogOut, Eye, EyeOff, Loader as Loader2, Trash2, CreditCard as Edit2, X, Check, CircleAlert as AlertCircle, ArrowLeft, ChevronDown, Zap, Calendar, Menu, Sparkles, Copy, Truck, Phone as PhoneIcon, MapPin } from 'lucide-react';
@@ -12,7 +12,7 @@ type ProductUpdate = Database['public']['Tables']['products']['Update'];
 
 const ADMIN_PASSWORD = '123';
 
-type View = 'products' | 'orders';
+type View = 'products' | 'orders' | 'drop-settings';
 
 interface ProductForm {
   name: string;
@@ -75,6 +75,15 @@ function AdminPage() {
   const [selectedOrder, setSelectedOrder] = useState<(Order & { product?: Product }) | null>(null);
   const [orderTrackingInput, setOrderTrackingInput] = useState('');
   const [orderSaving, setOrderSaving] = useState(false);
+  const [dropSettings, setDropSettings] = useState<DropSettings | null>(null);
+  const [settingsForm, setSettingsForm] = useState({
+    drop_date: '',
+    is_tbd: true,
+    featured_product_id: 'none',
+    title: 'Nowy drop',
+    subtitle: '',
+  });
+  const [savingSettings, setSavingSettings] = useState(false);
 
   const draftCount = products.filter((p) => p.status === 'draft').length;
 
@@ -164,11 +173,55 @@ function AdminPage() {
     if (data) setDrops(data as Drop[]);
   };
 
+  const loadDropSettings = async () => {
+    const { data } = await supabase
+      .from('drop_settings')
+      .select('*')
+      .eq('id', 1)
+      .maybeSingle();
+    if (data) {
+      const s = data as DropSettings;
+      setDropSettings(s);
+      setSettingsForm({
+        drop_date: s.drop_date ? new Date(s.drop_date).toISOString().slice(0, 16) : '',
+        is_tbd: s.is_tbd,
+        featured_product_id: s.featured_product_id || 'none',
+        title: s.title,
+        subtitle: s.subtitle,
+      });
+    }
+  };
+
+  const handleSaveDropSettings = async () => {
+    setSavingSettings(true);
+    const payload: Record<string, unknown> = {
+      id: 1,
+      is_tbd: settingsForm.is_tbd,
+      drop_date: settingsForm.is_tbd || !settingsForm.drop_date
+        ? null
+        : new Date(settingsForm.drop_date).toISOString(),
+      featured_product_id: settingsForm.featured_product_id !== 'none' ? settingsForm.featured_product_id : null,
+      title: settingsForm.title || 'Nowy drop',
+      subtitle: settingsForm.subtitle || '',
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await supabase.from('drop_settings').upsert(payload).eq('id', 1);
+    setSavingSettings(false);
+    if (error) {
+      console.error('Drop settings save failed:', error);
+      showToast(`Błąd zapisu ustawień: ${error.message}`);
+      return;
+    }
+    showToast('Ustawienia dropu zapisane');
+    await loadDropSettings();
+  };
+
   useEffect(() => {
     if (!authed) return;
     const boot = async () => {
       await publishDueDrops();
-      await Promise.all([loadProducts(), loadOrders(), loadDrops()]);
+      await Promise.all([loadProducts(), loadOrders(), loadDrops(), loadDropSettings()]);
     };
     boot();
     const interval = setInterval(async () => {
@@ -225,10 +278,22 @@ function AdminPage() {
     }
 
     if (editingId) {
-      await supabase.from('products').update(payload).eq('id', editingId);
+      const { error } = await supabase.from('products').update(payload).eq('id', editingId);
+      if (error) {
+        console.error('Product update failed:', error);
+        showToast(`Błąd zapisu: ${error.message}`);
+        setSaving(false);
+        return;
+      }
       showToast('Produkt zaktualizowany');
     } else {
-      await supabase.from('products').insert(payload);
+      const { error } = await supabase.from('products').insert(payload);
+      if (error) {
+        console.error('Product insert failed:', error);
+        showToast(`Błąd dodawania: ${error.message}`);
+        setSaving(false);
+        return;
+      }
       showToast('Produkt dodany');
     }
 
@@ -1084,6 +1149,120 @@ function AdminPage() {
               </div>
             </>
           )}
+
+          {/* Drop Settings */}
+          {view === 'drop-settings' && (
+            <div className="animate-fade-in max-w-2xl">
+              <div className="mb-6">
+                <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">Ustawienia dropu</h2>
+                <p className="text-neutral-500 text-sm">Konfiguracja sekcji Hero na stronie głównej</p>
+              </div>
+
+              <div className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-5 sm:p-6 space-y-5">
+                {/* TBD toggle */}
+                <div>
+                  <h3 className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-3">Status dropu</h3>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <button
+                      onClick={() => setSettingsForm({ ...settingsForm, is_tbd: true })}
+                      className={cn(
+                        'flex-1 px-4 py-3 rounded-xl text-sm font-bold transition-all border active:scale-95',
+                        settingsForm.is_tbd
+                          ? 'bg-blue-400/15 border-blue-400/40 text-blue-400'
+                          : 'bg-white/5 border-neutral-800 text-neutral-500 hover:text-neutral-300'
+                      )}
+                    >
+                      Brak ustalonej daty / Wkrótce
+                    </button>
+                    <button
+                      onClick={() => setSettingsForm({ ...settingsForm, is_tbd: false })}
+                      className={cn(
+                        'flex-1 px-4 py-3 rounded-xl text-sm font-bold transition-all border active:scale-95',
+                        !settingsForm.is_tbd
+                          ? 'bg-emerald-400/15 border-emerald-400/40 text-emerald-400'
+                          : 'bg-white/5 border-neutral-800 text-neutral-500 hover:text-neutral-300'
+                      )}
+                    >
+                      Ustaw datę dropu
+                    </button>
+                  </div>
+                </div>
+
+                {/* Date picker */}
+                {!settingsForm.is_tbd && (
+                  <div className="animate-fade-in">
+                    <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5 block">Data i godzina dropu</label>
+                    <input
+                      type="datetime-local"
+                      className={`${inp} [&::-webkit-calendar-picker-indicator]:invert`}
+                      value={settingsForm.drop_date}
+                      onChange={(e) => setSettingsForm({ ...settingsForm, drop_date: e.target.value })}
+                    />
+                  </div>
+                )}
+
+                {/* Title & subtitle */}
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5 block">Tytuł</label>
+                    <input
+                      className={inp}
+                      placeholder="Nowy drop"
+                      value={settingsForm.title}
+                      onChange={(e) => setSettingsForm({ ...settingsForm, title: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5 block">Podtytuł / opis</label>
+                    <input
+                      className={inp}
+                      placeholder="Krótki opis dropu"
+                      value={settingsForm.subtitle}
+                      onChange={(e) => setSettingsForm({ ...settingsForm, subtitle: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                {/* Featured product */}
+                <div>
+                  <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5 block">Wyróżniony produkt (zapowiedź)</label>
+                  <div className="relative">
+                    <select
+                      className={sel}
+                      value={settingsForm.featured_product_id}
+                      onChange={(e) => setSettingsForm({ ...settingsForm, featured_product_id: e.target.value })}
+                    >
+                      <option value="none">Brak wyróżnionego produktu</option>
+                      {products.map((p) => (
+                        <option key={p.id} value={p.id}>{p.name} (EU {p.size_eu})</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none" />
+                  </div>
+                </div>
+
+                {/* Save button */}
+                <div className="flex gap-3 pt-2">
+                  <button
+                    onClick={handleSaveDropSettings}
+                    disabled={savingSettings}
+                    className="flex items-center gap-2 bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-black px-6 py-3 rounded-xl transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-40 shadow-[0_4px_15px_rgba(255,107,0,0.25)]"
+                  >
+                    {savingSettings ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                    Zapisz ustawienia
+                  </button>
+                </div>
+
+                {/* Current settings preview */}
+                {dropSettings && (
+                  <div className="bg-black/30 border border-neutral-800/60 rounded-xl p-3 text-xs text-neutral-500 space-y-1">
+                    <p>Aktualny stan: <span className="text-neutral-300 font-semibold">{dropSettings.is_tbd ? 'Wkrótce (bez daty)' : dropSettings.drop_date ? new Date(dropSettings.drop_date).toLocaleString('pl-PL') : 'Brak daty'}</span></p>
+                    <p>Tytuł: <span className="text-neutral-300">{dropSettings.title}</span></p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </main>
       </div>
     </div>
@@ -1117,6 +1296,12 @@ function AdminNav({
         >
           <ShoppingCart className="w-4 h-4" /> Zamówienia
           <span className="ml-auto text-xs bg-white/10 text-neutral-400 px-1.5 py-0.5 rounded-full">{ordersCount}</span>
+        </button>
+        <button
+          onClick={() => setView('drop-settings')}
+          className={cn('flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-medium transition-all active:scale-95', view === 'drop-settings' ? 'bg-[#FF6B00]/15 text-[#FF6B00]' : 'text-neutral-400 hover:text-white hover:bg-white/5')}
+        >
+          <Sparkles className="w-4 h-4" /> Ustawienia dropu
         </button>
       </nav>
       <div className="p-3 border-t border-neutral-800/80">

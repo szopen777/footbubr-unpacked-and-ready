@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState, useCallback } from 'react';
-import { supabase, Product, Drop } from '@/lib/supabase';
+import { supabase, Product, Drop, DropSettings } from '@/lib/supabase';
 import Header from '@/components/Header';
 import CartDrawer from '@/components/CartDrawer';
 import ProductCard from '@/components/ProductCard';
@@ -30,6 +30,8 @@ function HomePage() {
   const [nextDropProductCount, setNextDropProductCount] = useState(0);
   const [nextIndividualDrop, setNextIndividualDrop] = useState<string | null>(null);
   const [countdown, setCountdown] = useState<Countdown | null>(null);
+  const [dropSettings, setDropSettings] = useState<DropSettings | null>(null);
+  const [featuredProduct, setFeaturedProduct] = useState<Product | null>(null);
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
@@ -44,7 +46,60 @@ function HomePage() {
   }, []);
 
   const fetchNextDrop = useCallback(async () => {
-    // Check for scheduled drop campaigns first
+    // Check drop_settings first
+    const { data: settingsData } = await supabase
+      .from('drop_settings')
+      .select('*')
+      .eq('id', 1)
+      .maybeSingle();
+
+    if (settingsData) {
+      const s = settingsData as DropSettings;
+      setDropSettings(s);
+
+      if (s.featured_product_id) {
+        const { data: prod } = await supabase
+          .from('products')
+          .select('*')
+          .eq('id', s.featured_product_id)
+          .maybeSingle();
+        setFeaturedProduct(prod as Product | null);
+      } else {
+        setFeaturedProduct(null);
+      }
+
+      // If drop_settings has a valid future date, use it as the countdown target
+      if (!s.is_tbd && s.drop_date) {
+        // Still check for scheduled drop campaigns as well
+        const { data: dropData } = await supabase
+          .from('drops')
+          .select('*')
+          .eq('status', 'scheduled')
+          .gt('scheduled_at', new Date().toISOString())
+          .order('scheduled_at', { ascending: true })
+          .limit(1)
+          .maybeSingle();
+
+        if (dropData) {
+          const drop = dropData as Drop;
+          setNextDrop(drop);
+          const { count } = await supabase
+            .from('products')
+            .select('*', { count: 'exact', head: true })
+            .eq('drop_id', drop.id)
+            .eq('status', 'draft');
+          setNextDropProductCount(count || 0);
+          setNextIndividualDrop(null);
+          return;
+        }
+        setNextDrop(null);
+        setNextDropProductCount(0);
+        setNextIndividualDrop(null);
+        return;
+      }
+    }
+
+    // Fall back to scheduled drop campaigns
     const { data: dropData } = await supabase
       .from('drops')
       .select('*')
@@ -57,7 +112,6 @@ function HomePage() {
     if (dropData) {
       const drop = dropData as Drop;
       setNextDrop(drop);
-      // Count products assigned to this drop
       const { count } = await supabase
         .from('products')
         .select('*', { count: 'exact', head: true })
@@ -103,7 +157,9 @@ function HomePage() {
     boot();
   }, [fetchProducts, fetchNextDrop]);
 
-  const countdownTarget = nextDrop?.scheduled_at || nextIndividualDrop;
+  const countdownTarget = dropSettings && !dropSettings.is_tbd && dropSettings.drop_date
+    ? dropSettings.drop_date
+    : nextDrop?.scheduled_at || nextIndividualDrop;
   useEffect(() => {
     if (!countdownTarget) {
       setCountdown(null);
@@ -200,6 +256,8 @@ function HomePage() {
                 drop={nextDrop}
                 countdownTarget={countdownTarget}
                 pairCount={nextDropProductCount}
+                dropSettings={dropSettings}
+                featuredProduct={featuredProduct}
               />
             </div>
           </div>
