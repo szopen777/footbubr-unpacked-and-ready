@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { supabase, Product, Order, DropSettings, PRODUCT_LEVELS, formatOrderNumber } from '@/lib/supabase';
 
 import { formatPrice, INPUT_CLASS, SELECT_CLASS, cn } from '@/lib/utils';
-import { Package, ShoppingCart, LogOut, Eye, EyeOff, Loader as Loader2, Trash2, CreditCard as Edit2, X, Check, CircleAlert as AlertCircle, ArrowLeft, ChevronDown, Zap, Calendar, Menu, Sparkles, Copy, Truck, MapPin } from 'lucide-react';
+import { Package, ShoppingCart, LogOut, Eye, EyeOff, Loader as Loader2, Trash2, CreditCard as Edit2, X, Check, CircleAlert as AlertCircle, ArrowLeft, ChevronDown, Zap, Calendar, Menu, Sparkles, Copy, Truck, MapPin, Plus, Minus } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -32,7 +32,7 @@ interface ProductForm {
   extras_description: string;
   status: string;
   drop_scheduled_at: string;
-  drop_id: string;
+  use_global_drop: boolean;
 }
 
 const EMPTY_FORM: ProductForm = {
@@ -40,7 +40,7 @@ const EMPTY_FORM: ProductForm = {
   price: '', original_price: '', surface_type: 'FG', level: 'Profesjonalny',
   condition: 'Nowe z metką', condition_detail: '', images: '',
   box_included: false, bag_included: false, extras_description: '', status: 'available',
-  drop_scheduled_at: '', drop_id: '',
+  drop_scheduled_at: '', use_global_drop: true,
 };
 
 function AdminPage() {
@@ -75,6 +75,8 @@ function AdminPage() {
   const [savingSettings, setSavingSettings] = useState(false);
 
   const draftCount = products.filter((p) => p.status === 'draft').length;
+  const dropProducts = products.filter((p) => p.status === 'draft');
+  const availableProducts = products.filter((p) => p.status === 'available');
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -130,7 +132,6 @@ function AdminPage() {
       return;
     }
 
-    // Jeśli zamówienie dotyczyło korków (1-of-1), pytamy o przywrócenie dostępności
     if (productId) {
       const restore = confirm('Czy chcesz przywrócić ten produkt jako "Dostępny" w sklepie?');
       if (restore) {
@@ -205,12 +206,14 @@ function AdminPage() {
 
   const handleSaveDropSettings = async () => {
     setSavingSettings(true);
+    const dropDateIso = settingsForm.is_tbd || !settingsForm.drop_date
+      ? null
+      : new Date(settingsForm.drop_date).toISOString();
+
     const payload: Record<string, unknown> = {
       id: 1,
       is_tbd: settingsForm.is_tbd,
-      drop_date: settingsForm.is_tbd || !settingsForm.drop_date
-        ? null
-        : new Date(settingsForm.drop_date).toISOString(),
+      drop_date: dropDateIso,
       featured_product_id: settingsForm.featured_product_id !== 'none' ? settingsForm.featured_product_id : null,
       title: settingsForm.title || 'Nowy drop',
       subtitle: settingsForm.subtitle || '',
@@ -218,14 +221,44 @@ function AdminPage() {
     };
 
     const { error } = await supabase.from('drop_settings').upsert(payload).eq('id', 1);
+
+    // Zsynchronizuj produkty w dropie z nową datą
+    if (!error && dropDateIso) {
+      await supabase
+        .from('products')
+        .update({ drop_scheduled_at: dropDateIso })
+        .eq('status', 'draft');
+    }
+
     setSavingSettings(false);
     if (error) {
       console.error('Drop settings save failed:', error);
       showToast(`Błąd zapisu ustawień: ${error.message}`);
       return;
     }
-    showToast('Data dropu zapisana');
-    await loadDropSettings();
+    showToast('Ustawienia dropu zapisane');
+    await Promise.all([loadDropSettings(), loadProducts()]);
+  };
+
+  const toggleProductDropStatus = async (productId: string, currentStatus: string) => {
+    const isDraft = currentStatus === 'draft';
+    const newStatus = isDraft ? 'available' : 'draft';
+    const newDropDate = !isDraft && dropSettings?.drop_date && !dropSettings.is_tbd
+      ? dropSettings.drop_date
+      : null;
+
+    const { error } = await supabase
+      .from('products')
+      .update({ status: newStatus, drop_scheduled_at: newDropDate })
+      .eq('id', productId);
+
+    if (error) {
+      showToast(`Błąd: ${error.message}`);
+      return;
+    }
+
+    showToast(isDraft ? 'Usunięto z dropu (jest Dostępny)' : 'Dodano do zaplanowanego dropu (Szkic)');
+    await loadProducts();
   };
 
   useEffect(() => {
@@ -249,6 +282,15 @@ function AdminPage() {
     if (!form.name || !form.brand || !form.price || !form.size_eu) return;
     setSaving(true);
 
+    let finalDropScheduledAt: string | null = null;
+    if (form.status === 'draft') {
+      if (form.use_global_drop && dropSettings?.drop_date && !dropSettings.is_tbd) {
+        finalDropScheduledAt = dropSettings.drop_date;
+      } else if (!form.use_global_drop && form.drop_scheduled_at) {
+        finalDropScheduledAt = new Date(form.drop_scheduled_at).toISOString();
+      }
+    }
+
     const payload: ProductInsert = {
       name: form.name,
       brand: form.brand,
@@ -257,27 +299,17 @@ function AdminPage() {
       insole_length_cm: form.insole_length_cm ? parseFloat(form.insole_length_cm) : null,
       price: parseFloat(form.price),
       original_price: form.original_price ? parseFloat(form.original_price) : null,
-      surface_type: form.surface_type,
-      level: form.level,
-      condition: form.condition,
+      surface_type: form.surface_type as any,
+      level: form.level as any,
+      condition: form.condition as any,
       condition_detail: form.condition_detail || null,
       images: form.images.split('\n').map((s) => s.trim()).filter(Boolean),
       box_included: form.box_included,
       bag_included: form.bag_included,
       extras_description: form.extras_description || null,
-      status: form.status === 'archived' ? 'sold' : form.status,
+      status: form.status === 'archived' ? 'sold' : (form.status as any),
+      drop_scheduled_at: finalDropScheduledAt,
     };
-
-    const assignedDropId = form.drop_id && form.drop_id !== 'none' ? form.drop_id : null;
-    payload.drop_id = assignedDropId;
-    if (assignedDropId) {
-      payload.drop_scheduled_at = null;
-      payload.status = 'draft';
-    } else if (form.status === 'draft' && form.drop_scheduled_at) {
-      payload.drop_scheduled_at = new Date(form.drop_scheduled_at).toISOString();
-    } else {
-      payload.drop_scheduled_at = null;
-    }
 
     if (editingId) {
       const { error } = await supabase.from('products').update(payload).eq('id', editingId);
@@ -308,6 +340,8 @@ function AdminPage() {
   };
 
   const handleEdit = (p: Product) => {
+    const isGlobalDate = Boolean(p.drop_scheduled_at && dropSettings?.drop_date && p.drop_scheduled_at === dropSettings.drop_date);
+
     setForm({
       name: p.name, brand: p.brand, model: p.model,
       size_eu: String(p.size_eu), insole_length_cm: p.insole_length_cm ? String(p.insole_length_cm) : '',
@@ -317,7 +351,7 @@ function AdminPage() {
       box_included: p.box_included, bag_included: p.bag_included,
       extras_description: p.extras_description || '', status: p.status,
       drop_scheduled_at: p.drop_scheduled_at ? new Date(p.drop_scheduled_at).toISOString().slice(0, 16) : '',
-      drop_id: p.drop_id || 'none',
+      use_global_drop: isGlobalDate || !p.drop_scheduled_at,
     });
     setEditingId(p.id);
     setShowProductModal(true);
@@ -332,9 +366,14 @@ function AdminPage() {
 
   const handleStatusChange = async (id: string, status: string) => {
     const dbStatus = status === 'archived' ? 'sold' : status;
-    const updates: ProductUpdate = { status: dbStatus };
-    if (status !== 'draft') updates.drop_scheduled_at = null;
-    if (status === 'archived') updates.drop_id = null;
+    const updates: ProductUpdate = { status: dbStatus as any };
+
+    if (status === 'draft') {
+      updates.drop_scheduled_at = dropSettings?.drop_date && !dropSettings.is_tbd ? dropSettings.drop_date : null;
+    } else {
+      updates.drop_scheduled_at = null;
+    }
+
     const { error } = await supabase.from('products').update(updates).eq('id', id).select('id');
     await loadProducts();
     if (error) {
@@ -348,13 +387,13 @@ function AdminPage() {
     setPublishing(true);
     const { data } = await supabase
       .from('products')
-      .update({ status: 'available', drop_scheduled_at: null, drop_id: null })
+      .update({ status: 'available', drop_scheduled_at: null })
       .eq('status', 'draft')
       .select('id');
     setShowPublishModal(false);
     setPublishing(false);
     if (data) {
-      showToast(`Opublikowano ${data.length} ${data.length === 1 ? 'drop' : 'dropów'}`);
+      showToast(`Opublikowano ${data.length} ${data.length === 1 ? 'produkt' : 'produktów'}`);
       await loadProducts();
     }
   };
@@ -425,7 +464,7 @@ function AdminPage() {
                 </div>
               </div>
               <p className="text-sm text-neutral-400 mb-6">
-                Czy na pewno chcesz opublikować wszystkie <span className="text-[#FF6B00] font-bold">{draftCount}</span> {draftCount === 1 ? 'szkic' : draftCount < 5 ? 'szkice' : 'szkiców'}? Wszystkie produkty ze statusem "Szkic" natychmiast zmienią status na "Dostępny" i pojawią się w sklepie.
+                Czy na pewno chcesz opublikować wszystkie <span className="text-[#FF6B00] font-bold">{draftCount}</span> {draftCount === 1 ? 'szkic' : draftCount < 5 ? 'szkice' : 'szkiców'}? Wszystkie produkty ze statusem "W dropie / Szkic" natychmiast zmienią status na "Dostępny" i pojawią się w sklepie.
               </p>
               <div className="flex gap-3">
                 <button
@@ -489,7 +528,7 @@ function AdminPage() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
                 <div>
                   <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">Produkty</h2>
-                  <p className="text-neutral-500 text-sm">{products.filter((p) => p.status === 'available').length} dostępnych, {products.filter((p) => p.status === 'sold').length} sprzedanych, {draftCount} szkiców</p>
+                  <p className="text-neutral-500 text-sm">{products.filter((p) => p.status === 'available').length} dostępnych, {products.filter((p) => p.status === 'sold').length} sprzedanych, {draftCount} w dropie</p>
                 </div>
                 <div className="flex gap-2 flex-wrap">
                   <button
@@ -527,10 +566,12 @@ function AdminPage() {
                         <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                           <span className="text-xs font-bold text-[#FF6B00] uppercase tracking-wider">{p.brand}</span>
                           <span className="text-xs text-neutral-500">EU {p.size_eu}</span>
-                          {p.drop_scheduled_at && p.status === 'draft' && (
-                            <span className="text-xs text-blue-400 flex items-center gap-1">
+                          {p.status === 'draft' && (
+                            <span className="text-xs text-blue-400 bg-blue-400/10 border border-blue-400/20 px-2 py-0.5 rounded-full flex items-center gap-1 font-medium">
                               <Calendar className="w-3 h-3" />
-                              {new Date(p.drop_scheduled_at).toLocaleDateString('pl-PL', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                              {p.drop_scheduled_at
+                                ? new Date(p.drop_scheduled_at).toLocaleDateString('pl-PL', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+                                : 'Zaplanowany drop (Wkrótce)'}
                             </span>
                           )}
                         </div>
@@ -551,8 +592,8 @@ function AdminPage() {
                             )}
                           >
                             <option value="available">Dostępny</option>
+                            <option value="draft">W dropie (Szkic)</option>
                             <option value="sold">Wyprzedany</option>
-                            <option value="draft">Szkic</option>
                             <option value="archived">Archiwum</option>
                           </select>
 
@@ -692,10 +733,10 @@ function AdminPage() {
                 </div>
 
                 {/* Status & Drop Assignment */}
-                <div className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-4 sm:p-5">
-                  <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-3">Status</h3>
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {(['available', 'sold', 'draft', 'archived'] as const).map((s) => (
+                <div className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-4 sm:p-5 space-y-3">
+                  <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-1">Status i planowanie dropu</h3>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {(['available', 'draft', 'sold', 'archived'] as const).map((s) => (
                       <button
                         key={s}
                         onClick={() => setForm({ ...form, status: s })}
@@ -703,32 +744,63 @@ function AdminPage() {
                           'px-4 py-2 rounded-xl text-sm font-semibold transition-all border active:scale-95',
                           form.status === s
                             ? s === 'available' ? 'bg-emerald-400/15 border-emerald-400/40 text-emerald-400'
+                              : s === 'draft' ? 'bg-blue-400/15 border-blue-400/40 text-blue-400'
                               : s === 'sold' ? 'bg-red-400/15 border-red-400/40 text-red-400'
-                              : s === 'archived' ? 'bg-neutral-400/15 border-neutral-400/40 text-neutral-300'
-                              : 'bg-blue-400/15 border-blue-400/40 text-blue-400'
+                              : 'bg-neutral-400/15 border-neutral-400/40 text-neutral-300'
                             : 'bg-white/5 border-neutral-800 text-neutral-500 hover:text-neutral-300'
                         )}
                       >
-                        {s === 'available' ? 'Dostępny' : s === 'sold' ? 'Wyprzedany' : s === 'archived' ? 'Archiwum' : 'Szkic'}
+                        {s === 'available' ? 'Dostępny w sklepie' : s === 'draft' ? 'W dropie (Szkic)' : s === 'sold' ? 'Wyprzedany' : 'Archiwum'}
                       </button>
                     ))}
                   </div>
 
                   {form.status === 'draft' && (
-                    <div className="animate-fade-in space-y-2">
-                      <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider flex items-center gap-1.5">
-                        <Calendar className="w-3.5 h-3.5" />
-                        Indywidualna data publikacji (opcjonalnie)
-                      </label>
-                      <input
-                        type="datetime-local"
-                        value={form.drop_scheduled_at}
-                        onChange={(e) => setForm({ ...form, drop_scheduled_at: e.target.value })}
-                        className={`${inp} [&::-webkit-calendar-picker-indicator]:invert`}
-                      />
-                      <p className="text-xs text-neutral-600">
-                        Gdy timer osiągnie 0, produkt automatycznie zmieni status na "Dostępny". Pozostaw puste dla ręcznej publikacji.
+                    <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl space-y-3 animate-fade-in">
+                      <p className="text-xs font-bold text-blue-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5" />
+                        Konfiguracja dropu dla tego produktu
                       </p>
+                      
+                      <div className="space-y-2">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="dropChoice"
+                            checked={form.use_global_drop}
+                            onChange={() => setForm({ ...form, use_global_drop: true })}
+                            className="accent-[#FF6B00]"
+                          />
+                          <span className="text-sm text-neutral-200">
+                            Przypisz do głównego dropu{' '}
+                            <span className="text-xs text-neutral-400">
+                              ({dropSettings?.drop_date && !dropSettings.is_tbd ? new Date(dropSettings.drop_date).toLocaleString('pl-PL') : 'Wkrótce / brak ustalonej daty'})
+                            </span>
+                          </span>
+                        </label>
+
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="dropChoice"
+                            checked={!form.use_global_drop}
+                            onChange={() => setForm({ ...form, use_global_drop: false })}
+                            className="accent-[#FF6B00]"
+                          />
+                          <span className="text-sm text-neutral-200">Ustaw własną datę publikacji</span>
+                        </label>
+                      </div>
+
+                      {!form.use_global_drop && (
+                        <div className="pt-2 animate-fade-in">
+                          <input
+                            type="datetime-local"
+                            value={form.drop_scheduled_at}
+                            onChange={(e) => setForm({ ...form, drop_scheduled_at: e.target.value })}
+                            className={`${inp} [&::-webkit-calendar-picker-indicator]:invert`}
+                          />
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -992,14 +1064,14 @@ function AdminPage() {
 
           {/* Drop Settings */}
           {view === 'drop-settings' && (
-            <div className="animate-fade-in max-w-2xl">
-              <div className="mb-6">
+            <div className="animate-fade-in max-w-3xl space-y-6">
+              <div>
                 <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">Ustawienia dropu</h2>
-                <p className="text-neutral-500 text-sm">Konfiguracja sekcji Hero na stronie głównej</p>
+                <p className="text-neutral-500 text-sm">Zarządzanie czasem, banerem i zawartością nadchodzącego dropu</p>
               </div>
 
+              {/* General drop settings */}
               <div className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-5 sm:p-6 space-y-5">
-                {/* TBD toggle */}
                 <div>
                   <h3 className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-3">Status dropu</h3>
                   <div className="flex flex-col sm:flex-row gap-2">
@@ -1028,7 +1100,6 @@ function AdminPage() {
                   </div>
                 </div>
 
-                {/* Date picker */}
                 {!settingsForm.is_tbd && (
                   <div className="animate-fade-in">
                     <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5 block">Data i godzina dropu</label>
@@ -1041,7 +1112,6 @@ function AdminPage() {
                   </div>
                 )}
 
-                {/* Title & subtitle */}
                 <div className="space-y-3">
                   <div>
                     <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5 block">Tytuł</label>
@@ -1063,9 +1133,8 @@ function AdminPage() {
                   </div>
                 </div>
 
-                {/* Featured product */}
                 <div>
-                  <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5 block">Wyróżniony produkt (zapowiedź)</label>
+                  <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5 block">Wyróżniony produkt (główny w Hero)</label>
                   <div className="relative">
                     <select
                       className={sel}
@@ -1074,14 +1143,13 @@ function AdminPage() {
                     >
                       <option value="none">Brak wyróżnionego produktu</option>
                       {products.map((p) => (
-                        <option key={p.id} value={p.id}>{p.name} (EU {p.size_eu})</option>
+                        <option key={p.id} value={p.id}>{p.name} (EU {p.size_eu}) — {p.status === 'draft' ? 'W dropie' : p.status}</option>
                       ))}
                     </select>
                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none" />
                   </div>
                 </div>
 
-                {/* Save button */}
                 <div className="flex gap-3 pt-2">
                   <button
                     onClick={handleSaveDropSettings}
@@ -1092,12 +1160,65 @@ function AdminPage() {
                     Zapisz ustawienia
                   </button>
                 </div>
+              </div>
 
-                {/* Current settings preview */}
-                {dropSettings && (
-                  <div className="bg-black/30 border border-neutral-800/60 rounded-xl p-3 text-xs text-neutral-500 space-y-1">
-                    <p>Aktualny stan: <span className="text-neutral-300 font-semibold">{dropSettings.is_tbd ? 'Wkrótce (bez daty)' : dropSettings.drop_date ? new Date(dropSettings.drop_date).toLocaleString('pl-PL') : 'Brak daty'}</span></p>
-                    <p>Tytuł: <span className="text-neutral-300">{dropSettings.title}</span></p>
+              {/* Products in current drop manager */}
+              <div className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-5 sm:p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-bold text-white uppercase tracking-tight text-base flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-[#FF6B00]" />
+                      Produkty przypisane do tego dropu ({dropProducts.length})
+                    </h3>
+                    <p className="text-xs text-neutral-500 mt-0.5">Produkty, które pojawią się w sklepie po odliczeniu dropu lub kliknięciu "Opublikuj drop"</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  {dropProducts.map((p) => (
+                    <div key={p.id} className="flex items-center justify-between p-3 bg-white/5 border border-neutral-800 rounded-xl">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-lg overflow-hidden bg-black/40 border border-neutral-800 flex-shrink-0">
+                          {p.images[0] && <img src={p.images[0]} alt={p.name} className="w-full h-full object-cover" />}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-white text-sm font-semibold truncate">{p.name}</p>
+                          <p className="text-xs text-neutral-500">{p.brand} · EU {p.size_eu} · {formatPrice(p.price)}</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => toggleProductDropStatus(p.id, p.status)}
+                        className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300 bg-red-400/10 hover:bg-red-400/20 px-3 py-1.5 rounded-lg transition-all active:scale-95"
+                      >
+                        <Minus className="w-3.5 h-3.5" /> Usuń z dropu
+                      </button>
+                    </div>
+                  ))}
+
+                  {dropProducts.length === 0 && (
+                    <p className="text-xs text-neutral-600 py-4 text-center">Brak produktów w dropie. Dodaj produkty poniżej!</p>
+                  )}
+                </div>
+
+                {availableProducts.length > 0 && (
+                  <div className="pt-4 border-t border-neutral-800/80">
+                    <h4 className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2">Dodaj ze sklepu do dropu:</h4>
+                    <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                      {availableProducts.map((p) => (
+                        <div key={p.id} className="flex items-center justify-between p-2.5 bg-black/30 border border-neutral-800/60 rounded-xl">
+                          <div className="min-w-0">
+                            <p className="text-neutral-300 text-xs font-semibold truncate">{p.name}</p>
+                            <p className="text-[11px] text-neutral-500">EU {p.size_eu} · {formatPrice(p.price)}</p>
+                          </div>
+                          <button
+                            onClick={() => toggleProductDropStatus(p.id, p.status)}
+                            className="flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300 bg-emerald-400/10 hover:bg-emerald-400/20 px-2.5 py-1 rounded-lg transition-all active:scale-95"
+                          >
+                            <Plus className="w-3.5 h-3.5" /> Dodaj do dropu
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
