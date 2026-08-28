@@ -60,9 +60,9 @@ const EMPTY_BOOT_FORM: ProductForm = {
 
 const EMPTY_ACCESSORY_FORM: ProductForm = {
   productType: 'accessory',
-  name: 'Mini ochraniacze piłkarskie FOOTBUBR', brand: 'FOOTBUBR', model: 'Ochraniacze', size_eu: 'UNI', insole_length_cm: '',
-  price: '49', original_price: '69', stock_quantity: '50', surface_type: 'FG', level: 'Amatorski',
-  condition: 'Nowe z metką', condition_detail: 'Rozmiar uniwersalny / S-M', images: '',
+  name: 'Skarpety antypoślizgowe FOOTBUBR Białe', brand: 'FOOTBUBR', model: 'Skarpety', size_eu: 'One Size (41-45)', insole_length_cm: '',
+  price: '39', original_price: '59', stock_quantity: '100', surface_type: 'FG', level: 'Amatorski',
+  condition: 'Nowe z metką', condition_detail: 'Rozmiar uniwersalny', images: '',
   box_included: false, bag_included: false, extras_description: '',
   status: 'available', drop_type: 'global', drop_scheduled_at: '',
 };
@@ -354,7 +354,7 @@ function AdminPage() {
   };
 
   const handleSave = async () => {
-    if (!form.name || !form.price) return;
+    if (!form.name || !form.price || !form.size_eu) return;
     setSaving(true);
 
     let dbStatus: 'available' | 'draft' | 'sold' = 'available';
@@ -388,11 +388,11 @@ function AdminPage() {
       name: form.name,
       brand: isAcc ? 'FOOTBUBR' : form.brand,
       model: isAcc ? 'Akcesoria' : (form.model || form.name),
-      size_eu: isAcc ? (parseFloat(form.size_eu) || 43) : parseFloat(form.size_eu),
+      size_eu: form.size_eu, // teraz zapisywane jako tekst (np. "One Size (41-45)" lub "42.5")
       insole_length_cm: isAcc ? null : (form.insole_length_cm ? parseFloat(form.insole_length_cm) : null),
       price: parseFloat(form.price),
       original_price: form.original_price ? parseFloat(form.original_price) : null,
-      stock_quantity: isAcc ? (form.stock_quantity ? parseInt(form.stock_quantity, 10) : 50) : 1,
+      stock_quantity: isAcc ? (form.stock_quantity ? parseInt(form.stock_quantity, 10) : 100) : 1,
       surface_type: isAcc ? 'FG' : form.surface_type as any,
       level: isAcc ? 'Amatorski' : form.level as any,
       condition: form.condition as any,
@@ -454,7 +454,7 @@ function AdminPage() {
       name: p.name, brand: p.brand, model: p.model,
       size_eu: String(p.size_eu), insole_length_cm: p.insole_length_cm ? String(p.insole_length_cm) : '',
       price: String(p.price), original_price: p.original_price ? String(p.original_price) : '',
-      stock_quantity: String(p.stock_quantity ?? (isAcc ? 50 : 1)),
+      stock_quantity: String(p.stock_quantity ?? (isAcc ? 100 : 1)),
       surface_type: p.surface_type, level: p.level, condition: p.condition,
       condition_detail: p.condition_detail || '', images: p.images.join('\n'),
       box_included: p.box_included, bag_included: p.bag_included,
@@ -683,7 +683,7 @@ function AdminPage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                             <span className="text-xs font-bold text-[#FF6B00] uppercase tracking-wider">{p.brand}</span>
-                            <span className="text-xs text-neutral-500">{p.brand === 'FOOTBUBR' ? `Rozmiar: ${p.size_eu}` : `EU ${p.size_eu}`}</span>
+                            <span className="text-xs text-neutral-500">Rozmiar: {p.size_eu}</span>
                             <span className="text-xs font-bold text-neutral-300 bg-white/5 border border-neutral-700 px-2 py-0.5 rounded-full">
                               Magazyn: {p.stock_quantity ?? 1} szt.
                             </span>
@@ -829,9 +829,9 @@ function AdminPage() {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                           <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">
-                            {form.productType === 'boot' ? 'Rozmiar EU *' : 'Rozmiar (np. uniwersalny / S / M / 41-45) *'}
+                            {form.productType === 'boot' ? 'Rozmiar EU *' : 'Rozmiar (np. One Size (41-45), S, M) *'}
                           </label>
-                          <input className={inp} placeholder={form.productType === 'boot' ? '42.5' : 'Uniwersalny'} type="text" value={form.size_eu} onChange={(e) => setForm({ ...form, size_eu: e.target.value })} />
+                          <input className={inp} placeholder={form.productType === 'boot' ? '42.5' : 'One Size (41-45)'} type="text" value={form.size_eu} onChange={(e) => setForm({ ...form, size_eu: e.target.value })} />
                         </div>
                         {form.productType === 'boot' && (
                           <div>
@@ -855,7 +855,7 @@ function AdminPage() {
                       {form.productType === 'accessory' && (
                         <div>
                           <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Ilość sztuk w magazynie *</label>
-                          <input className={inp} placeholder="50" type="number" min="1" value={form.stock_quantity} onChange={(e) => setForm({ ...form, stock_quantity: e.target.value })} />
+                          <input className={inp} placeholder="100" type="number" min="1" value={form.stock_quantity} onChange={(e) => setForm({ ...form, stock_quantity: e.target.value })} />
                         </div>
                       )}
                     </div>
@@ -1020,7 +1020,7 @@ function AdminPage() {
                     <div className="flex gap-3">
                       <button
                         onClick={handleSave}
-                        disabled={saving || !form.name || !form.price}
+                        disabled={saving || !form.name || !form.price || !form.size_eu}
                         className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-black px-6 py-3 rounded-xl transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-40 shadow-[0_4px_15px_rgba(255,107,0,0.25)]"
                       >
                         {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
@@ -1089,7 +1089,7 @@ function AdminPage() {
                                 </p>
                               )}
                               {o.product && (
-                                <p className="text-[#FF6B00] font-medium mt-1 text-xs sm:text-sm">{o.product.name} · EU {o.product.size_eu}</p>
+                                <p className="text-[#FF6B00] font-medium mt-1 text-xs sm:text-sm">{o.product.name} · Rozmiar: {o.product.size_eu}</p>
                               )}
                             </div>
                           </div>
