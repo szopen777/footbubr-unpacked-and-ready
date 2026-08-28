@@ -77,9 +77,11 @@ export interface Order {
 export function formatOrderNumber(order: { id?: string; order_number?: string | number | null }): string {
   if (order.order_number) {
     const raw = String(order.order_number).trim();
+    // Jeśli numer zawiera już FB-XXXX (nawet z rokiem), wyciągamy tylko ostatni człon FB-XXXX
+    const match = raw.match(/FB-\d+/i);
+    if (match) return `#${match[0].toUpperCase()}`;
     if (raw.startsWith('#')) return raw;
-    if (raw.startsWith('FB-')) return `#${raw}`;
-    return `#FB-${raw.padStart(4, '0')}`;
+    return `#FB-${raw.replace(/\D/g, '').padStart(4, '0')}`;
   }
   return `#FB-${(order.id || '').slice(0, 4).toUpperCase()}`;
 }
