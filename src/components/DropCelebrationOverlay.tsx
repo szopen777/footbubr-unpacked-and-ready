@@ -97,7 +97,10 @@ export default function DropCelebrationOverlay({ onComplete }: DropCelebrationOv
         </div>
 
         <h2 className="text-5xl sm:text-7xl md:text-8xl font-black text-white uppercase tracking-tighter drop-shadow-[0_10px_35px_rgba(255,69,0,0.9)]">
-          DROP IS <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#FFA500] via-[#FF4500] to-[#FF0000]">LIVE!</span>
+          DROP IS{' '}
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#FFE600] via-[#FFA500] to-white drop-shadow-[0_0_25px_rgba(255,165,0,0.8)]">
+            LIVE!
+          </span>
         </h2>
 
         <p className="text-neutral-200 text-sm sm:text-lg font-bold mt-4 uppercase tracking-wider drop-shadow-md">
