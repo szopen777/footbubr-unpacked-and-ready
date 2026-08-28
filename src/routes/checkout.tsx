@@ -38,10 +38,10 @@ function CheckoutPage() {
   const shippingCost = shippingCostFor(form.shippingMethod, discountedTotal);
   const orderTotal = discountedTotal + shippingCost;
 
-  // Nasłuchiwanie wyboru paczkomatu z widgetu InPost
+  // Nasłuchiwanie wyboru paczkomatu z oficjalnego widgetu InPost
   useEffect(() => {
     const handlePointSelect = (e: any) => {
-      const pointName = e.detail?.name || e.detail?.address_details?.name;
+      const pointName = e.detail?.name || e.detail?.address_details?.name || e.name;
       if (pointName) {
         setForm((prev) => ({ ...prev, paczkomatCode: pointName.toUpperCase() }));
         setShowInpostMap(false);
@@ -49,7 +49,12 @@ function CheckoutPage() {
     };
 
     window.addEventListener('onpointselect', handlePointSelect);
-    return () => window.removeEventListener('onpointselect', handlePointSelect);
+    window.addEventListener('inpost.geowidget.point_selected', handlePointSelect);
+
+    return () => {
+      window.removeEventListener('onpointselect', handlePointSelect);
+      window.removeEventListener('inpost.geowidget.point_selected', handlePointSelect);
+    };
   }, []);
 
   const validate = () => {
@@ -226,7 +231,7 @@ function CheckoutPage() {
       <Header />
       <CartDrawer />
 
-      {/* Modal z mapą InPost Geowidget */}
+      {/* Modal z mapą InPost Geowidget v5 */}
       {showInpostMap && (
         <div className="fixed inset-0 z-[200] bg-black/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-6 animate-fade-in">
           <div className="bg-[#141414] border border-neutral-800 rounded-2xl w-full max-w-4xl h-[85vh] flex flex-col shadow-2xl overflow-hidden relative">
@@ -241,12 +246,10 @@ function CheckoutPage() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="flex-1 w-full bg-black relative">
-              <iframe
-                src="https://geowidget.inpost.pl/?country=pl&language=pl&config=parcelCollect"
-                className="w-full h-full border-0"
-                title="InPost Geowidget"
-              />
+            <div className="flex-1 w-full bg-black relative p-2 overflow-hidden">
+              <div id="inpost-geowidget" className="w-full h-full rounded-xl overflow-hidden" />
+              <script src="https://geowidget.inpost.pl/inpost-geowidget.js" async />
+              <link rel="stylesheet" href="https://geowidget.inpost.pl/inpost-geowidget.css" />
             </div>
           </div>
         </div>
