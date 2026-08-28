@@ -228,11 +228,26 @@ function AdminPage() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const handleRemoveImage = (indexToRemove: number) => {
+ const handleRemoveImage = async (indexToRemove: number) => {
     const imageList = form.images.split('\n').map((s) => s.trim()).filter(Boolean);
+    const urlToRemove = imageList[indexToRemove];
+
+    // Próbujemy wyciągnąć ścieżkę pliku z URL i usunąć go z Supabase Storage
+    if (urlToRemove && urlToRemove.includes('product-images')) {
+      try {
+        const parts = urlToRemove.split('/product-images/');
+        if (parts.length > 1) {
+          const filePath = parts[1];
+          await supabase.storage.from('product-images').remove([filePath]);
+        }
+      } catch (err) {
+        console.error('Błąd usuwania pliku ze Storage:', err);
+      }
+    }
+
     const updated = imageList.filter((_, idx) => idx !== indexToRemove);
     setForm((prev) => ({ ...prev, images: updated.join('\n') }));
-    showToast('Zdjęcie usunięte z formularza');
+    showToast('Zdjęcie usunięte z serwera i formularza');
   };
 
   const ORDER_STATUS_LABELS: Record<string, string> = {
