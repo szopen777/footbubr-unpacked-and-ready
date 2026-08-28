@@ -164,7 +164,7 @@ function HomePage() {
 
       const selectedCategory = filters.category || 'all';
 
-      // 1. Główne filtry kategorii z paska bocznego (Wszystko / Korki / Akcesoria)
+      // 1. Kategoria główna
       if (selectedCategory === 'boots' && isAccessory) return false;
       if (selectedCategory === 'accessories' && !isAccessory) return false;
 
@@ -174,28 +174,36 @@ function HomePage() {
         if (!pName.includes(q) && !pBrand.includes(q) && !pModel.includes(q)) return false;
       }
 
-      // 3. Filtry specyficzne dla butów (jeśli to nie jest akcesorium)
-      if (!isAccessory) {
+      // 3. Jeśli to akcesorium:
+      if (isAccessory) {
+        // Jeśli zaznaczono markę butów (np. Nike), a to akcesorium FOOTBUBR -> ukryj
+        if (filters.brands?.length > 0) return false;
+        // Jeśli zaznaczono rozmiar, poziom, nawierzchnię lub stan -> ukryj akcesoria (bo ich nie dotyczą)
+        if (filters.sizes?.length || filters.levels?.length || filters.surfaces?.length || filters.conditions?.length) return false;
+
+        // Filtrowanie po konkretnym typie akcesorium
+        if (filters.accessoryTypes?.length) {
+          const matchesType = filters.accessoryTypes.some((type) => {
+            const target = type.toLowerCase();
+            if (target.includes('skarpety') && (pAccType.includes('skarpety') || pName.includes('skarpety') || pModel.includes('skarpety'))) return true;
+            if (target.includes('ochraniacze') && (pAccType.includes('ochraniacze') || pName.includes('ochraniacze') || pModel.includes('ochraniacze'))) return true;
+            if (target.includes('taśmy') && (pAccType.includes('taśm') || pName.includes('taśm') || pName.includes('tasm') || pName.includes('tape'))) return true;
+            if (target.includes('zestawy') && (pAccType.includes('zestaw') || pName.includes('zestaw') || pModel.includes('set'))) return true;
+            return false;
+          });
+          if (!matchesType) return false;
+        }
+      } 
+      // 4. Jeśli to but (korki):
+      else {
+        // Jeśli wybrano jakikolwiek filtr akcesoriów, schowaj buty
+        if (filters.accessoryTypes?.length > 0) return false;
+
         if (filters.sizes?.length && !filters.sizes.includes(p.size_eu)) return false;
         if (filters.brands?.length && !filters.brands.includes(p.brand)) return false;
         if (filters.levels?.length && !filters.levels.includes(p.level)) return false;
         if (filters.surfaces?.length && !filters.surfaces.includes(p.surface_type)) return false;
         if (filters.conditions?.length && !filters.conditions.includes(p.condition)) return false;
-      }
-
-      // 4. Filtry rodzajów akcesoriów (jeśli zaznaczono konkretny typ akcesorium)
-      if (filters.accessoryTypes?.length) {
-        if (!isAccessory) return false; // Jeśli wybrano filtr akcesoriów, schowaj buty
-
-        const matchesType = filters.accessoryTypes.some((type) => {
-          const target = type.toLowerCase();
-          if (target.includes('skarpety') && (pAccType.includes('skarpety') || pName.includes('skarpety') || pModel.includes('skarpety'))) return true;
-          if (target.includes('ochraniacze') && (pAccType.includes('ochraniacze') || pName.includes('ochraniacze') || pModel.includes('ochraniacze'))) return true;
-          if (target.includes('taśmy') && (pAccType.includes('taśm') || pName.includes('taśm') || pName.includes('tasm') || pName.includes('tape'))) return true;
-          if (target.includes('zestawy') && (pAccType.includes('zestaw') || pName.includes('zestaw') || pModel.includes('set'))) return true;
-          return false;
-        });
-        if (!matchesType) return false;
       }
 
       // 5. Filtry cenowe
