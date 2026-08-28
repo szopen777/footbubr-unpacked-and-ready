@@ -97,11 +97,20 @@ function AdminPage() {
 
   const loadProducts = async () => {
     setLoading(true);
+    const nowIso = new Date().toISOString();
+
+    // 1. Automatycznie aktualizujemy w bazie produkty z dropu, których czas minął
+    await supabase
+      .from('products')
+      .update({ status: 'available', drop_scheduled_at: null })
+      .eq('status', 'draft')
+      .lte('drop_scheduled_at', nowIso);
+
+    // 2. Pobieramy już zaktualizowaną listę
     const { data } = await supabase.from('products').select('*').order('created_at', { ascending: false });
     if (data) setProducts(data as Product[]);
     setLoading(false);
   };
-
   const handleOrderStatusChange = async (orderId: string, status: string) => {
     const { error } = await supabase.from('orders').update({ status }).eq('id', orderId);
     if (error) {
