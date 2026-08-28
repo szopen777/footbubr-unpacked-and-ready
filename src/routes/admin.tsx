@@ -228,6 +228,13 @@ function AdminPage() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const handleRemoveImage = (indexToRemove: number) => {
+    const imageList = form.images.split('\n').map((s) => s.trim()).filter(Boolean);
+    const updated = imageList.filter((_, idx) => idx !== indexToRemove);
+    setForm((prev) => ({ ...prev, images: updated.join('\n') }));
+    showToast('Zdjęcie usunięte z formularza');
+  };
+
   const ORDER_STATUS_LABELS: Record<string, string> = {
     pending: 'Nowe',
     paid: 'Opłacone',
@@ -830,12 +837,21 @@ function AdminPage() {
                         />
                       </div>
 
-                      {/* Podgląd miniatur zdjęć */}
+                      {/* Podgląd miniatur zdjęć z możliwością usuwania */}
                       {form.images.trim() && (
-                        <div className="flex gap-2 overflow-x-auto py-2">
+                        <div className="flex gap-3 overflow-x-auto py-2">
                           {form.images.split('\n').filter(Boolean).map((url, i) => (
-                            <div key={i} className="relative w-16 h-16 rounded-xl border border-neutral-800 overflow-hidden flex-shrink-0 bg-black/40">
+                            <div key={i} className="relative group w-20 h-20 rounded-xl border border-neutral-800 overflow-hidden flex-shrink-0 bg-black/40">
                               <img src={url.trim()} alt="" className="w-full h-full object-cover" />
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveImage(i)}
+                                className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-300 active:scale-90"
+                                title="Usuń zdjęcie"
+                              >
+                                <Trash2 className="w-5 h-5 mb-0.5" />
+                                <span className="text-[9px] font-bold uppercase">Usuń</span>
+                              </button>
                             </div>
                           ))}
                         </div>
