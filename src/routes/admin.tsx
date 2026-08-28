@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { supabase, Product, Order, DropSettings, PRODUCT_LEVELS, formatOrderNumber } from '@/lib/supabase';
 
 import { formatPrice, INPUT_CLASS, SELECT_CLASS, cn } from '@/lib/utils';
-import { Package, ShoppingCart, LogOut, Eye, EyeOff, Loader as Loader2, Trash2, CreditCard as Edit2, X, Check, CircleAlert as AlertCircle, ArrowLeft, ChevronDown, Zap, Calendar, Menu, Sparkles, Copy, Truck, MapPin, Plus, Minus, FileText, Clock } from 'lucide-react';
+import { Package, ShoppingCart, LogOut, Eye, EyeOff, Loader as Loader2, Trash2, CreditCard as Edit2, X, Check, CircleAlert as AlertCircle, ArrowLeft, ChevronDown, Zap, Calendar, Menu, Sparkles, Copy, Truck, MapPin, Plus, Minus, FileText, Clock, Layers } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -14,6 +14,7 @@ const ADMIN_PASSWORD = '123';
 
 type View = 'products' | 'orders' | 'drop-settings';
 type CustomProductStatus = 'available' | 'draft' | 'drop' | 'sold';
+type DropTypeChoice = 'global' | 'custom';
 
 interface ProductForm {
   name: string;
@@ -32,6 +33,7 @@ interface ProductForm {
   bag_included: boolean;
   extras_description: string;
   status: CustomProductStatus;
+  drop_type: DropTypeChoice;
   drop_scheduled_at: string;
 }
 
@@ -40,7 +42,7 @@ const EMPTY_FORM: ProductForm = {
   price: '', original_price: '', surface_type: 'FG', level: 'Profesjonalny',
   condition: 'Nowe z metką', condition_detail: '', images: '',
   box_included: false, bag_included: false, extras_description: '',
-  status: 'available', drop_scheduled_at: '',
+  status: 'available', drop_type: 'global', drop_scheduled_at: '',
 };
 
 function AdminPage() {
@@ -266,11 +268,15 @@ function AdminPage() {
       finalDropDate = null; // Czysty szkic w panelu
     } else if (form.status === 'drop') {
       dbStatus = 'draft';
-      finalDropDate = form.drop_scheduled_at
-        ? new Date(form.drop_scheduled_at).toISOString()
-        : dropSettings?.drop_date && !dropSettings.is_tbd
+      if (form.drop_type === 'global') {
+        finalDropDate = dropSettings?.drop_date && !dropSettings.is_tbd
           ? dropSettings.drop_date
           : new Date().toISOString();
+      } else {
+        finalDropDate = form.drop_scheduled_at
+          ? new Date(form.drop_scheduled_at).toISOString()
+          : new Date().toISOString();
+      }
     } else if (form.status === 'sold') {
       dbStatus = 'sold';
       finalDropDate = null;
@@ -326,9 +332,18 @@ function AdminPage() {
 
   const handleEdit = (p: Product) => {
     let customStatus: CustomProductStatus = 'available';
-    if (p.status === 'sold') customStatus = 'sold';
-    else if (p.status === 'draft') {
-      customStatus = p.drop_scheduled_at ? 'drop' : 'draft';
+    let dType: DropTypeChoice = 'global';
+
+    if (p.status === 'sold') {
+      customStatus = 'sold';
+    } else if (p.status === 'draft') {
+      if (p.drop_scheduled_at) {
+        customStatus = 'drop';
+        const isGlobal = Boolean(dropSettings?.drop_date && p.drop_scheduled_at === dropSettings.drop_date);
+        dType = isGlobal ? 'global' : 'custom';
+      } else {
+        customStatus = 'draft';
+      }
     }
 
     setForm({
@@ -340,6 +355,7 @@ function AdminPage() {
       box_included: p.box_included, bag_included: p.bag_included,
       extras_description: p.extras_description || '',
       status: customStatus,
+      drop_type: dType,
       drop_scheduled_at: p.drop_scheduled_at ? new Date(p.drop_scheduled_at).toISOString().slice(0, 16) : '',
     });
     setEditingId(p.id);
@@ -801,16 +817,61 @@ function AdminPage() {
                         </button>
                       </div>
 
+                      {/* Drop configuration */}
                       {form.status === 'drop' && (
-                        <div className="pt-2 animate-fade-in space-y-1">
-                          <label className="text-xs text-neutral-400 block">Indywidualna data dropu dla tego produktu (opcjonalnie):</label>
-                          <input
-                            type="datetime-local"
-                            value={form.drop_scheduled_at}
-                            onChange={(e) => setForm({ ...form, drop_scheduled_at: e.target.value })}
-                            className={`${inp} [&::-webkit-calendar-picker-indicator]:invert`}
-                          />
-                          <p className="text-xs text-neutral-600">Jeśli pozostawisz puste, produkt użyje głównej daty dropu z Ustawień dropu.</p>
+                        <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl space-y-3 animate-fade-in">
+                          <p className="text-xs font-bold text-blue-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <Layers className="w-3.5 h-3.5" />
+                            Wybór dropu dla tego produktu
+                          </p>
+
+                          <div className="space-y-2">
+                            {/* Drop główny */}
+                            <label className="flex items-center gap-2.5 cursor-pointer p-2.5 rounded-lg border border-neutral-800 hover:border-neutral-700 bg-black/40 transition-all">
+                              <input
+                                type="radio"
+                                name="dropTypeChoice"
+                                checked={form.drop_type === 'global'}
+                                onChange={() => setForm({ ...form, drop_type: 'global' })}
+                                className="accent-[#FF6B00]"
+                              />
+                              <div className="min-w-0 flex-1">
+                                <span className="text-sm font-semibold text-white block">Drop główny (ze zrobionych)</span>
+                                <span className="text-xs text-neutral-400 block mt-0.5">
+                                  {dropSettings?.title || 'Nowy drop'} — {dropSettings?.drop_date && !dropSettings.is_tbd
+                                    ? new Date(dropSettings.drop_date).toLocaleString('pl-PL')
+                                    : 'Brak ustalonej daty / Wkrótce'}
+                                </span>
+                              </div>
+                            </label>
+
+                            {/* Drop indywidualny */}
+                            <label className="flex items-center gap-2.5 cursor-pointer p-2.5 rounded-lg border border-neutral-800 hover:border-neutral-700 bg-black/40 transition-all">
+                              <input
+                                type="radio"
+                                name="dropTypeChoice"
+                                checked={form.drop_type === 'custom'}
+                                onChange={() => setForm({ ...form, drop_type: 'custom' })}
+                                className="accent-[#FF6B00]"
+                              />
+                              <div className="min-w-0 flex-1">
+                                <span className="text-sm font-semibold text-white block">Drop indywidualny</span>
+                                <span className="text-xs text-neutral-400 block mt-0.5">Ustaw własną datę i godzinę tylko dla tego produktu</span>
+                              </div>
+                            </label>
+                          </div>
+
+                          {form.drop_type === 'custom' && (
+                            <div className="pt-2 animate-fade-in space-y-1">
+                              <label className="text-xs text-neutral-400 block">Wybierz własną datę i godzinę publikacji:</label>
+                              <input
+                                type="datetime-local"
+                                value={form.drop_scheduled_at}
+                                onChange={(e) => setForm({ ...form, drop_scheduled_at: e.target.value })}
+                                className={`${inp} [&::-webkit-calendar-picker-indicator]:invert`}
+                              />
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
