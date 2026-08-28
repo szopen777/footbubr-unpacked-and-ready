@@ -85,12 +85,24 @@ function CheckoutPage() {
       const placedOrderIds: string[] = [];
       let firstRecord: Order | null = null;
 
-      for (const { product } of items) {
-        const isAccessory = product.brand?.toUpperCase() === 'FOOTBUBR' || product.size_eu === 0 || product.surface_type === 'OTHER';
+      for (const { product, quantity } of items) {
+        const pName = (product.name || '').toLowerCase();
+        const pBrand = (product.brand || '').toLowerCase();
+        const pModel = (product.model || '').toLowerCase();
+        const isAccessory =
+          pBrand === 'footbubr' ||
+          pName.includes('skarpety') ||
+          pName.includes('ochraniacze') ||
+          pName.includes('taśma') ||
+          pName.includes('tasma') ||
+          pName.includes('zestaw') ||
+          pModel.includes('skarpety') ||
+          pModel.includes('ochraniacze') ||
+          Boolean(product.accessory_type);
 
         const itemTotal = promoCode
-          ? Math.round(product.price * 0.9) + shippingCost
-          : product.price + shippingCost;
+          ? Math.round(product.price * 0.9) * quantity + shippingCost
+          : product.price * quantity + shippingCost;
 
         const orderPayload = {
           product_id: product.id,
@@ -116,7 +128,6 @@ function CheckoutPage() {
 
         if (orderError) {
           console.error('Supabase order insert error:', orderError);
-          // Fallback if SELECT permission fails on public insert
           const tempId = 'ORD-' + Math.random().toString(36).substring(2, 9).toUpperCase();
           placedOrderIds.push(tempId);
         } else if (order) {
@@ -124,8 +135,19 @@ function CheckoutPage() {
           if (!firstRecord) firstRecord = order as Order;
         }
 
-        // Korki 1-of-1 oznaczamy jako sprzedane; akcesoria FOOTBUBR zostają dostępne
-        if (!isAccessory) {
+        // Aktualizacja stanu magazynowego i statusu
+        if (isAccessory) {
+          const currentStock = product.stock_quantity ?? 100;
+          const newStock = Math.max(0, currentStock - quantity);
+          await supabase
+            .from('products')
+            .update({ 
+              stock_quantity: newStock,
+              status: newStock === 0 ? 'sold' : 'available'
+            })
+            .eq('id', product.id);
+        } else {
+          // Korki 1-of-1 oznaczamy jako sprzedane
           await supabase.from('products').update({ status: 'sold' }).eq('id', product.id);
         }
       }
@@ -222,9 +244,7 @@ function CheckoutPage() {
         </div>
 
         <div className="grid lg:grid-cols-5 gap-6 lg:gap-8">
-          {/* Form */}
           <div className="lg:col-span-3 space-y-4 sm:space-y-6">
-            {/* Personal info */}
             <div className="bg-[#141414] rounded-2xl border border-neutral-800/80 p-4 sm:p-6 animate-fade-in-up">
               <h2 className="font-bold text-white mb-4 flex items-center gap-2 text-sm sm:text-base">
                 <span className="w-6 h-6 bg-[#FF6B00] text-black text-xs font-black rounded-full flex items-center justify-center">1</span>
@@ -252,7 +272,6 @@ function CheckoutPage() {
               </div>
             </div>
 
-            {/* Shipping */}
             <div className="bg-[#141414] rounded-2xl border border-neutral-800/80 p-4 sm:p-6 animate-fade-in-up">
               <h2 className="font-bold text-white mb-4 flex items-center gap-2 text-sm sm:text-base">
                 <span className="w-6 h-6 bg-[#FF6B00] text-black text-xs font-black rounded-full flex items-center justify-center">2</span>
@@ -340,7 +359,6 @@ function CheckoutPage() {
               </div>
             </div>
 
-            {/* Payment */}
             <div className="bg-[#141414] rounded-2xl border border-neutral-800/80 p-4 sm:p-6 animate-fade-in-up">
               <h2 className="font-bold text-white mb-4 flex items-center gap-2 text-sm sm:text-base">
                 <span className="w-6 h-6 bg-[#FF6B00] text-black text-xs font-black rounded-full flex items-center justify-center">3</span>
@@ -389,12 +407,11 @@ function CheckoutPage() {
             </div>
           </div>
 
-          {/* Order summary */}
           <div className="lg:col-span-2">
             <div className="bg-[#141414] rounded-2xl border border-neutral-800/80 p-4 sm:p-6 lg:sticky lg:top-24 animate-fade-in-up">
               <h2 className="font-bold text-white mb-4 uppercase tracking-wider text-sm">Podsumowanie</h2>
               <div className="space-y-3 mb-4 max-h-48 overflow-y-auto">
-                {items.map(({ product }) => (
+                {items.map(({ product, quantity }) => (
                   <div key={product.id} className="flex gap-3">
                     <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden bg-white/5 border border-neutral-800 flex-shrink-0">
                       {product.images[0] && <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" />}
@@ -402,15 +419,14 @@ function CheckoutPage() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-white truncate">{product.name}</p>
                       <p className="text-xs text-neutral-500">
-                        {product.brand?.toUpperCase() === 'FOOTBUBR' || product.size_eu === 0 ? (product.condition_detail || 'Akcesoria') : `EU ${product.size_eu} · ${product.surface_type}`}
+                        {quantity > 1 ? `Ilość: ${quantity} szt. · ` : ''}EU {product.size_eu}
                       </p>
-                      <p className="text-sm font-bold text-[#FF6B00] mt-0.5">{formatPrice(product.price)}</p>
+                      <p className="text-sm font-bold text-[#FF6B00] mt-0.5">{formatPrice(product.price * quantity)}</p>
                     </div>
                   </div>
                 ))}
               </div>
 
-              {/* Promo code */}
               <div className="border-t border-neutral-800 pt-4 space-y-3">
                 {promoCode ? (
                   <div className="flex items-center justify-between bg-emerald-500/10 border border-emerald-500/30 rounded-xl px-3 py-2.5">
@@ -454,7 +470,6 @@ function CheckoutPage() {
                 )}
               </div>
 
-              {/* Totals */}
               <div className="border-t border-neutral-800 mt-4 pt-4 space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-neutral-500">Produkty</span>
