@@ -1,22 +1,22 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { supabase, Product, Order, DropSettings, PRODUCT_LEVELS, formatOrderNumber } from '@/lib/supabase';
 
 import { formatPrice, INPUT_CLASS, SELECT_CLASS, cn } from '@/lib/utils';
-import { Package, ShoppingCart, LogOut, Eye, EyeOff, Loader as Loader2, Trash2, CreditCard as Edit2, X, Check, CircleAlert as AlertCircle, ArrowLeft, ChevronDown, Zap, Calendar, Menu, Sparkles, Copy, Truck, MapPin, Plus, Minus, FileText, Clock, Layers } from 'lucide-react';
+import { 
+  Package, ShoppingCart, LogOut, Eye, EyeOff, Loader as Loader2, Trash2, 
+  CreditCard as Edit2, X, Check, CircleAlert as AlertCircle, ArrowLeft, 
+  ChevronDown, Zap, Calendar, Menu, Sparkles, Copy, Truck, MapPin, 
+  Plus, Minus, FileText, Clock, Layers, Upload, Image as ImageIcon 
+} from 'lucide-react';
 import { Link } from '@tanstack/react-router';
-import type { Database } from '@/integrations/supabase/types';
-
-type ProductInsert = Database['public']['Tables']['products']['Insert'];
-type ProductUpdate = Database['public']['Tables']['products']['Update'];
-
-const ADMIN_PASSWORD = '123';
 
 type View = 'products' | 'orders' | 'drop-settings';
 type CustomProductStatus = 'available' | 'draft' | 'drop' | 'sold';
 type DropTypeChoice = 'global' | 'custom';
 
-// Pomocnicza funkcja do formatowania daty w strefie lokalnej bez przekłamań UTC
+const ADMIN_PASSWORD = '123';
+
 function toLocalDatetimeInput(isoStr: string | null | undefined): string {
   if (!isoStr) return '';
   const d = new Date(isoStr);
@@ -33,6 +33,7 @@ interface ProductForm {
   insole_length_cm: string;
   price: string;
   original_price: string;
+  stock_quantity: string;
   surface_type: string;
   level: string;
   condition: string;
@@ -48,7 +49,7 @@ interface ProductForm {
 
 const EMPTY_FORM: ProductForm = {
   name: '', brand: '', model: '', size_eu: '', insole_length_cm: '',
-  price: '', original_price: '', surface_type: 'FG', level: 'Profesjonalny',
+  price: '', original_price: '', stock_quantity: '1', surface_type: 'FG', level: 'Profesjonalny',
   condition: 'Nowe z metką', condition_detail: '', images: '',
   box_included: false, bag_included: false, extras_description: '',
   status: 'available', drop_type: 'global', drop_scheduled_at: '',
@@ -66,6 +67,8 @@ function AdminPage() {
   const [form, setForm] = useState<ProductForm>(EMPTY_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [toast, setToast] = useState('');
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [publishing, setPublishing] = useState(false);
@@ -99,18 +102,17 @@ function AdminPage() {
     setLoading(true);
     const nowIso = new Date().toISOString();
 
-    // 1. Automatycznie aktualizujemy w bazie produkty z dropu, których czas minął
     await supabase
       .from('products')
       .update({ status: 'available', drop_scheduled_at: null })
       .eq('status', 'draft')
       .lte('drop_scheduled_at', nowIso);
 
-    // 2. Pobieramy już zaktualizowaną listę
     const { data } = await supabase.from('products').select('*').order('created_at', { ascending: false });
     if (data) setProducts(data as Product[]);
     setLoading(false);
   };
+
   const handleOrderStatusChange = async (orderId: string, status: string) => {
     const { error } = await supabase.from('orders').update({ status }).eq('id', orderId);
     if (error) {
@@ -176,6 +178,48 @@ function AdminPage() {
     navigator.clipboard.writeText(text).then(() => {
       showToast(`Skopiowano: ${label}`);
     });
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploadingImage(true);
+    const uploadedUrls: string[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
+      const filePath = `products/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('product-images')
+        .upload(filePath, file, { cacheControl: '3600', upsert: false });
+
+      if (uploadError) {
+        showToast(`Błąd wgrywania: ${uploadError.message}`);
+        continue;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('product-images')
+        .getPublicUrl(filePath);
+
+      if (publicUrl) {
+        uploadedUrls.push(publicUrl);
+      }
+    }
+
+    if (uploadedUrls.length > 0) {
+      const currentImages = form.images.trim();
+      const newImagesList = currentImages ? `${currentImages}\n${uploadedUrls.join('\n')}` : uploadedUrls.join('\n');
+      setForm((prev) => ({ ...prev, images: newImagesList }));
+      showToast(`Wgrano ${uploadedUrls.length} zdjęć!`);
+    }
+
+    setUploadingImage(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const ORDER_STATUS_LABELS: Record<string, string> = {
@@ -299,7 +343,7 @@ function AdminPage() {
       finalDropDate = null;
     }
 
-    const payload: ProductInsert = {
+    const payload: any = {
       name: form.name,
       brand: form.brand,
       model: form.model || form.name,
@@ -307,6 +351,7 @@ function AdminPage() {
       insole_length_cm: form.insole_length_cm ? parseFloat(form.insole_length_cm) : null,
       price: parseFloat(form.price),
       original_price: form.original_price ? parseFloat(form.original_price) : null,
+      stock_quantity: form.stock_quantity ? parseInt(form.stock_quantity, 10) : 1,
       surface_type: form.surface_type as any,
       level: form.level as any,
       condition: form.condition as any,
@@ -347,7 +392,7 @@ function AdminPage() {
     setSaving(false);
   };
 
-  const handleEdit = (p: Product) => {
+  const handleEdit = (p: Product & { stock_quantity?: number }) => {
     let customStatus: CustomProductStatus = 'available';
     let dType: DropTypeChoice = 'global';
 
@@ -367,6 +412,7 @@ function AdminPage() {
       name: p.name, brand: p.brand, model: p.model,
       size_eu: String(p.size_eu), insole_length_cm: p.insole_length_cm ? String(p.insole_length_cm) : '',
       price: String(p.price), original_price: p.original_price ? String(p.original_price) : '',
+      stock_quantity: String(p.stock_quantity ?? 1),
       surface_type: p.surface_type, level: p.level, condition: p.condition,
       condition_detail: p.condition_detail || '', images: p.images.join('\n'),
       box_included: p.box_included, bag_included: p.bag_included,
@@ -387,7 +433,7 @@ function AdminPage() {
   };
 
   const handleQuickStatusChange = async (id: string, newStatus: CustomProductStatus) => {
-    const updates: ProductUpdate = {};
+    const updates: any = {};
     if (newStatus === 'available') {
       updates.status = 'available';
       updates.drop_scheduled_at = null;
@@ -493,7 +539,7 @@ function AdminPage() {
                 </div>
               </div>
               <p className="text-sm text-neutral-400 mb-6">
-                Czy na pewno chcesz opublikować wszystkie <span className="text-[#FF6B00] font-bold">{dropProducts.length}</span> produkty z zaplanowanego dropu? Zmienią status na "Dostępny" w sklepie. Produkty ze statusem "Szkic" pozostaną niewidoczne w panelu.
+                Czy na pewno chcesz opublikować wszystkie <span className="text-[#FF6B00] font-bold">{dropProducts.length}</span> produkty z zaplanowanego dropu? Zmienią status na "Dostępny" w sklepie.
               </p>
               <div className="flex gap-3">
                 <button
@@ -585,7 +631,7 @@ function AdminPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {products.map((p) => {
+                  {products.map((p: any) => {
                     const isDrop = p.status === 'draft' && p.drop_scheduled_at !== null;
                     const isDraft = p.status === 'draft' && p.drop_scheduled_at === null;
 
@@ -603,6 +649,9 @@ function AdminPage() {
                           <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                             <span className="text-xs font-bold text-[#FF6B00] uppercase tracking-wider">{p.brand}</span>
                             <span className="text-xs text-neutral-500">EU {p.size_eu}</span>
+                            <span className="text-xs font-bold text-neutral-300 bg-white/5 border border-neutral-700 px-2 py-0.5 rounded-full">
+                              Stan: {p.stock_quantity ?? 1} szt.
+                            </span>
                             
                             {isDraft && (
                               <span className="text-xs text-neutral-400 bg-neutral-800 px-2 py-0.5 rounded-full flex items-center gap-1 font-medium">
@@ -692,9 +741,10 @@ function AdminPage() {
                         <input className={inp} placeholder="Rozmiar EU *" type="number" step="0.5" value={form.size_eu} onChange={(e) => setForm({ ...form, size_eu: e.target.value })} />
                         <input className={inp} placeholder="Długość wkładki (cm)" type="number" step="0.5" value={form.insole_length_cm} onChange={(e) => setForm({ ...form, insole_length_cm: e.target.value })} />
                       </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <input className={inp} placeholder="Cena PLN *" type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
-                        <input className={inp} placeholder="Cena katalogowa PLN" type="number" value={form.original_price} onChange={(e) => setForm({ ...form, original_price: e.target.value })} />
+                        <input className={inp} placeholder="Cena katalogowa" type="number" value={form.original_price} onChange={(e) => setForm({ ...form, original_price: e.target.value })} />
+                        <input className={inp} placeholder="Ilość sztuk w magazynie *" type="number" min="0" value={form.stock_quantity} onChange={(e) => setForm({ ...form, stock_quantity: e.target.value })} />
                       </div>
                     </div>
 
@@ -735,7 +785,7 @@ function AdminPage() {
                       <textarea
                         className={`${inp} resize-none`}
                         rows={2}
-                        placeholder="Szczegółowy opis stanu (np. drobne ślady na podeszwie)"
+                        placeholder="Szczegółowy opis stanu / specyfikacja produktu"
                         value={form.condition_detail}
                         onChange={(e) => setForm({ ...form, condition_detail: e.target.value })}
                       />
@@ -743,18 +793,49 @@ function AdminPage() {
 
                     {/* Images & extras */}
                     <div className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-4 sm:p-5 space-y-3">
-                      <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-1">Zdjęcia i dodatki</h3>
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider">Zdjęcia produktu</h3>
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={uploadingImage}
+                          className="flex items-center gap-1.5 text-xs font-bold text-black bg-[#FF6B00] hover:bg-[#FF7A00] px-3 py-1.5 rounded-lg transition-all active:scale-95 disabled:opacity-50"
+                        >
+                          {uploadingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                          Wgraj z urządzenia
+                        </button>
+                        <input
+                          type="file"
+                          ref={fileInputRef}
+                          onChange={handleFileUpload}
+                          multiple
+                          accept="image/*"
+                          className="hidden"
+                        />
+                      </div>
                       <div>
-                        <p className="text-xs text-neutral-500 mb-1">URL zdjęć (każdy w nowej linii)</p>
+                        <p className="text-xs text-neutral-500 mb-1">URL zdjęć (lub wgraj przyciskiem powyżej):</p>
                         <textarea
                           className={`${inp} resize-none font-mono text-xs`}
-                          rows={4}
+                          rows={3}
                           placeholder="https://images.pexels.com/..."
                           value={form.images}
                           onChange={(e) => setForm({ ...form, images: e.target.value })}
                         />
                       </div>
-                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+
+                      {/* Podgląd miniatur zdjęć */}
+                      {form.images.trim() && (
+                        <div className="flex gap-2 overflow-x-auto py-2">
+                          {form.images.split('\n').filter(Boolean).map((url, i) => (
+                            <div key={i} className="relative w-16 h-16 rounded-xl border border-neutral-800 overflow-hidden flex-shrink-0 bg-black/40">
+                              <img src={url.trim()} alt="" className="w-full h-full object-cover" />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 pt-2 border-t border-neutral-800/60">
                         <label className="flex items-center gap-2 cursor-pointer">
                           <input type="checkbox" checked={form.box_included} onChange={(e) => setForm({ ...form, box_included: e.target.checked })} className="w-4 h-4 accent-[#FF6B00]" />
                           <span className="text-sm text-neutral-300">Oryginalne pudełko</span>
@@ -843,7 +924,6 @@ function AdminPage() {
                           </p>
 
                           <div className="space-y-2">
-                            {/* Drop główny */}
                             <label className="flex items-center gap-2.5 cursor-pointer p-2.5 rounded-lg border border-neutral-800 hover:border-neutral-700 bg-black/40 transition-all">
                               <input
                                 type="radio"
@@ -862,7 +942,6 @@ function AdminPage() {
                               </div>
                             </label>
 
-                            {/* Drop indywidualny */}
                             <label className="flex items-center gap-2.5 cursor-pointer p-2.5 rounded-lg border border-neutral-800 hover:border-neutral-700 bg-black/40 transition-all">
                               <input
                                 type="radio"
