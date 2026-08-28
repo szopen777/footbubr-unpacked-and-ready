@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCart } from '@/lib/cart-context';
 import { supabase, formatOrderNumber, Order } from '@/lib/supabase';
 import { formatPrice, INPUT_CLASS } from '@/lib/utils';
@@ -15,6 +15,7 @@ function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [orderId, setOrderId] = useState('');
   const [orderRecord, setOrderRecord] = useState<Order | null>(null);
+  const [showInpostMap, setShowInpostMap] = useState(false);
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
@@ -36,6 +37,20 @@ function CheckoutPage() {
 
   const shippingCost = shippingCostFor(form.shippingMethod, discountedTotal);
   const orderTotal = discountedTotal + shippingCost;
+
+  // Nasłuchiwanie wyboru paczkomatu z widgetu InPost
+  useEffect(() => {
+    const handlePointSelect = (e: any) => {
+      const pointName = e.detail?.name || e.detail?.address_details?.name;
+      if (pointName) {
+        setForm((prev) => ({ ...prev, paczkomatCode: pointName.toUpperCase() }));
+        setShowInpostMap(false);
+      }
+    };
+
+    window.addEventListener('onpointselect', handlePointSelect);
+    return () => window.removeEventListener('onpointselect', handlePointSelect);
+  }, []);
 
   const validate = () => {
     const e: Record<string, string> = {};
@@ -135,7 +150,7 @@ function CheckoutPage() {
           if (!firstRecord) firstRecord = order as Order;
         }
 
-        // Aktualizacja stanu magazynowego i statusu
+        // Aktualizacja stanu magazynowego i statusu produktu
         if (isAccessory) {
           const currentStock = product.stock_quantity ?? 100;
           const newStock = Math.max(0, currentStock - quantity);
@@ -147,7 +162,6 @@ function CheckoutPage() {
             })
             .eq('id', product.id);
         } else {
-          // Korki 1-of-1 oznaczamy jako sprzedane
           await supabase.from('products').update({ status: 'sold' }).eq('id', product.id);
         }
       }
@@ -211,6 +225,32 @@ function CheckoutPage() {
     <div className="min-h-screen">
       <Header />
       <CartDrawer />
+
+      {/* Modal z mapą InPost Geowidget */}
+      {showInpostMap && (
+        <div className="fixed inset-0 z-[200] bg-black/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-6 animate-fade-in">
+          <div className="bg-[#141414] border border-neutral-800 rounded-2xl w-full max-w-4xl h-[85vh] flex flex-col shadow-2xl overflow-hidden relative">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800 bg-[#111]">
+              <h3 className="text-white font-bold text-sm uppercase tracking-wider flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-[#FF6B00]" /> Wybierz Paczkomat InPost
+              </h3>
+              <button
+                onClick={() => setShowInpostMap(false)}
+                className="p-1.5 text-neutral-400 hover:text-white rounded-lg bg-white/5 transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 w-full bg-black relative">
+              <iframe
+                src="https://geowidget.inpost.pl/?country=pl&language=pl&config=parcelCollect"
+                className="w-full h-full border-0"
+                title="InPost Geowidget"
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {blikStep !== 'idle' && (
         <div className="fixed inset-0 z-[100] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
@@ -309,15 +349,24 @@ function CheckoutPage() {
                 </label>
 
                 {form.shippingMethod === 'paczkomat' && (
-                  <div className="animate-fade-in">
-                    <div className="relative">
-                      <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
-                      <input
-                        className={`${inp} pl-9`}
-                        placeholder="Kod paczkomatu (np. WAW123M) *"
-                        value={form.paczkomatCode}
-                        onChange={(e) => setForm({ ...form, paczkomatCode: e.target.value.toUpperCase() })}
-                      />
+                  <div className="animate-fade-in space-y-2">
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
+                        <input
+                          className={`${inp} pl-9`}
+                          placeholder="Kod paczkomatu (np. WAW123M) *"
+                          value={form.paczkomatCode}
+                          onChange={(e) => setForm({ ...form, paczkomatCode: e.target.value.toUpperCase() })}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowInpostMap(true)}
+                        className="px-4 py-2.5 bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-bold text-xs rounded-xl transition-all flex-shrink-0 active:scale-95 shadow-[0_2px_10px_rgba(255,107,0,0.2)]"
+                      >
+                        Wybierz z mapy
+                      </button>
                     </div>
                     {errors.paczkomatCode && <p className="text-red-400 text-xs mt-1">{errors.paczkomatCode}</p>}
                   </div>
