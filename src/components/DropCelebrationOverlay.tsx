@@ -2,29 +2,39 @@ import { useEffect, useState } from 'react';
 import { Flame, Zap } from 'lucide-react';
 
 interface DropCelebrationOverlayProps {
-  onComplete?: () => void;
+  onComplete: () => void;
 }
 
 export default function DropCelebrationOverlay({ onComplete }: DropCelebrationOverlayProps) {
-  const [visible, setVisible] = useState(true);
+  const [isFadingOut, setIsFadingOut] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setVisible(false);
-      onComplete?.();
-    }, 4500);
+    // Po 3.5s zaczynamy wygaszać animację
+    const fadeTimer = setTimeout(() => {
+      setIsFadingOut(true);
+    }, 3500);
 
-    return () => clearTimeout(timer);
+    // Po 4s całkowicie zamykamy overlay
+    const removeTimer = setTimeout(() => {
+      onComplete();
+    }, 4000);
+
+    return () => {
+      clearTimeout(fadeTimer);
+      clearTimeout(removeTimer);
+    };
   }, [onComplete]);
 
-  if (!visible) return null;
-
   return (
-    <div className="fixed inset-0 z-[9999] pointer-events-none flex items-center justify-center overflow-hidden">
-      {/* Ciemne tlo z rozblyskiem */}
+    <div
+      className={`fixed inset-0 z-[9999] pointer-events-none flex items-center justify-center overflow-hidden transition-opacity duration-500 ${
+        isFadingOut ? 'opacity-0' : 'opacity-100'
+      }`}
+    >
+      {/* Ciemne tło z rozbłyskiem */}
       <div className="absolute inset-0 bg-black/85 backdrop-blur-md animate-pulse" />
 
-      {/* Fala ognia przelatujaca przez srodek */}
+      {/* Fala ognia przelatująca przez środek */}
       <div className="absolute inset-0 flex items-center justify-center">
         <div 
           className="w-full h-44 sm:h-64 bg-gradient-to-r from-transparent via-[#FF4500] to-transparent blur-3xl opacity-90 animate-pulse"
@@ -36,7 +46,7 @@ export default function DropCelebrationOverlay({ onComplete }: DropCelebrationOv
         <div className="w-full h-8 bg-gradient-to-r from-transparent via-white to-transparent blur-sm opacity-100" />
       </div>
 
-      {/* Czasteczki ognia */}
+      {/* Cząsteczki ognia */}
       <div className="absolute inset-0 flex items-center justify-center overflow-hidden">
         {Array.from({ length: 25 }).map((_, i) => {
           const randomX = (Math.random() - 0.5) * 600;
@@ -57,7 +67,7 @@ export default function DropCelebrationOverlay({ onComplete }: DropCelebrationOv
         })}
       </div>
 
-      {/* Glowny napis */}
+      {/* Główny napis */}
       <div className="relative z-10 text-center px-4 animate-scale-in">
         <div className="inline-flex items-center gap-2 bg-[#FF4500]/25 border border-[#FF4500] backdrop-blur-xl rounded-full px-5 py-2 mb-4 shadow-[0_0_30px_rgba(255,69,0,0.6)]">
           <Flame className="w-5 h-5 text-[#FF6B00] animate-pulse" />
