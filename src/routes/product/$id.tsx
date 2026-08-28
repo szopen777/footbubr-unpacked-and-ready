@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { supabase, Product } from '@/lib/supabase';
 import Header from '@/components/Header';
@@ -54,6 +53,21 @@ function ProductPage() {
 
   const isSold = product.status === 'sold';
   const images = product.images.length > 0 ? product.images : [null];
+
+  // Sprawdzamy czy produkt to akcesorium
+  const pName = (product.name || '').toLowerCase();
+  const pBrand = (product.brand || '').toLowerCase();
+  const pModel = (product.model || '').toLowerCase();
+  const isAccessory =
+    pBrand === 'footbubr' ||
+    pName.includes('skarpety') ||
+    pName.includes('ochraniacze') ||
+    pName.includes('taśma') ||
+    pName.includes('tasma') ||
+    pName.includes('zestaw') ||
+    pModel.includes('skarpety') ||
+    pModel.includes('ochraniacze') ||
+    Boolean(product.accessory_type);
 
   const handleAddToCart = () => {
     if (inCart) return;
@@ -172,11 +186,15 @@ function ProductPage() {
               </div>
               <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-white leading-tight uppercase tracking-tight">{product.name}</h1>
 
-              {/* Urgency */}
+              {/* Urgency / Stock Info */}
               {!isSold && (
                 <div className="flex items-center gap-2 bg-[#FF6B00]/10 border border-[#FF6B00]/20 backdrop-blur-md rounded-xl px-4 py-2.5 mt-4 mb-4 animate-fade-in-up delay-200">
                   <AlertCircle className="w-4 h-4 text-[#FF6B00] flex-shrink-0" />
-                  <span className="text-sm font-semibold text-[#FF6B00]">Tylko 1 sztuka w magazynie — unikat!</span>
+                  <span className="text-sm font-semibold text-[#FF6B00]">
+                    {isAccessory
+                      ? `Dostępne w magazynie: ${product.stock_quantity ?? 50} szt.`
+                      : 'Tylko 1 sztuka w magazynie — unikat!'}
+                  </span>
                 </div>
               )}
 
@@ -193,14 +211,16 @@ function ProductPage() {
                 )}
               </div>
 
-              {/* Size chart button */}
-              <button
-                onClick={() => setShowSizeChart(true)}
-                className="flex items-center gap-2 text-sm text-neutral-400 hover:text-[#FF6B00] transition-colors mt-3 active:scale-95"
-              >
-                <Ruler className="w-4 h-4" />
-                Tabela rozmiarów (EU → CM)
-              </button>
+              {/* Size chart button (tylko dla butów) */}
+              {!isAccessory && (
+                <button
+                  onClick={() => setShowSizeChart(true)}
+                  className="flex items-center gap-2 text-sm text-neutral-400 hover:text-[#FF6B00] transition-colors mt-3 active:scale-95"
+                >
+                  <Ruler className="w-4 h-4" />
+                  Tabela rozmiarów (EU → CM)
+                </button>
+              )}
             </div>
 
             {/* Specs table */}
@@ -210,13 +230,17 @@ function ProductPage() {
               </div>
               <div className="divide-y divide-neutral-800/60">
                 {[
-                  { label: 'Rozmiar EU', value: `EU ${product.size_eu}` },
-                  ...(product.insole_length_cm ? [{ label: 'Długość wkładki', value: `${product.insole_length_cm} cm` }] : []),
-                  { label: 'Nawierzchnia', value: SURFACE_LABELS[product.surface_type] || product.surface_type },
-                  { label: 'Poziom', value: product.level },
+                  { label: isAccessory ? 'Rozmiar' : 'Rozmiar EU', value: isAccessory ? product.size_eu : `EU ${product.size_eu}` },
+                  ...(!isAccessory && product.insole_length_cm ? [{ label: 'Długość wkładki', value: `${product.insole_length_cm} cm` }] : []),
+                  ...(!isAccessory ? [
+                    { label: 'Nawierzchnia', value: SURFACE_LABELS[product.surface_type] || product.surface_type },
+                    { label: 'Poziom', value: product.level },
+                  ] : []),
                   { label: 'Stan', value: product.condition },
-                  { label: 'Oryginalne pudełko', value: product.box_included ? 'Tak' : 'Nie' },
-                  { label: 'Worek/torba', value: product.bag_included ? 'Tak' : 'Nie' },
+                  ...(!isAccessory ? [
+                    { label: 'Oryginalne pudełko', value: product.box_included ? 'Tak' : 'Nie' },
+                    { label: 'Worek/torba', value: product.bag_included ? 'Tak' : 'Nie' },
+                  ] : []),
                 ].map(({ label, value }) => (
                   <div key={label} className="flex items-center justify-between px-4 py-2.5">
                     <span className="text-sm text-neutral-500">{label}</span>
@@ -242,17 +266,19 @@ function ProductPage() {
               </div>
             )}
 
-            {/* Extras icons */}
-            <div className="flex items-center gap-4 text-sm">
-              <div className={cn('flex items-center gap-1.5', product.box_included ? 'text-emerald-400' : 'text-neutral-600')}>
-                {product.box_included ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
-                Pudełko
+            {/* Extras icons (Tylko dla butów) */}
+            {!isAccessory && (
+              <div className="flex items-center gap-4 text-sm">
+                <div className={cn('flex items-center gap-1.5', product.box_included ? 'text-emerald-400' : 'text-neutral-600')}>
+                  {product.box_included ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+                  Pudełko
+                </div>
+                <div className={cn('flex items-center gap-1.5', product.bag_included ? 'text-emerald-400' : 'text-neutral-600')}>
+                  {product.bag_included ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+                  Worek
+                </div>
               </div>
-              <div className={cn('flex items-center gap-1.5', product.bag_included ? 'text-emerald-400' : 'text-neutral-600')}>
-                {product.bag_included ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
-                Worek
-              </div>
-            </div>
+            )}
 
             {/* Dual CTA buttons */}
             {isSold ? (
@@ -296,7 +322,7 @@ function ProductPage() {
                   <Truck className="w-5 h-5 text-[#FF6B00]" />
                   <span className="text-[10px] sm:text-xs font-semibold text-neutral-300 leading-tight">Paczkomat 24h</span>
                 </div>
-                <div className="flex flex-col items-center gap-1.5 bg-[#141414] border border-neutral-800/80 rounded-xl px-2 py-3 text-center">
+                <div className="flex flex-col items-center gap-1.5 bg-[#141414] border border-neutral-800/80 rounded-2xl px-2 py-3 text-center">
                   <Lock className="w-5 h-5 text-blue-400" />
                   <span className="text-[10px] sm:text-xs font-semibold text-neutral-300 leading-tight">Bezpieczny BLIK</span>
                 </div>
@@ -306,7 +332,9 @@ function ProductPage() {
         </div>
       </div>
 
-      <SizeChartModal open={showSizeChart} onClose={() => setShowSizeChart(false)} highlightEu={product.size_eu} />
+      {!isAccessory && (
+        <SizeChartModal open={showSizeChart} onClose={() => setShowSizeChart(false)} highlightEu={product.size_eu} />
+      )}
     </div>
   );
 }
@@ -315,10 +343,10 @@ export const Route = createFileRoute('/product/$id')({
   component: ProductPage,
   head: () => ({
     meta: [
-      { title: 'Korki 1 of 1 — FootBubr' },
-      { name: 'description', content: 'Szczegóły unikatowej pary korków: rozmiar, stan, podeszwa i dodatki. Jedna sztuka — kto pierwszy, ten lepszy.' },
-      { property: 'og:title', content: 'Korki 1 of 1 — FootBubr' },
-      { property: 'og:description', content: 'Szczegóły unikatowej pary korków w dropie FootBubr.' },
+      { title: 'Korki / Akcesoria — FootBubr' },
+      { name: 'description', content: 'Szczegóły unikatowego produktu w sklepie FootBubr.' },
+      { property: 'og:title', content: 'Korki / Akcesoria — FootBubr' },
+      { property: 'og:description', content: 'Szczegóły unikatowego produktu w dropie FootBubr.' },
     ],
   }),
 });
