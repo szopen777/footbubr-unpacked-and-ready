@@ -16,6 +16,15 @@ type View = 'products' | 'orders' | 'drop-settings';
 type CustomProductStatus = 'available' | 'draft' | 'drop' | 'sold';
 type DropTypeChoice = 'global' | 'custom';
 
+// Pomocnicza funkcja do formatowania daty w strefie lokalnej bez przekłamań UTC
+function toLocalDatetimeInput(isoStr: string | null | undefined): string {
+  if (!isoStr) return '';
+  const d = new Date(isoStr);
+  if (isNaN(d.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 interface ProductForm {
   name: string;
   brand: string;
@@ -76,7 +85,6 @@ function AdminPage() {
   });
   const [savingSettings, setSavingSettings] = useState(false);
 
-  // Filtrowanie produktów
   const availableProducts = products.filter((p) => p.status === 'available');
   const draftProducts = products.filter((p) => p.status === 'draft' && !p.drop_scheduled_at);
   const dropProducts = products.filter((p) => p.status === 'draft' && p.drop_scheduled_at !== null);
@@ -199,7 +207,7 @@ function AdminPage() {
       const s = data as DropSettings;
       setDropSettings(s);
       setSettingsForm({
-        drop_date: s.drop_date ? new Date(s.drop_date).toISOString().slice(0, 16) : '',
+        drop_date: toLocalDatetimeInput(s.drop_date),
         is_tbd: s.is_tbd,
         featured_product_id: s.featured_product_id || 'none',
         title: s.title,
@@ -265,7 +273,7 @@ function AdminPage() {
       finalDropDate = null;
     } else if (form.status === 'draft') {
       dbStatus = 'draft';
-      finalDropDate = null; // Czysty szkic w panelu
+      finalDropDate = null;
     } else if (form.status === 'drop') {
       dbStatus = 'draft';
       if (form.drop_type === 'global') {
@@ -356,7 +364,7 @@ function AdminPage() {
       extras_description: p.extras_description || '',
       status: customStatus,
       drop_type: dType,
-      drop_scheduled_at: p.drop_scheduled_at ? new Date(p.drop_scheduled_at).toISOString().slice(0, 16) : '',
+      drop_scheduled_at: toLocalDatetimeInput(p.drop_scheduled_at),
     });
     setEditingId(p.id);
     setShowProductModal(true);
@@ -595,7 +603,7 @@ function AdminPage() {
 
                             {isDrop && (
                               <span className="text-xs text-blue-400 bg-blue-400/10 border border-blue-400/20 px-2 py-0.5 rounded-full flex items-center gap-1 font-medium">
-                                <Clock className="w-3 h-3" /> W dropie
+                                <Clock className="w-3 h-3" /> W dropie: {new Date(p.drop_scheduled_at!).toLocaleString('pl-PL', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                               </span>
                             )}
                           </div>
