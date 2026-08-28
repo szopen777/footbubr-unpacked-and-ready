@@ -1,6 +1,6 @@
 import DropCelebrationOverlay from '@/components/DropCelebrationOverlay';
 import { createFileRoute } from '@tanstack/react-router';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase, Product, DropSettings } from '@/lib/supabase';
 import Header from '@/components/Header';
 import CartDrawer from '@/components/CartDrawer';
@@ -32,9 +32,10 @@ function HomePage() {
   const [featuredProduct, setFeaturedProduct] = useState<Product | null>(null);
   const [currentTime, setCurrentTime] = useState(Date.now());
   const [showCelebration, setShowCelebration] = useState(false);
-  const [hasTriggeredCelebration, setHasTriggeredCelebration] = useState(false);
+  
+  // Ref zapobiegający wielokrotnemu uruchomieniu w pętli timera
+  const celebrationTriggeredRef = useRef(false);
 
-  // Zegar sprawdzajacy odliczanie co sekunde
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(Date.now()), 1000);
     return () => clearInterval(timer);
@@ -44,14 +45,12 @@ function HomePage() {
     setLoading(true);
     const nowIso = new Date().toISOString();
 
-    // 1. Automatycznie aktualizujemy w bazie produkty z dropu, ktorych czas minal
     await supabase
       .from('products')
       .update({ status: 'available', drop_scheduled_at: null })
       .eq('status', 'draft')
       .lte('drop_scheduled_at', nowIso);
 
-    // 2. Pobieramy produkty dostepne oraz te z zaplanowanym dropem
     const { data, error } = await supabase
       .from('products')
       .select('*')
@@ -105,6 +104,7 @@ function HomePage() {
     }
 
     const targetMs = new Date(countdownTarget).getTime();
+    const celebrationKey = `drop_celebrated_${countdownTarget}`;
 
     const update = () => {
       const now = Date.now();
@@ -115,10 +115,14 @@ function HomePage() {
         setCountdown(cd);
       } else {
         setCountdown(null);
-        // Ognista animacja jesli drop nadszedl w ciagu ostatnich 15 sekund
-        if (diff > -15000 && !hasTriggeredCelebration) {
+        
+        // Sprawdzamy czy animacja nie była już odpalona w tej sesji dla tej daty
+        const alreadyCelebrated = sessionStorage.getItem(celebrationKey) === 'true';
+
+        if (diff > -10000 && !celebrationTriggeredRef.current && !alreadyCelebrated) {
+          celebrationTriggeredRef.current = true;
+          sessionStorage.setItem(celebrationKey, 'true');
           setShowCelebration(true);
-          setHasTriggeredCelebration(true);
           fetchProducts();
         }
       }
@@ -127,9 +131,8 @@ function HomePage() {
     update();
     const interval = setInterval(update, 1000);
     return () => clearInterval(interval);
-  }, [countdownTarget, hasTriggeredCelebration, fetchProducts]);
+  }, [countdownTarget, fetchProducts]);
 
-  // Produkty widoczne w sklepie (dostepne lub odblokowane po czasie dropu)
   const visibleProducts = products.filter((p) => {
     if (p.status === 'available') return true;
     if (p.status === 'draft' && p.drop_scheduled_at) {
@@ -145,7 +148,6 @@ function HomePage() {
       const pBrand = (p.brand || '').toLowerCase();
       const pModel = (p.model || '').toLowerCase();
 
-      // Rozroznianie akcesoriow od butow
       const isAccessory =
         pBrand === 'footbubr' ||
         pName.includes('skarpety') ||
@@ -158,17 +160,14 @@ function HomePage() {
 
       const selectedCategory = filters.category || 'all';
 
-      // 1. Filtr kafelkowy kategorii
       if (selectedCategory === 'boots' && isAccessory) return false;
       if (selectedCategory === 'accessories' && !isAccessory) return false;
 
-      // 2. Wyszukiwarka tekstowa
       if (search) {
         const q = search.toLowerCase();
         if (!pName.includes(q) && !pBrand.includes(q) && !pModel.includes(q)) return false;
       }
 
-      // 3. Filtry dedykowane korkom
       if (!isAccessory) {
         if (filters.sizes?.length && !filters.sizes.includes(p.size_eu)) return false;
         if (filters.brands?.length && !filters.brands.includes(p.brand)) return false;
@@ -177,7 +176,6 @@ function HomePage() {
         if (filters.conditions?.length && !filters.conditions.includes(p.condition)) return false;
       }
 
-      // 4. Filtry dedykowane akcesoriom
       if (isAccessory && filters.accessoryTypes?.length) {
         const matchesType = filters.accessoryTypes.some((type) => {
           if (type.includes('Skarpety') && (pName.includes('skarpety') || pModel.includes('skarpety'))) return true;
@@ -189,7 +187,6 @@ function HomePage() {
         if (!matchesType) return false;
       }
 
-      // 5. Filtr ceny
       if (filters.priceMin && p.price < Number(filters.priceMin)) return false;
       if (filters.priceMax && p.price > Number(filters.priceMax)) return false;
 
@@ -320,7 +317,7 @@ function HomePage() {
         </div>
       </div>
 
-      {/* Animacja ognia przy starcie dropu */}
+      {/* Animacja ognia – wyświetla się dokładnie raz na 4 sekundy */}
       {showCelebration && (
         <DropCelebrationOverlay onComplete={() => setShowCelebration(false)} />
       )}
