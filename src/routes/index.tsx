@@ -31,6 +31,8 @@ function HomePage() {
   const [dropSettings, setDropSettings] = useState<DropSettings | null>(null);
   const [featuredProduct, setFeaturedProduct] = useState<Product | null>(null);
   const [currentTime, setCurrentTime] = useState(Date.now());
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [hasTriggeredCelebration, setHasTriggeredCelebration] = useState(false);
 
   // Zegar sprawdzający odliczanie co sekundę
   useEffect(() => {
@@ -104,11 +106,18 @@ function HomePage() {
     const update = () => {
       const cd = calculateCountdown(countdownTarget);
       setCountdown(cd);
+
+      // Jeśli licznik dobije do zera, wyzwalamy animację ognia i pobieramy świeże produkty
+      if (cd && cd.isZero && !hasTriggeredCelebration) {
+        setShowCelebration(true);
+        setHasTriggeredCelebration(true);
+        fetchProducts();
+      }
     };
     update();
     const interval = setInterval(update, 1000);
     return () => clearInterval(interval);
-  }, [countdownTarget]);
+  }, [countdownTarget, hasTriggeredCelebration, fetchProducts]);
 
   // Produkty widoczne w sklepie (dostępne lub odblokowane po czasie dropu)
   const visibleProducts = products.filter((p) => {
@@ -122,47 +131,49 @@ function HomePage() {
 
   const filtered = visibleProducts
     .filter((p) => {
+      const pName = (p.name || '').toLowerCase();
+      const pBrand = (p.brand || '').toLowerCase();
+      const pModel = (p.model || '').toLowerCase();
+
       // Rozróżnianie akcesoriów od butów
       const isAccessory =
-        p.brand?.toLowerCase() === 'footbubr' ||
-        p.name?.toLowerCase().includes('skarpety') ||
-        p.name?.toLowerCase().includes('ochraniacze') ||
-        p.name?.toLowerCase().includes('taśma') ||
-        p.name?.toLowerCase().includes('zestaw') ||
-        p.model?.toLowerCase().includes('skarpety') ||
-        p.model?.toLowerCase().includes('ochraniacze');
+        pBrand === 'footbubr' ||
+        pName.includes('skarpety') ||
+        pName.includes('ochraniacze') ||
+        pName.includes('taśma') ||
+        pName.includes('tasma') ||
+        pName.includes('zestaw') ||
+        pModel.includes('skarpety') ||
+        pModel.includes('ochraniacze');
+
+      const selectedCategory = filters.category || 'all';
 
       // 1. Filtr kafelkowy kategorii
-      if (filters.category === 'boots' && isAccessory) return false;
-      if (filters.category === 'accessories' && !isAccessory) return false;
+      if (selectedCategory === 'boots' && isAccessory) return false;
+      if (selectedCategory === 'accessories' && !isAccessory) return false;
 
       // 2. Wyszukiwarka tekstowa
       if (search) {
         const q = search.toLowerCase();
-        if (
-          !p.name.toLowerCase().includes(q) &&
-          !p.brand.toLowerCase().includes(q) &&
-          !p.model.toLowerCase().includes(q)
-        )
-          return false;
+        if (!pName.includes(q) && !pBrand.includes(q) && !pModel.includes(q)) return false;
       }
 
       // 3. Filtry dedykowane korkom
       if (!isAccessory) {
-        if (filters.sizes.length && !filters.sizes.includes(p.size_eu)) return false;
-        if (filters.brands.length && !filters.brands.includes(p.brand)) return false;
-        if (filters.levels.length && !filters.levels.includes(p.level)) return false;
-        if (filters.surfaces.length && !filters.surfaces.includes(p.surface_type)) return false;
-        if (filters.conditions.length && !filters.conditions.includes(p.condition)) return false;
+        if (filters.sizes?.length && !filters.sizes.includes(p.size_eu)) return false;
+        if (filters.brands?.length && !filters.brands.includes(p.brand)) return false;
+        if (filters.levels?.length && !filters.levels.includes(p.level)) return false;
+        if (filters.surfaces?.length && !filters.surfaces.includes(p.surface_type)) return false;
+        if (filters.conditions?.length && !filters.conditions.includes(p.condition)) return false;
       }
 
       // 4. Filtry dedykowane akcesoriom
-      if (isAccessory && filters.accessoryTypes.length) {
+      if (isAccessory && filters.accessoryTypes?.length) {
         const matchesType = filters.accessoryTypes.some((type) => {
-          if (type.includes('Skarpety') && (p.name.toLowerCase().includes('skarpety') || p.model.toLowerCase().includes('skarpety'))) return true;
-          if (type.includes('ochraniacze') && (p.name.toLowerCase().includes('ochraniacze') || p.model.toLowerCase().includes('ochraniacze'))) return true;
-          if (type.includes('Taśmy') && (p.name.toLowerCase().includes('taśm') || p.model.toLowerCase().includes('taśm') || p.name.toLowerCase().includes('tape'))) return true;
-          if (type.includes('Zestawy') && (p.name.toLowerCase().includes('zestaw') || p.model.toLowerCase().includes('set'))) return true;
+          if (type.includes('Skarpety') && (pName.includes('skarpety') || pModel.includes('skarpety'))) return true;
+          if (type.includes('ochraniacze') && (pName.includes('ochraniacze') || pModel.includes('ochraniacze'))) return true;
+          if (type.includes('Taśmy') && (pName.includes('taśm') || pName.includes('tasm') || pModel.includes('taśm') || pName.includes('tape'))) return true;
+          if (type.includes('Zestawy') && (pName.includes('zestaw') || pModel.includes('set'))) return true;
           return false;
         });
         if (!matchesType) return false;
@@ -298,6 +309,11 @@ function HomePage() {
           </div>
         </div>
       </div>
+
+      {/* Animacja ognia przy starcie dropu */}
+      {showCelebration && (
+        <DropCelebrationOverlay onComplete={() => setShowCelebration(false)} />
+      )}
     </div>
   );
 }
