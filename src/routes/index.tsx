@@ -27,13 +27,21 @@ function HomePage() {
   const [countdown, setCountdown] = useState<Countdown | null>(null);
   const [dropSettings, setDropSettings] = useState<DropSettings | null>(null);
   const [featuredProduct, setFeaturedProduct] = useState<Product | null>(null);
+  const [currentTime, setCurrentTime] = useState(Date.now());
+
+  // Co sekundę aktualizujemy zegar, aby dropy z datą w przeszłości natychmiast się ujawniały
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
+    // Pobieramy produkty ze statusem available ORAZ draft (dropy)
     const { data, error } = await supabase
       .from('products')
       .select('*')
-      .eq('status', 'available')
+      .in('status', ['available', 'draft'])
       .order('created_at', { ascending: false });
 
     if (!error && data) setProducts(data as Product[]);
@@ -90,7 +98,19 @@ function HomePage() {
     return () => clearInterval(interval);
   }, [countdownTarget]);
 
-  const filtered = products
+  // Filtrowanie: produkty dostępne w sklepie
+  // 1. Mają status 'available'
+  // 2. LUB mają status 'draft', ale posiadają 'drop_scheduled_at' i ten czas już minął (drop_scheduled_at <= currentTime)
+  const visibleProducts = products.filter((p) => {
+    if (p.status === 'available') return true;
+    if (p.status === 'draft' && p.drop_scheduled_at) {
+      const dropTime = new Date(p.drop_scheduled_at).getTime();
+      return !isNaN(dropTime) && dropTime <= currentTime;
+    }
+    return false; // Szkice robocze w magazynie (bez daty) nie są pokazywane
+  });
+
+  const filtered = visibleProducts
     .filter((p) => {
       if (search) {
         const q = search.toLowerCase();
@@ -154,14 +174,14 @@ function HomePage() {
               </div>
               <div className="flex items-center gap-1.5">
                 <Zap className="w-4 h-4 text-[#FF6B00]" />
-                {products.filter((p) => p.status === 'available').length} par dostępnych
+                {visibleProducts.length} par dostępnych
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Full-width orange countdown banner — the sole countdown UI */}
+      {/* Full-width orange countdown banner */}
       <DropCountdownBanner
         dropSettings={dropSettings}
         featuredProduct={featuredProduct}
@@ -171,14 +191,14 @@ function HomePage() {
       {/* Main content */}
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-6 sm:py-8">
         <div className="flex gap-6 lg:gap-8">
-          {/* Sidebar — desktop only, mobile uses bottom sheet */}
+          {/* Sidebar */}
           <div className="hidden lg:block w-60 flex-shrink-0">
             <FilterSidebar filters={filters} onChange={setFilters} sortBy={sortBy} onSortChange={setSortBy} />
           </div>
 
           {/* Grid */}
           <div className="flex-1 min-w-0">
-            {/* Sort bar — desktop only */}
+            {/* Sort bar — desktop */}
             <div className="hidden lg:flex items-center justify-between mb-6 gap-4">
               <p className="text-sm text-neutral-500">
                 {loading ? 'Ładowanie...' : `${allShown.length} ${allShown.length === 1 ? 'para' : 'par'}`}
