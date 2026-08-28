@@ -9,17 +9,14 @@ import CartDrawer from '@/components/CartDrawer';
 import { ArrowLeft, Package, Truck, CreditCard, CircleCheck as CheckCircle2, Loader as Loader2, MapPin, Tag, X, Check, CircleAlert as AlertCircle, Search } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 
-// Przykładowa lista najpopularniejszych punktów / paczkomatów InPost do szybkiego wyboru w modalu
-const POPULAR_PACZKOMATS = [
-  { code: 'WAW01A', name: 'Warszawa, Marszałkowska 1', city: 'Warszawa' },
-  { code: 'WAW123M', name: 'Warszawa, Aleje Jerozolimskie 54', city: 'Warszawa' },
-  { code: 'KRA02B', name: 'Kraków, Floriańska 10', city: 'Kraków' },
-  { code: 'KRA11A', name: 'Kraków, Wielicka 28', city: 'Kraków' },
-  { code: 'WRO05C', name: 'Wrocław, Rynek 12', city: 'Wrocław' },
-  { code: 'POZ03D', name: 'Poznań, Głogowska 15', city: 'Poznań' },
-  { code: 'GDA04E', name: 'Gdańsk, Długi Targ 20', city: 'Gdańsk' },
-  { code: 'LDZ01F', name: 'Łódź, Piotrkowska 100', city: 'Łódź' },
-];
+interface InPostPoint {
+  name: string;
+  address_details: {
+    city: string;
+    street: string;
+    building_number: string;
+  };
+}
 
 function CheckoutPage() {
   const { items, total, discountedTotal, discountAmount, promoCode, applyPromo, removePromo, clearCart } = useCart();
@@ -29,6 +26,8 @@ function CheckoutPage() {
   const [orderRecord, setOrderRecord] = useState<Order | null>(null);
   const [showInpostMap, setShowInpostMap] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [allPoints, setAllPoints] = useState<InPostPoint[]>([]);
+  const [loadingPoints, setLoadingPoints] = useState(false);
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
@@ -51,12 +50,35 @@ function CheckoutPage() {
   const shippingCost = shippingCostFor(form.shippingMethod, discountedTotal);
   const orderTotal = discountedTotal + shippingCost;
 
-  const filteredPaczkomats = POPULAR_PACZKOMATS.filter(
-    (p) =>
-      p.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.city.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Pobieranie paczkomatów z publicznego API InPost po otwarciu modalu
+  useEffect(() => {
+    if (!showInpostMap || allPoints.length > 0) return;
+    
+    const fetchInPostPoints = async () => {
+      setLoadingPoints(true);
+      try {
+        const res = await fetch('https://api.inpost.pl/v1/points?type=parcel_locker');
+        const data = await res.json();
+        if (data && data.items) {
+          setAllPoints(data.items);
+        }
+      } catch (err) {
+        console.error('Błąd pobierania paczkomatów InPost:', err);
+      } finally {
+        setLoadingPoints(false);
+      }
+    };
+
+    fetchInPostPoints();
+  }, [showInpostMap, allPoints.length]);
+
+  const filteredPaczkomats = allPoints.filter((p) => {
+    const q = searchQuery.toLowerCase();
+    const code = (p.name || '').toLowerCase();
+    const city = (p.address_details?.city || '').toLowerCase();
+    const street = (p.address_details?.street || '').toLowerCase();
+    return code.includes(q) || city.includes(q) || street.includes(q);
+  }).slice(0, 50); // Ograniczenie do 50 wyników dla płynności
 
   const validate = () => {
     const e: Record<string, string> = {};
@@ -231,10 +253,10 @@ function CheckoutPage() {
       <Header />
       <CartDrawer />
 
-      {/* Wbudowany Modal wyboru Paczkomatu bezpośrednio na stronie */}
+      {/* Wyszukiwarka paczkomatów z oficjalnego API InPost bezpośrednio w modalu */}
       {showInpostMap && (
         <div className="fixed inset-0 z-[200] bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-fade-in">
-          <div className="bg-[#141414] border border-neutral-800 rounded-2xl w-full max-w-xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+          <div className="bg-[#141414] border border-neutral-800 rounded-2xl w-full max-w-xl h-[80vh] flex flex-col shadow-2xl overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3.5 border-b border-neutral-800 bg-[#111]">
               <h3 className="text-white font-bold text-sm uppercase tracking-wider flex items-center gap-2">
                 <MapPin className="w-4 h-4 text-[#FF6B00]" /> Wybierz Paczkomat InPost
@@ -252,7 +274,7 @@ function CheckoutPage() {
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
                 <input
                   type="text"
-                  placeholder="Wyszukaj miasto, adres lub kod (np. Warszawa, WAW)..."
+                  placeholder="Wpisz miasto lub kod (np. Warszawa, WAW01)..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full bg-black/60 border border-neutral-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-neutral-500 focus:outline-none focus:border-[#FF6B00]/70 transition-all"
@@ -261,31 +283,42 @@ function CheckoutPage() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
-              {filteredPaczkomats.map((p) => (
-                <div
-                  key={p.code}
-                  onClick={() => {
-                    setForm((prev) => ({ ...prev, paczkomatCode: p.code }));
-                    setShowInpostMap(false);
-                  }}
-                  className="flex items-center justify-between p-3.5 bg-white/5 hover:bg-[#FF6B00]/10 border border-neutral-800 hover:border-[#FF6B00]/40 rounded-xl cursor-pointer transition-all group"
-                >
-                  <div className="flex items-start gap-3 min-w-0">
-                    <div className="w-9 h-9 rounded-lg bg-[#FF6B00]/10 border border-[#FF6B00]/20 flex items-center justify-center flex-shrink-0 mt-0.5 group-hover:bg-[#FF6B00] group-hover:text-black transition-colors text-[#FF6B00]">
-                      <MapPin className="w-4 h-4" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-white font-bold text-sm group-hover:text-[#FF6B00] transition-colors">{p.code}</p>
-                      <p className="text-neutral-400 text-xs truncate">{p.name}</p>
-                    </div>
-                  </div>
-                  <span className="text-xs font-bold text-black bg-[#FF6B00] px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                    Wybierz
-                  </span>
+              {loadingPoints ? (
+                <div className="flex flex-col items-center justify-center py-16 text-neutral-500">
+                  <Loader2 className="w-8 h-8 text-[#FF6B00] animate-spin mb-3" />
+                  <p className="text-sm">Pobieranie bazy paczkomatów InPost...</p>
                 </div>
-              ))}
-              {filteredPaczkomats.length === 0 && (
-                <p className="text-center text-neutral-500 py-8 text-sm">Nie znaleziono paczkomatów dla podanej frazy.</p>
+              ) : (
+                <>
+                  {filteredPaczkomats.map((p) => (
+                    <div
+                      key={p.name}
+                      onClick={() => {
+                        setForm((prev) => ({ ...prev, paczkomatCode: p.name.toUpperCase() }));
+                        setShowInpostMap(false);
+                      }}
+                      className="flex items-center justify-between p-3.5 bg-white/5 hover:bg-[#FF6B00]/10 border border-neutral-800 hover:border-[#FF6B00]/40 rounded-xl cursor-pointer transition-all group"
+                    >
+                      <div className="flex items-start gap-3 min-w-0">
+                        <div className="w-9 h-9 rounded-lg bg-[#FF6B00]/10 border border-[#FF6B00]/20 flex items-center justify-center flex-shrink-0 mt-0.5 group-hover:bg-[#FF6B00] group-hover:text-black transition-colors text-[#FF6B00]">
+                          <MapPin className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-white font-bold text-sm group-hover:text-[#FF6B00] transition-colors">{p.name}</p>
+                          <p className="text-neutral-400 text-xs truncate">
+                            {p.address_details?.city}, {p.address_details?.street} {p.address_details?.building_number}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-xs font-bold text-black bg-[#FF6B00] px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                        Wybierz
+                      </span>
+                    </div>
+                  ))}
+                  {filteredPaczkomats.length === 0 && (
+                    <p className="text-center text-neutral-500 py-8 text-sm">Brak paczkomatów pasujących do wyszukiwania.</p>
+                  )}
+                </>
               )}
             </div>
           </div>
