@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Flame, Zap } from 'lucide-react';
+import { useEffect, useState, useRef } from 'react';
+import { Flame, Zap, X } from 'lucide-react';
 
 interface DropCelebrationOverlayProps {
   onComplete: () => void;
@@ -7,35 +7,53 @@ interface DropCelebrationOverlayProps {
 
 export default function DropCelebrationOverlay({ onComplete }: DropCelebrationOverlayProps) {
   const [isFadingOut, setIsFadingOut] = useState(false);
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+
+  const handleClose = () => {
+    setIsFadingOut(true);
+    setTimeout(() => {
+      onCompleteRef.current();
+    }, 300);
+  };
 
   useEffect(() => {
-    // Po 3.5s zaczynamy wygaszać animację
+    // 1. Po 3.5s rozpoczynamy płynne zanikanie
     const fadeTimer = setTimeout(() => {
       setIsFadingOut(true);
     }, 3500);
 
-    // Po 4s całkowicie zamykamy overlay
+    // 2. Po 4s całkowicie usuwamy komponent
     const removeTimer = setTimeout(() => {
-      onComplete();
+      onCompleteRef.current();
     }, 4000);
 
     return () => {
       clearTimeout(fadeTimer);
       clearTimeout(removeTimer);
     };
-  }, [onComplete]);
+  }, []); // Pusta tablica zależności – timer nie resetuje się co sekundę
 
   return (
     <div
-      className={`fixed inset-0 z-[9999] pointer-events-none flex items-center justify-center overflow-hidden transition-opacity duration-500 ${
-        isFadingOut ? 'opacity-0' : 'opacity-100'
+      onClick={handleClose}
+      className={`fixed inset-0 z-[9999] cursor-pointer flex items-center justify-center overflow-hidden transition-opacity duration-500 ${
+        isFadingOut ? 'opacity-0 pointer-events-none' : 'opacity-100'
       }`}
     >
       {/* Ciemne tło z rozbłyskiem */}
       <div className="absolute inset-0 bg-black/85 backdrop-blur-md animate-pulse" />
 
+      {/* Przycisk zamknięcia w rogu */}
+      <button
+        onClick={handleClose}
+        className="absolute top-6 right-6 z-20 text-neutral-400 hover:text-white bg-white/10 hover:bg-white/20 p-2 rounded-full transition-all"
+      >
+        <X className="w-6 h-6" />
+      </button>
+
       {/* Fala ognia przelatująca przez środek */}
-      <div className="absolute inset-0 flex items-center justify-center">
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <div 
           className="w-full h-44 sm:h-64 bg-gradient-to-r from-transparent via-[#FF4500] to-transparent blur-3xl opacity-90 animate-pulse"
           style={{ transform: 'scaleY(1.5)' }}
@@ -47,7 +65,7 @@ export default function DropCelebrationOverlay({ onComplete }: DropCelebrationOv
       </div>
 
       {/* Cząsteczki ognia */}
-      <div className="absolute inset-0 flex items-center justify-center overflow-hidden">
+      <div className="absolute inset-0 flex items-center justify-center overflow-hidden pointer-events-none">
         {Array.from({ length: 25 }).map((_, i) => {
           const randomX = (Math.random() - 0.5) * 600;
           const randomY = (Math.random() - 0.5) * 300;
@@ -68,7 +86,7 @@ export default function DropCelebrationOverlay({ onComplete }: DropCelebrationOv
       </div>
 
       {/* Główny napis */}
-      <div className="relative z-10 text-center px-4 animate-scale-in">
+      <div className="relative z-10 text-center px-4 animate-scale-in pointer-events-none">
         <div className="inline-flex items-center gap-2 bg-[#FF4500]/25 border border-[#FF4500] backdrop-blur-xl rounded-full px-5 py-2 mb-4 shadow-[0_0_30px_rgba(255,69,0,0.6)]">
           <Flame className="w-5 h-5 text-[#FF6B00] animate-pulse" />
           <span className="text-xs sm:text-sm font-black text-[#FFA500] uppercase tracking-widest">
@@ -83,6 +101,10 @@ export default function DropCelebrationOverlay({ onComplete }: DropCelebrationOv
 
         <p className="text-neutral-200 text-sm sm:text-lg font-bold mt-4 uppercase tracking-wider drop-shadow-md">
           Unikatowe pary 1 of 1 są już dostępne w sklepie
+        </p>
+
+        <p className="text-neutral-500 text-xs mt-6 uppercase tracking-widest">
+          Kliknij w dowolne miejsce, aby zamknąć
         </p>
       </div>
     </div>
