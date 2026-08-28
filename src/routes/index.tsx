@@ -33,7 +33,6 @@ function HomePage() {
   const [currentTime, setCurrentTime] = useState(Date.now());
   const [showCelebration, setShowCelebration] = useState(false);
   
-  // Ref zapobiegający wielokrotnemu uruchomieniu w pętli timera
   const celebrationTriggeredRef = useRef(false);
 
   useEffect(() => {
@@ -97,6 +96,10 @@ function HomePage() {
     ? dropSettings.drop_date
     : null;
 
+  const handleCloseCelebration = useCallback(() => {
+    setShowCelebration(false);
+  }, []);
+
   useEffect(() => {
     if (!countdownTarget) {
       setCountdown(null);
@@ -116,7 +119,6 @@ function HomePage() {
       } else {
         setCountdown(null);
         
-        // Sprawdzamy czy animacja nie była już odpalona w tej sesji dla tej daty
         const alreadyCelebrated = sessionStorage.getItem(celebrationKey) === 'true';
 
         if (diff > -10000 && !celebrationTriggeredRef.current && !alreadyCelebrated) {
@@ -317,9 +319,9 @@ function HomePage() {
         </div>
       </div>
 
-      {/* Animacja ognia – wyświetla się dokładnie raz na 4 sekundy */}
+      {/* Animacja ognia – znika samoczynnie po 4s lub po kliknięciu */}
       {showCelebration && (
-        <DropCelebrationOverlay onComplete={() => setShowCelebration(false)} />
+        <DropCelebrationOverlay onComplete={handleCloseCelebration} />
       )}
     </div>
   );
