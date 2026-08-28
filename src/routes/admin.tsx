@@ -189,32 +189,38 @@ function AdminPage() {
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
+      const cleanName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const fileName = `${Date.now()}_${cleanName}`;
       const filePath = `products/${fileName}`;
 
-      const { error: uploadError } = await supabase.storage
+      const { data, error: uploadError } = await supabase.storage
         .from('product-images')
-        .upload(filePath, file, { cacheControl: '3600', upsert: false });
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: true,
+        });
 
       if (uploadError) {
-        showToast(`Błąd wgrywania: ${uploadError.message}`);
+        console.error('Błąd uploadu Supabase:', uploadError);
+        showToast(`Błąd: ${uploadError.message}`);
         continue;
       }
 
-      const { data: { publicUrl } } = supabase.storage
+      const { data: urlData } = supabase.storage
         .from('product-images')
         .getPublicUrl(filePath);
 
-      if (publicUrl) {
-        uploadedUrls.push(publicUrl);
+      if (urlData?.publicUrl) {
+        uploadedUrls.push(urlData.publicUrl);
       }
     }
 
     if (uploadedUrls.length > 0) {
-      const currentImages = form.images.trim();
-      const newImagesList = currentImages ? `${currentImages}\n${uploadedUrls.join('\n')}` : uploadedUrls.join('\n');
-      setForm((prev) => ({ ...prev, images: newImagesList }));
+      setForm((prev) => {
+        const existing = prev.images.trim();
+        const combined = existing ? `${existing}\n${uploadedUrls.join('\n')}` : uploadedUrls.join('\n');
+        return { ...prev, images: combined };
+      });
       showToast(`Wgrano ${uploadedUrls.length} zdjęć!`);
     }
 
