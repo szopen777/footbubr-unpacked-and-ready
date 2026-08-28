@@ -3,7 +3,7 @@ import { supabase, Product } from '@/lib/supabase';
 import Header from '@/components/Header';
 import CartDrawer from '@/components/CartDrawer';
 import { cn, formatPrice, SURFACE_LABELS, CONDITION_COLORS } from '@/lib/utils';
-import { ShoppingBag, ArrowLeft, CircleAlert as AlertCircle, Package, CircleCheck as CheckCircle2, Circle as XCircle, ChevronLeft, ChevronRight, Loader as Loader2, ZoomIn, Zap, Ruler, ShieldCheck, Truck, Lock } from 'lucide-react';
+import { ShoppingBag, ArrowLeft, CircleAlert as AlertCircle, Package, CircleCheck as CheckCircle2, Circle as XCircle, ChevronLeft, ChevronRight, Loader as Loader2, ZoomIn, Zap, Ruler, ShieldCheck, Truck, Lock, Plus, Minus } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
 import { Link, useNavigate, createFileRoute } from '@tanstack/react-router';
 import { toast } from 'sonner';
@@ -17,9 +17,11 @@ function ProductPage() {
   const [activeImage, setActiveImage] = useState(0);
   const [zoomed, setZoomed] = useState(false);
   const [showSizeChart, setShowSizeChart] = useState(false);
+  const [quantity, setQuantity] = useState(1);
   const { addItem, addItemSilent, items } = useCart();
 
-  const inCart = product ? items.some((i) => i.product.id === product.id) : false;
+  const cartItem = product ? items.find((i) => i.product.id === product.id) : null;
+  const inCart = Boolean(cartItem);
 
   useEffect(() => {
     const fetch = async () => {
@@ -54,7 +56,6 @@ function ProductPage() {
   const isSold = product.status === 'sold';
   const images = product.images.length > 0 ? product.images : [null];
 
-  // Sprawdzamy czy produkt to akcesorium
   const pName = (product.name || '').toLowerCase();
   const pBrand = (product.brand || '').toLowerCase();
   const pModel = (product.model || '').toLowerCase();
@@ -69,14 +70,15 @@ function ProductPage() {
     pModel.includes('ochraniacze') ||
     Boolean(product.accessory_type);
 
+  const maxStock = product.stock_quantity ?? 1;
+
   const handleAddToCart = () => {
-    if (inCart) return;
-    addItemSilent(product);
-    toast.success('Dodano do koszyka', { description: product.name });
+    addItemSilent(product, isAccessory ? quantity : 1);
+    toast.success('Dodano do koszyka', { description: `${quantity}x ${product.name}` });
   };
 
   const handleBuyNow = () => {
-    if (!inCart) addItem(product);
+    addItem(product, isAccessory ? quantity : 1);
     navigate({ to: '/checkout' });
   };
 
@@ -86,7 +88,6 @@ function ProductPage() {
       <CartDrawer />
 
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-6 sm:py-8">
-        {/* Breadcrumb */}
         <div className="flex items-center gap-2 mb-6 text-sm text-neutral-500 animate-fade-in overflow-hidden">
           <Link to="/" className="hover:text-white transition-colors flex items-center gap-1 flex-shrink-0">
             <ArrowLeft className="w-3.5 h-3.5" />
@@ -99,9 +100,7 @@ function ProductPage() {
         </div>
 
         <div className="grid lg:grid-cols-2 gap-6 lg:gap-10 xl:gap-16">
-          {/* Gallery */}
           <div className="space-y-3 animate-fade-in-up">
-            {/* Main image */}
             <div
               className="relative aspect-square rounded-xl sm:rounded-2xl overflow-hidden bg-[#141414] border border-neutral-800 cursor-zoom-in group"
               onClick={() => setZoomed(!zoomed)}
@@ -125,29 +124,7 @@ function ProductPage() {
                   </span>
                 </div>
               )}
-              <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                <div className="bg-black/60 backdrop-blur-md border border-white/10 rounded-lg p-1.5">
-                  <ZoomIn className="w-4 h-4 text-white" />
-                </div>
-              </div>
-              {images.length > 1 && (
-                <>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setActiveImage((a) => (a - 1 + images.length) % images.length); }}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/60 backdrop-blur-md border border-white/10 rounded-full p-2 text-white hover:bg-black/80 hover:scale-110 transition-all active:scale-90"
-                  >
-                    <ChevronLeft className="w-5 h-5" />
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setActiveImage((a) => (a + 1) % images.length); }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/60 backdrop-blur-md border border-white/10 rounded-full p-2 text-white hover:bg-black/80 hover:scale-110 transition-all active:scale-90"
-                  >
-                    <ChevronRight className="w-5 h-5" />
-                  </button>
-                </>
-              )}
             </div>
-            {/* Thumbnails */}
             {images.length > 1 && (
               <div className="flex gap-2 overflow-x-auto pb-1">
                 {images.map((img, i) => (
@@ -159,71 +136,65 @@ function ProductPage() {
                       activeImage === i ? 'border-[#FF6B00]' : 'border-neutral-800 opacity-60 hover:opacity-100'
                     )}
                   >
-                    {img ? (
-                      <img src={img} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full bg-white/5" />
-                    )}
+                    {img ? <img src={img} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-white/5" />}
                   </button>
                 ))}
               </div>
             )}
           </div>
 
-          {/* Product info */}
           <div className="flex flex-col gap-5 sm:gap-6 animate-fade-in-up delay-100">
             <div>
               <div className="flex items-center gap-2 sm:gap-3 mb-2 flex-wrap">
                 <span className="text-sm font-bold text-[#FF6B00] uppercase tracking-wider">{product.brand}</span>
-                <span
-                  className={cn(
-                    'text-xs font-medium px-2 py-0.5 rounded-full border backdrop-blur-md',
-                    CONDITION_COLORS[product.condition] || 'text-neutral-300 bg-white/5 border-neutral-700'
-                  )}
-                >
+                <span className={cn('text-xs font-medium px-2 py-0.5 rounded-full border backdrop-blur-md', CONDITION_COLORS[product.condition] || 'text-neutral-300 bg-white/5 border-neutral-700')}>
                   {product.condition}
                 </span>
               </div>
               <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-white leading-tight uppercase tracking-tight">{product.name}</h1>
 
-              {/* Urgency / Stock Info */}
               {!isSold && (
                 <div className="flex items-center gap-2 bg-[#FF6B00]/10 border border-[#FF6B00]/20 backdrop-blur-md rounded-xl px-4 py-2.5 mt-4 mb-4 animate-fade-in-up delay-200">
                   <AlertCircle className="w-4 h-4 text-[#FF6B00] flex-shrink-0" />
                   <span className="text-sm font-semibold text-[#FF6B00]">
                     {isAccessory
-                      ? `Dostępne w magazynie: ${product.stock_quantity ?? 50} szt.`
+                      ? `Dostępne w magazynie: ${maxStock} szt.`
                       : 'Tylko 1 sztuka w magazynie — unikat!'}
                   </span>
                 </div>
               )}
 
-              {/* Price */}
               <div className="flex items-baseline gap-2 sm:gap-3 mt-4">
                 <span className="text-2xl sm:text-3xl font-black text-white">{formatPrice(product.price)}</span>
                 {product.original_price && (
                   <span className="text-base sm:text-lg text-neutral-500 line-through">{formatPrice(product.original_price)}</span>
                 )}
-                {product.original_price && (
-                  <span className="text-xs sm:text-sm font-bold text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 backdrop-blur-md px-2 py-0.5 rounded-lg">
-                    -{Math.round((1 - product.price / product.original_price) * 100)}%
-                  </span>
-                )}
               </div>
-
-              {/* Size chart button (tylko dla butów) */}
-              {!isAccessory && (
-                <button
-                  onClick={() => setShowSizeChart(true)}
-                  className="flex items-center gap-2 text-sm text-neutral-400 hover:text-[#FF6B00] transition-colors mt-3 active:scale-95"
-                >
-                  <Ruler className="w-4 h-4" />
-                  Tabela rozmiarów (EU → CM)
-                </button>
-              )}
             </div>
 
-            {/* Specs table */}
+            {/* Wybór ilości (Tylko dla akcesoriów) */}
+            {isAccessory && !isSold && (
+              <div className="flex items-center gap-4 bg-[#141414] border border-neutral-800 rounded-2xl p-4">
+                <span className="text-sm text-neutral-400 font-medium">Wybierz ilość:</span>
+                <div className="flex items-center bg-black/40 border border-neutral-800 rounded-xl overflow-hidden">
+                  <button
+                    onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                    className="p-2.5 text-neutral-400 hover:text-white hover:bg-white/5 transition-colors"
+                  >
+                    <Minus className="w-4 h-4" />
+                  </button>
+                  <span className="w-12 text-center font-bold text-white text-sm">{quantity}</span>
+                  <button
+                    onClick={() => setQuantity((q) => Math.min(maxStock, q + 1))}
+                    className="p-2.5 text-neutral-400 hover:text-white hover:bg-white/5 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Tabela specyfikacji */}
             <div className="bg-[#141414] rounded-2xl border border-neutral-800/80 overflow-hidden">
               <div className="px-4 py-3 border-b border-neutral-800">
                 <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider">Specyfikacja</h3>
@@ -237,10 +208,6 @@ function ProductPage() {
                     { label: 'Poziom', value: product.level },
                   ] : []),
                   { label: 'Stan', value: product.condition },
-                  ...(!isAccessory ? [
-                    { label: 'Oryginalne pudełko', value: product.box_included ? 'Tak' : 'Nie' },
-                    { label: 'Worek/torba', value: product.bag_included ? 'Tak' : 'Nie' },
-                  ] : []),
                 ].map(({ label, value }) => (
                   <div key={label} className="flex items-center justify-between px-4 py-2.5">
                     <span className="text-sm text-neutral-500">{label}</span>
@@ -250,37 +217,7 @@ function ProductPage() {
               </div>
             </div>
 
-            {/* Condition detail */}
-            {product.condition_detail && (
-              <div className="bg-[#141414] rounded-2xl border border-neutral-800/80 p-4">
-                <h3 className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Opis stanu</h3>
-                <p className="text-sm text-neutral-300 leading-relaxed">{product.condition_detail}</p>
-              </div>
-            )}
-
-            {/* Extras */}
-            {product.extras_description && (
-              <div className="bg-[#141414] rounded-2xl border border-neutral-800/80 p-4">
-                <h3 className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Dodatki</h3>
-                <p className="text-sm text-neutral-300 leading-relaxed">{product.extras_description}</p>
-              </div>
-            )}
-
-            {/* Extras icons (Tylko dla butów) */}
-            {!isAccessory && (
-              <div className="flex items-center gap-4 text-sm">
-                <div className={cn('flex items-center gap-1.5', product.box_included ? 'text-emerald-400' : 'text-neutral-600')}>
-                  {product.box_included ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
-                  Pudełko
-                </div>
-                <div className={cn('flex items-center gap-1.5', product.bag_included ? 'text-emerald-400' : 'text-neutral-600')}>
-                  {product.bag_included ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
-                  Worek
-                </div>
-              </div>
-            )}
-
-            {/* Dual CTA buttons */}
+            {/* Przyciski zakupu */}
             {isSold ? (
               <div className="flex items-center justify-center gap-2 bg-white/5 border border-neutral-800 text-neutral-500 font-bold py-4 rounded-2xl">
                 <Package className="w-5 h-5" />
@@ -290,16 +227,10 @@ function ProductPage() {
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   onClick={handleAddToCart}
-                  disabled={inCart}
-                  className={cn(
-                    'flex-1 flex items-center justify-center gap-2.5 font-bold text-sm sm:text-base py-4 rounded-2xl border transition-all active:scale-95',
-                    inCart
-                      ? 'bg-white/5 text-neutral-500 border-neutral-800 cursor-default'
-                      : 'bg-transparent text-neutral-200 border-[#FF6B00]/40 hover:border-[#FF6B00] hover:bg-[#FF6B00]/10'
-                  )}
+                  className="flex-1 flex items-center justify-center gap-2.5 font-bold text-sm sm:text-base py-4 rounded-2xl border border-[#FF6B00]/40 hover:border-[#FF6B00] hover:bg-[#FF6B00]/10 text-neutral-200 transition-all active:scale-95"
                 >
                   <ShoppingBag className="w-5 h-5" />
-                  {inCart ? 'W koszyku' : 'Dodaj do koszyka'}
+                  Dodaj do koszyka
                 </button>
                 <button
                   onClick={handleBuyNow}
@@ -310,43 +241,13 @@ function ProductPage() {
                 </button>
               </div>
             )}
-
-            {/* Trust badges */}
-            {!isSold && (
-              <div className="grid grid-cols-3 gap-2 sm:gap-3 mt-1">
-                <div className="flex flex-col items-center gap-1.5 bg-[#141414] border border-neutral-800/80 rounded-xl px-2 py-3 text-center">
-                  <ShieldCheck className="w-5 h-5 text-emerald-400" />
-                  <span className="text-[10px] sm:text-xs font-semibold text-neutral-300 leading-tight">100% Oryginał</span>
-                </div>
-                <div className="flex flex-col items-center gap-1.5 bg-[#141414] border border-neutral-800/80 rounded-xl px-2 py-3 text-center">
-                  <Truck className="w-5 h-5 text-[#FF6B00]" />
-                  <span className="text-[10px] sm:text-xs font-semibold text-neutral-300 leading-tight">Paczkomat 24h</span>
-                </div>
-                <div className="flex flex-col items-center gap-1.5 bg-[#141414] border border-neutral-800/80 rounded-2xl px-2 py-3 text-center">
-                  <Lock className="w-5 h-5 text-blue-400" />
-                  <span className="text-[10px] sm:text-xs font-semibold text-neutral-300 leading-tight">Bezpieczny BLIK</span>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>
-
-      {!isAccessory && (
-        <SizeChartModal open={showSizeChart} onClose={() => setShowSizeChart(false)} highlightEu={product.size_eu} />
-      )}
     </div>
   );
 }
 
 export const Route = createFileRoute('/product/$id')({
   component: ProductPage,
-  head: () => ({
-    meta: [
-      { title: 'Korki / Akcesoria — FootBubr' },
-      { name: 'description', content: 'Szczegóły unikatowego produktu w sklepie FootBubr.' },
-      { property: 'og:title', content: 'Korki / Akcesoria — FootBubr' },
-      { property: 'og:description', content: 'Szczegóły unikatowego produktu w dropie FootBubr.' },
-    ],
-  }),
 });
