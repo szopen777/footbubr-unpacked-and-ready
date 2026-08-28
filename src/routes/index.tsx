@@ -1,3 +1,4 @@
+import DropCelebrationOverlay from '@/components/DropCelebrationOverlay';
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState, useCallback } from 'react';
 import { supabase, Product, DropSettings } from '@/lib/supabase';
