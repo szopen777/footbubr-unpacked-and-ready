@@ -6,15 +6,15 @@ import { PRODUCT_LEVELS } from '@/lib/supabase';
 export type MainCategory = 'all' | 'boots' | 'accessories';
 
 export interface FilterState {
-  category: MainCategory;
-  sizes: number[];
-  brands: string[];
-  levels: string[];
-  surfaces: string[];
-  conditions: string[];
-  accessoryTypes: string[];
-  priceMin: string;
-  priceMax: string;
+  category?: MainCategory;
+  sizes?: number[];
+  brands?: string[];
+  levels?: string[];
+  surfaces?: string[];
+  conditions?: string[];
+  accessoryTypes?: string[];
+  priceMin?: string;
+  priceMax?: string;
 }
 
 export type SortOption = 'newest' | 'price_asc' | 'price_desc';
@@ -60,18 +60,20 @@ function FilterSection({
   title,
   children,
   defaultOpen = true,
+  hasBorder = true,
 }: {
   title: string;
   children: React.ReactNode;
   defaultOpen?: boolean;
+  hasBorder?: boolean;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="border-b border-neutral-800/80 pb-4 mb-4 last:border-0 last:mb-0 last:pb-0">
+    <div className={cn('py-3.5', hasBorder && 'border-b border-neutral-800/80')}>
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="flex items-center justify-between w-full text-left py-1 group transition-colors"
+        className="flex items-center justify-between w-full text-left py-0.5 group transition-colors"
       >
         <span className="text-xs font-bold uppercase tracking-wider text-neutral-400 group-hover:text-white transition-colors">
           {title}
@@ -98,6 +100,14 @@ function FilterSection({
 export default function FilterSidebar({ filters, onChange, sortBy, onSortChange }: FilterSidebarProps) {
   const [sheetOpen, setSheetOpen] = useState(false);
 
+  const currentCategory = filters.category || 'all';
+  const currentSizes = filters.sizes || [];
+  const currentBrands = filters.brands || [];
+  const currentLevels = filters.levels || [];
+  const currentSurfaces = filters.surfaces || [];
+  const currentConditions = filters.conditions || [];
+  const currentAccTypes = filters.accessoryTypes || [];
+
   const toggle = <T,>(arr: T[], val: T): T[] =>
     arr.includes(val) ? arr.filter((v) => v !== val) : [...arr, val];
 
@@ -106,18 +116,18 @@ export default function FilterSidebar({ filters, onChange, sortBy, onSortChange 
   };
 
   const activeCount =
-    filters.sizes.length +
-    filters.brands.length +
-    filters.levels.length +
-    filters.surfaces.length +
-    filters.conditions.length +
-    filters.accessoryTypes.length +
+    currentSizes.length +
+    currentBrands.length +
+    currentLevels.length +
+    currentSurfaces.length +
+    currentConditions.length +
+    currentAccTypes.length +
     (filters.priceMin ? 1 : 0) +
     (filters.priceMax ? 1 : 0);
 
   const clearAll = () =>
     onChange({
-      category: filters.category,
+      category: currentCategory,
       sizes: [],
       brands: [],
       levels: [],
@@ -143,9 +153,8 @@ export default function FilterSidebar({ filters, onChange, sortBy, onSortChange 
   const labelClass = (active: boolean) =>
     cn('text-sm transition-colors cursor-pointer', active ? 'text-white font-medium' : 'text-neutral-400 group-hover:text-neutral-200');
 
-  // Kafelki wyboru głównej kategorii
   const categoryTabs = (
-    <div className="mb-5">
+    <div className="pb-3 border-b border-neutral-800/80">
       <p className="text-[11px] font-bold uppercase tracking-wider text-neutral-500 mb-2.5 flex items-center gap-1.5">
         <Sparkles className="w-3.5 h-3.5 text-[#FF6B00]" /> Kategoria
       </p>
@@ -155,7 +164,7 @@ export default function FilterSidebar({ filters, onChange, sortBy, onSortChange 
           onClick={() => setCategory('all')}
           className={cn(
             'py-2.5 px-2 rounded-xl text-xs font-bold transition-all duration-300 flex flex-col items-center justify-center gap-1 active:scale-95',
-            filters.category === 'all'
+            currentCategory === 'all'
               ? 'bg-[#FF6B00] text-black shadow-[0_4px_15px_rgba(255,107,0,0.3)] scale-[1.02]'
               : 'text-neutral-400 hover:text-white hover:bg-white/5'
           )}
@@ -169,7 +178,7 @@ export default function FilterSidebar({ filters, onChange, sortBy, onSortChange 
           onClick={() => setCategory('boots')}
           className={cn(
             'py-2.5 px-2 rounded-xl text-xs font-bold transition-all duration-300 flex flex-col items-center justify-center gap-1 active:scale-95',
-            filters.category === 'boots'
+            currentCategory === 'boots'
               ? 'bg-[#FF6B00] text-black shadow-[0_4px_15px_rgba(255,107,0,0.3)] scale-[1.02]'
               : 'text-neutral-400 hover:text-white hover:bg-white/5'
           )}
@@ -183,7 +192,7 @@ export default function FilterSidebar({ filters, onChange, sortBy, onSortChange 
           onClick={() => setCategory('accessories')}
           className={cn(
             'py-2.5 px-2 rounded-xl text-xs font-bold transition-all duration-300 flex flex-col items-center justify-center gap-1 active:scale-95',
-            filters.category === 'accessories'
+            currentCategory === 'accessories'
               ? 'bg-[#FF6B00] text-black shadow-[0_4px_15px_rgba(255,107,0,0.3)] scale-[1.02]'
               : 'text-neutral-400 hover:text-white hover:bg-white/5'
           )}
@@ -196,22 +205,22 @@ export default function FilterSidebar({ filters, onChange, sortBy, onSortChange 
   );
 
   const filterContent = (
-    <div className="space-y-0">
+    <div className="divide-y-0">
       {categoryTabs}
 
-      {/* FILTRY KORKÓW — widoczne dla 'all' lub 'boots' */}
-      {(filters.category === 'all' || filters.category === 'boots') && (
-        <div className="animate-fade-in space-y-0">
+      {/* FILTRY KORKÓW */}
+      {(currentCategory === 'all' || currentCategory === 'boots') && (
+        <div className="animate-fade-in">
           <FilterSection title="Rozmiar (EU)" defaultOpen={true}>
             <div className="grid grid-cols-4 gap-1.5">
               {SIZES.map((size) => (
                 <button
                   key={size}
                   type="button"
-                  onClick={() => onChange({ ...filters, sizes: toggle(filters.sizes, size) })}
+                  onClick={() => onChange({ ...filters, sizes: toggle(currentSizes, size) })}
                   className={cn(
                     'text-xs py-1.5 rounded-lg font-medium transition-all active:scale-90 duration-200',
-                    filters.sizes.includes(size)
+                    currentSizes.includes(size)
                       ? 'bg-[#FF6B00] text-black font-bold shadow-[0_2px_8px_rgba(255,107,0,0.3)]'
                       : 'bg-white/5 text-neutral-400 hover:bg-white/10 hover:text-white'
                   )}
@@ -225,13 +234,13 @@ export default function FilterSidebar({ filters, onChange, sortBy, onSortChange 
           <FilterSection title="Marka" defaultOpen={true}>
             <div className="space-y-1.5">
               {BRANDS.map((brand) => {
-                const active = filters.brands.includes(brand);
+                const active = currentBrands.includes(brand);
                 return (
                   <label key={brand} className="flex items-center gap-2 cursor-pointer group py-0.5">
-                    <div onClick={() => onChange({ ...filters, brands: toggle(filters.brands, brand) })} className={checkboxClass(active)}>
+                    <div onClick={() => onChange({ ...filters, brands: toggle(currentBrands, brand) })} className={checkboxClass(active)}>
                       {active && <CheckIcon />}
                     </div>
-                    <span onClick={() => onChange({ ...filters, brands: toggle(filters.brands, brand) })} className={labelClass(active)}>{brand}</span>
+                    <span onClick={() => onChange({ ...filters, brands: toggle(currentBrands, brand) })} className={labelClass(active)}>{brand}</span>
                   </label>
                 );
               })}
@@ -241,13 +250,13 @@ export default function FilterSidebar({ filters, onChange, sortBy, onSortChange 
           <FilterSection title="Nawierzchnia" defaultOpen={false}>
             <div className="space-y-1.5">
               {SURFACES.map(({ value, label }) => {
-                const active = filters.surfaces.includes(value);
+                const active = currentSurfaces.includes(value);
                 return (
                   <label key={value} className="flex items-center gap-2 cursor-pointer group py-0.5">
-                    <div onClick={() => onChange({ ...filters, surfaces: toggle(filters.surfaces, value) })} className={checkboxClass(active)}>
+                    <div onClick={() => onChange({ ...filters, surfaces: toggle(currentSurfaces, value) })} className={checkboxClass(active)}>
                       {active && <CheckIcon />}
                     </div>
-                    <span onClick={() => onChange({ ...filters, surfaces: toggle(filters.surfaces, value) })} className={labelClass(active)}>{label}</span>
+                    <span onClick={() => onChange({ ...filters, surfaces: toggle(currentSurfaces, value) })} className={labelClass(active)}>{label}</span>
                   </label>
                 );
               })}
@@ -257,13 +266,13 @@ export default function FilterSidebar({ filters, onChange, sortBy, onSortChange 
           <FilterSection title="Poziom zaawansowania" defaultOpen={false}>
             <div className="space-y-1.5">
               {PRODUCT_LEVELS.map(({ value, label }) => {
-                const active = filters.levels.includes(value);
+                const active = currentLevels.includes(value);
                 return (
                   <label key={value} className="flex items-center gap-2 cursor-pointer group py-0.5">
-                    <div onClick={() => onChange({ ...filters, levels: toggle(filters.levels, value) })} className={checkboxClass(active)}>
+                    <div onClick={() => onChange({ ...filters, levels: toggle(currentLevels, value) })} className={checkboxClass(active)}>
                       {active && <CheckIcon />}
                     </div>
-                    <span onClick={() => onChange({ ...filters, levels: toggle(filters.levels, value) })} className={labelClass(active)}>{label}</span>
+                    <span onClick={() => onChange({ ...filters, levels: toggle(currentLevels, value) })} className={labelClass(active)}>{label}</span>
                   </label>
                 );
               })}
@@ -273,13 +282,13 @@ export default function FilterSidebar({ filters, onChange, sortBy, onSortChange 
           <FilterSection title="Stan obuwia" defaultOpen={false}>
             <div className="space-y-1.5">
               {CONDITIONS.map((cond) => {
-                const active = filters.conditions.includes(cond);
+                const active = currentConditions.includes(cond);
                 return (
                   <label key={cond} className="flex items-center gap-2 cursor-pointer group py-0.5">
-                    <div onClick={() => onChange({ ...filters, conditions: toggle(filters.conditions, cond) })} className={checkboxClass(active)}>
+                    <div onClick={() => onChange({ ...filters, conditions: toggle(currentConditions, cond) })} className={checkboxClass(active)}>
                       {active && <CheckIcon />}
                     </div>
-                    <span onClick={() => onChange({ ...filters, conditions: toggle(filters.conditions, cond) })} className={labelClass(active)}>{cond}</span>
+                    <span onClick={() => onChange({ ...filters, conditions: toggle(currentConditions, cond) })} className={labelClass(active)}>{cond}</span>
                   </label>
                 );
               })}
@@ -288,19 +297,19 @@ export default function FilterSidebar({ filters, onChange, sortBy, onSortChange 
         </div>
       )}
 
-      {/* FILTRY AKCESORIÓW — widoczne dla 'all' lub 'accessories' */}
-      {(filters.category === 'all' || filters.category === 'accessories') && (
-        <div className="animate-fade-in space-y-0">
+      {/* FILTRY AKCESORIÓW */}
+      {(currentCategory === 'all' || currentCategory === 'accessories') && (
+        <div className="animate-fade-in">
           <FilterSection title="Rodzaj akcesorium" defaultOpen={true}>
             <div className="space-y-1.5">
               {ACCESSORY_TYPES.map((type) => {
-                const active = filters.accessoryTypes.includes(type);
+                const active = currentAccTypes.includes(type);
                 return (
                   <label key={type} className="flex items-center gap-2 cursor-pointer group py-0.5">
-                    <div onClick={() => onChange({ ...filters, accessoryTypes: toggle(filters.accessoryTypes, type) })} className={checkboxClass(active)}>
+                    <div onClick={() => onChange({ ...filters, accessoryTypes: toggle(currentAccTypes, type) })} className={checkboxClass(active)}>
                       {active && <CheckIcon />}
                     </div>
-                    <span onClick={() => onChange({ ...filters, accessoryTypes: toggle(filters.accessoryTypes, type) })} className={labelClass(active)}>{type}</span>
+                    <span onClick={() => onChange({ ...filters, accessoryTypes: toggle(currentAccTypes, type) })} className={labelClass(active)}>{type}</span>
                   </label>
                 );
               })}
@@ -309,13 +318,13 @@ export default function FilterSidebar({ filters, onChange, sortBy, onSortChange 
         </div>
       )}
 
-      {/* CENA (PLN) — wspólna dla wszystkiego */}
-      <FilterSection title="Cena (PLN)" defaultOpen={true}>
+      {/* CENA (PLN) */}
+      <FilterSection title="Cena (PLN)" defaultOpen={true} hasBorder={false}>
         <div className="flex items-center gap-2">
           <input
             type="number"
             placeholder="Min"
-            value={filters.priceMin}
+            value={filters.priceMin || ''}
             onChange={(e) => onChange({ ...filters, priceMin: e.target.value })}
             className="w-full bg-white/5 border border-neutral-800 rounded-lg px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-500 focus:outline-none focus:border-[#FF6B00]/60 transition-all"
           />
@@ -323,7 +332,7 @@ export default function FilterSidebar({ filters, onChange, sortBy, onSortChange 
           <input
             type="number"
             placeholder="Max"
-            value={filters.priceMax}
+            value={filters.priceMax || ''}
             onChange={(e) => onChange({ ...filters, priceMax: e.target.value })}
             className="w-full bg-white/5 border border-neutral-800 rounded-lg px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-500 focus:outline-none focus:border-[#FF6B00]/60 transition-all"
           />
@@ -354,7 +363,7 @@ export default function FilterSidebar({ filters, onChange, sortBy, onSortChange 
 
   return (
     <>
-      {/* Mobile: "Filtruj i Sortuj" button */}
+      {/* Mobile button */}
       <div className="lg:hidden mb-4">
         <button
           onClick={() => setSheetOpen(true)}
@@ -370,7 +379,7 @@ export default function FilterSidebar({ filters, onChange, sortBy, onSortChange 
         </button>
       </div>
 
-      {/* Mobile: Bottom sheet */}
+      {/* Mobile sheet */}
       {sheetOpen && (
         <>
           <div
@@ -421,7 +430,7 @@ export default function FilterSidebar({ filters, onChange, sortBy, onSortChange 
 
       {/* Desktop sidebar */}
       <div className="hidden lg:block bg-[#141414] border border-neutral-800/80 rounded-2xl p-5 sticky top-24">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-2">
           <span className="text-sm font-bold text-white flex items-center gap-2 uppercase tracking-wider">
             <SlidersHorizontal className="w-4 h-4 text-[#FF6B00]" />
             Filtry
