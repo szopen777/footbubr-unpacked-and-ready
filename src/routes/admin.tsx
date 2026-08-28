@@ -10,6 +10,10 @@ import {
   Plus, Minus, FileText, Clock, Layers, Upload, Footprints 
 } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
+import type { Database } from '@/integrations/supabase/types';
+
+type ProductInsert = Database['public']['Tables']['products']['Insert'];
+type ProductUpdate = Database['public']['Tables']['products']['Update'];
 
 type View = 'products' | 'orders' | 'drop-settings';
 type CustomProductStatus = 'available' | 'draft' | 'drop' | 'sold';
@@ -61,8 +65,8 @@ const EMPTY_BOOT_FORM: ProductForm = {
 
 const EMPTY_ACCESSORY_FORM: ProductForm = {
   productType: 'accessory',
-  name: 'Skarpety antypoślizgowe FOOTBUBR Białe', brand: 'FOOTBUBR', model: 'Skarpety', size_eu: 'One Size (41-45)', accessory_type: 'Skarpety antypoślizgowe', insole_length_cm: '',
-  price: '39', original_price: '59', stock_quantity: '100', surface_type: 'FG', level: 'Amatorski',
+  name: 'Skarpety antypoślizgowe FOOTBUBR v1', brand: 'FOOTBUBR', model: 'Skarpety', size_eu: 'One Size (41-45)', accessory_type: 'Skarpety antypoślizgowe', insole_length_cm: '',
+  price: '49', original_price: '59', stock_quantity: '100', surface_type: 'FG', level: 'Amatorski',
   condition: 'Nowe z metką', condition_detail: 'Rozmiar uniwersalny', images: '',
   box_included: false, bag_included: false, extras_description: '',
   status: 'available', drop_type: 'global', drop_scheduled_at: '',
@@ -80,8 +84,8 @@ function AdminPage() {
   const [form, setForm] = useState<ProductForm>(EMPTY_BOOT_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [uploadingImage, setUploadingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [toast, setToast] = useState('');
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [publishing, setPublishing] = useState(false);
@@ -206,7 +210,7 @@ function AdminPage() {
       const fileName = `${Date.now()}_${cleanName}`;
       const filePath = `products/${fileName}`;
 
-      const { data, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('product-images')
         .upload(filePath, file, {
           cacheControl: '3600',
@@ -385,7 +389,6 @@ function AdminPage() {
 
     const isAcc = form.productType === 'accessory';
 
-    // Jeśli to akcesorium, upewniamy się, że nazwa/model zawiera odpowiednie słowa kluczowe, aby filtr na stronie głównej je złapał
     let accName = form.name;
     if (isAcc) {
       if (form.accessory_type === 'Mini ochraniacze' && !accName.toLowerCase().includes('ochraniacze')) {
@@ -397,11 +400,11 @@ function AdminPage() {
       }
     }
 
-    const payload: any = {
+    const payload: ProductInsert = {
       name: accName,
       brand: isAcc ? 'FOOTBUBR' : form.brand,
       model: isAcc ? form.accessory_type : (form.model || form.name),
-      size_eu: form.size_eu,
+      size_eu: form.size_eu as any,
       accessory_type: isAcc ? form.accessory_type : null,
       insole_length_cm: isAcc ? null : (form.insole_length_cm ? parseFloat(form.insole_length_cm) : null),
       price: parseFloat(form.price),
@@ -420,7 +423,7 @@ function AdminPage() {
     };
 
     if (editingId) {
-      const { error } = await supabase.from('products').update(payload).eq('id', editingId);
+      const { error } = await supabase.from('products').update(payload as ProductUpdate).eq('id', editingId);
       if (error) {
         showToast(`Błąd zapisu: ${error.message}`);
         setSaving(false);
@@ -489,7 +492,7 @@ function AdminPage() {
   };
 
   const handleQuickStatusChange = async (id: string, newStatus: CustomProductStatus) => {
-    const updates: any = {};
+    const updates: ProductUpdate = {};
     if (newStatus === 'available') {
       updates.status = 'available';
       updates.drop_scheduled_at = null;
@@ -697,7 +700,7 @@ function AdminPage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                             <span className="text-xs font-bold text-[#FF6B00] uppercase tracking-wider">{p.brand}</span>
-                            <span className="text-xs text-neutral-500">Rozmiar: {p.size_eu}</span>
+                            <span className="text-xs text-neutral-500">EU {p.size_eu}</span>
                             {p.accessory_type && (
                               <span className="text-xs text-neutral-400 bg-white/5 border border-neutral-800 px-2 py-0.5 rounded-full">
                                 {p.accessory_type}
@@ -784,7 +787,6 @@ function AdminPage() {
                   </div>
                   <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
                     
-                    {/* PRZEŁĄCZNIK TYPU PRODUKTU */}
                     {!editingId && (
                       <div className="bg-[#141414] border border-neutral-800 rounded-2xl p-2">
                         <p className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2 px-2">Wybierz typ dodawanego produktu:</p>
@@ -817,7 +819,6 @@ function AdminPage() {
                       </div>
                     )}
 
-                    {/* Basic info */}
                     <div className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-4 sm:p-5 space-y-3">
                       <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-1">
                         {form.productType === 'boot' ? 'Informacje o korkach' : 'Informacje o akcesorium'}
@@ -897,7 +898,6 @@ function AdminPage() {
                       )}
                     </div>
 
-                    {/* Product details (Tylko dla butów) */}
                     {form.productType === 'boot' && (
                       <div className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-4 sm:p-5 space-y-3">
                         <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-1">Specyfikacja butów</h3>
@@ -954,7 +954,6 @@ function AdminPage() {
                       </div>
                     )}
 
-                    {/* Images & extras */}
                     <div className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-4 sm:p-5 space-y-3">
                       <div className="flex items-center justify-between">
                         <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider">Zdjęcia produktu</h3>
@@ -1019,7 +1018,6 @@ function AdminPage() {
                       )}
                     </div>
 
-                    {/* Status selection */}
                     <div className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-4 sm:p-5 space-y-3">
                       <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-1">Status produktu</h3>
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
@@ -1052,13 +1050,68 @@ function AdminPage() {
                           Wyprzedany
                         </button>
                       </div>
+
+                      {form.status === 'drop' && (
+                        <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl space-y-3 animate-fade-in">
+                          <p className="text-xs font-bold text-blue-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <Layers className="w-3.5 h-3.5" />
+                            Wybór dropu dla tego produktu
+                          </p>
+
+                          <div className="space-y-2">
+                            <label className="flex items-center gap-2.5 cursor-pointer p-2.5 rounded-lg border border-neutral-800 hover:border-neutral-700 bg-black/40 transition-all">
+                              <input
+                                type="radio"
+                                name="dropTypeChoice"
+                                checked={form.drop_type === 'global'}
+                                onChange={() => setForm({ ...form, drop_type: 'global' })}
+                                className="accent-[#FF6B00]"
+                              />
+                              <div className="min-w-0 flex-1">
+                                <span className="text-sm font-semibold text-white block">Drop główny (ze zrobionych)</span>
+                                <span className="text-xs text-neutral-400 block mt-0.5">
+                                  {dropSettings?.title || 'Nowy drop'} — {dropSettings?.drop_date && !dropSettings.is_tbd
+                                    ? new Date(dropSettings.drop_date).toLocaleString('pl-PL')
+                                    : 'Brak ustalonej daty / Wkrótce'}
+                                </span>
+                              </div>
+                            </label>
+
+                            <label className="flex items-center gap-2.5 cursor-pointer p-2.5 rounded-lg border border-neutral-800 hover:border-neutral-700 bg-black/40 transition-all">
+                              <input
+                                type="radio"
+                                name="dropTypeChoice"
+                                checked={form.drop_type === 'custom'}
+                                onChange={() => setForm({ ...form, drop_type: 'custom' })}
+                                className="accent-[#FF6B00]"
+                              />
+                              <div className="min-w-0 flex-1">
+                                <span className="text-sm font-semibold text-white block">Drop indywidualny</span>
+                                <span className="text-xs text-neutral-400 block mt-0.5">Ustaw własną datę i godzinę tylko dla tego produktu</span>
+                              </div>
+                            </label>
+                          </div>
+
+                          {form.drop_type === 'custom' && (
+                            <div className="pt-2 animate-fade-in space-y-1">
+                              <label className="text-xs text-neutral-400 block">Wybierz własną datę i godzinę publikacji:</label>
+                              <input
+                                type="datetime-local"
+                                value={form.drop_scheduled_at}
+                                onChange={(e) => setForm({ ...form, drop_scheduled_at: e.target.value })}
+                                className={`${inp} [&::-webkit-calendar-picker-indicator]:invert`}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex gap-3">
                       <button
                         onClick={handleSave}
                         disabled={saving || !form.name || !form.price || !form.size_eu}
-                        className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-black px-6 py-3 rounded-xl transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-40 shadow-[0_4px_15px_rgba(255,107,0,0.25)]"
+                        className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-black px-6 py-3 rounded-xl transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shadow-[0_4px_15px_rgba(255,107,0,0.25)]"
                       >
                         {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                         {editingId ? 'Zapisz zmiany' : 'Dodaj produkt'}
@@ -1291,6 +1344,27 @@ function AdminPage() {
                   </div>
                 )}
 
+                {/* WYBÓR WYRÓŻNIONEGO PRODUKTU DO BANNERU */}
+                <div>
+                  <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5 block">Wyróżniony produkt (do licznika na stronie głównej)</label>
+                  <div className="relative">
+                    <select
+                      className={sel}
+                      value={settingsForm.featured_product_id}
+                      onChange={(e) => setSettingsForm({ ...settingsForm, featured_product_id: e.target.value })}
+                    >
+                      <option value="none">— Brak wyróżnionego produktu —</option>
+                      {products.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.brand} {p.name} (EU {p.size_eu}) — {formatPrice(p.price)}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none" />
+                  </div>
+                  <p className="text-xs text-neutral-500 mt-1">Wybrany produkt pojawi się w boksie odliczania do dropu na stronie głównej.</p>
+                </div>
+
                 <div className="space-y-3">
                   <div>
                     <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5 block">Tytuł</label>
@@ -1312,6 +1386,62 @@ function AdminPage() {
                     Zapisz ustawienia
                   </button>
                 </div>
+              </div>
+
+              {/* Produkty w dropie */}
+              <div className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-5 sm:p-6 space-y-4">
+                <h3 className="font-bold text-white uppercase tracking-tight text-base flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-[#FF6B00]" />
+                  Produkty przypisane do zaplanowanego dropu ({dropProducts.length})
+                </h3>
+
+                <div className="space-y-2">
+                  {dropProducts.map((p) => (
+                    <div key={p.id} className="flex items-center justify-between p-3 bg-white/5 border border-neutral-800 rounded-xl">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-lg overflow-hidden bg-black/40 border border-neutral-800 flex-shrink-0">
+                          {p.images[0] && <img src={p.images[0]} alt={p.name} className="w-full h-full object-cover" />}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-white text-sm font-semibold truncate">{p.name}</p>
+                          <p className="text-xs text-neutral-500">{p.brand} · EU {p.size_eu} · {formatPrice(p.price)}</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleQuickStatusChange(p.id, 'draft')}
+                        className="flex items-center gap-1 text-xs text-neutral-400 hover:text-white bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg transition-all active:scale-95"
+                      >
+                        <Minus className="w-3.5 h-3.5" /> Przenieś do szkiców
+                      </button>
+                    </div>
+                  ))}
+
+                  {dropProducts.length === 0 && (
+                    <p className="text-xs text-neutral-600 py-4 text-center">Brak produktów przypisanych do dropu.</p>
+                  )}
+                </div>
+
+                {draftProducts.length > 0 && (
+                  <div className="pt-4 border-t border-neutral-800/80">
+                    <h4 className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2">Dodaj ze szkiców do dropu:</h4>
+                    <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                      {draftProducts.map((p) => (
+                        <div key={p.id} className="flex items-center justify-between p-2.5 bg-black/30 border border-neutral-800/60 rounded-xl">
+                          <div className="min-w-0">
+                            <p className="text-neutral-300 text-xs font-semibold truncate">{p.name}</p>
+                            <p className="text-[11px] text-neutral-500">EU {p.size_eu} · {formatPrice(p.price)}</p>
+                          </div>
+                          <button
+                            onClick={() => handleQuickStatusChange(p.id, 'drop')}
+                            className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 bg-blue-400/10 hover:bg-blue-400/20 px-2.5 py-1 rounded-lg transition-all active:scale-95"
+                          >
+                            <Plus className="w-3.5 h-3.5" /> Dołącz do dropu
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
