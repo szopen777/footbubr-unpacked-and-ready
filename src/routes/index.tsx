@@ -34,7 +34,7 @@ function HomePage() {
   const [showCelebration, setShowCelebration] = useState(false);
   const [hasTriggeredCelebration, setHasTriggeredCelebration] = useState(false);
 
-  // Zegar sprawdzający odliczanie co sekundę
+  // Zegar sprawdzajacy odliczanie co sekunde
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(Date.now()), 1000);
     return () => clearInterval(timer);
@@ -44,14 +44,14 @@ function HomePage() {
     setLoading(true);
     const nowIso = new Date().toISOString();
 
-    // 1. Automatycznie aktualizujemy w bazie produkty z dropu, których czas minął
+    // 1. Automatycznie aktualizujemy w bazie produkty z dropu, ktorych czas minal
     await supabase
       .from('products')
       .update({ status: 'available', drop_scheduled_at: null })
       .eq('status', 'draft')
       .lte('drop_scheduled_at', nowIso);
 
-    // 2. Pobieramy produkty dostępne oraz te z zaplanowanym dropem
+    // 2. Pobieramy produkty dostepne oraz te z zaplanowanym dropem
     const { data, error } = await supabase
       .from('products')
       .select('*')
@@ -103,23 +103,33 @@ function HomePage() {
       setCountdown(null);
       return;
     }
-    const update = () => {
-      const cd = calculateCountdown(countdownTarget);
-      setCountdown(cd);
 
-      // Jeśli licznik dobije do zera, wyzwalamy animację ognia i pobieramy świeże produkty
-      if (cd && cd.isZero && !hasTriggeredCelebration) {
-        setShowCelebration(true);
-        setHasTriggeredCelebration(true);
-        fetchProducts();
+    const targetMs = new Date(countdownTarget).getTime();
+
+    const update = () => {
+      const now = Date.now();
+      const diff = targetMs - now;
+
+      if (diff > 0) {
+        const cd = calculateCountdown(countdownTarget);
+        setCountdown(cd);
+      } else {
+        setCountdown(null);
+        // Ognista animacja jesli drop nadszedl w ciagu ostatnich 15 sekund
+        if (diff > -15000 && !hasTriggeredCelebration) {
+          setShowCelebration(true);
+          setHasTriggeredCelebration(true);
+          fetchProducts();
+        }
       }
     };
+
     update();
     const interval = setInterval(update, 1000);
     return () => clearInterval(interval);
   }, [countdownTarget, hasTriggeredCelebration, fetchProducts]);
 
-  // Produkty widoczne w sklepie (dostępne lub odblokowane po czasie dropu)
+  // Produkty widoczne w sklepie (dostepne lub odblokowane po czasie dropu)
   const visibleProducts = products.filter((p) => {
     if (p.status === 'available') return true;
     if (p.status === 'draft' && p.drop_scheduled_at) {
@@ -135,7 +145,7 @@ function HomePage() {
       const pBrand = (p.brand || '').toLowerCase();
       const pModel = (p.model || '').toLowerCase();
 
-      // Rozróżnianie akcesoriów od butów
+      // Rozroznianie akcesoriow od butow
       const isAccessory =
         pBrand === 'footbubr' ||
         pName.includes('skarpety') ||
