@@ -1,13 +1,22 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useCart } from '@/lib/cart-context';
 import { supabase, formatOrderNumber, Order } from '@/lib/supabase';
 import { formatPrice, INPUT_CLASS } from '@/lib/utils';
 import { shippingCostFor, FREE_SHIPPING_THRESHOLD } from '@/lib/shipping';
 import Header from '@/components/Header';
 import CartDrawer from '@/components/CartDrawer';
-import { ArrowLeft, Package, Truck, CreditCard, CircleCheck as CheckCircle2, Loader as Loader2, MapPin, Tag, X, Check, CircleAlert as AlertCircle, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Package, Truck, CreditCard, CircleCheck as CheckCircle2, Loader as Loader2, MapPin, Tag, X, Check, CircleAlert as AlertCircle } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
+
+// Deklaracja dla niestandardowego elementu HTML InPost
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      'inpost-geowidget': any;
+    }
+  }
+}
 
 function CheckoutPage() {
   const { items, total, discountedTotal, discountAmount, promoCode, applyPromo, removePromo, clearCart } = useCart();
@@ -15,6 +24,9 @@ function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [orderId, setOrderId] = useState('');
   const [orderRecord, setOrderRecord] = useState<Order | null>(null);
+  const [showInpostMap, setShowInpostMap] = useState(false);
+  const [mapLoaded, setMapLoaded] = useState(false);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
@@ -36,6 +48,69 @@ function CheckoutPage() {
 
   const shippingCost = shippingCostFor(form.shippingMethod, discountedTotal);
   const orderTotal = discountedTotal + shippingCost;
+
+  // Inicjalizacja oficjalnego skryptu mapy InPost Geowidget v5
+  useEffect(() => {
+    // Dodanie stylów InPost
+    if (!document.getElementById('inpost-geowidget-css')) {
+      const link = document.createElement('link');
+      link.id = 'inpost-geowidget-css';
+      link.rel = 'stylesheet';
+      link.type = 'text/css';
+      link.href = 'https://geowidget.inpost.pl/inpost-geowidget.css';
+      document.head.appendChild(link);
+    }
+
+    // Dodanie skryptu InPost
+    if (!document.getElementById('inpost-geowidget-js')) {
+      const script = document.createElement('script');
+      script.id = 'inpost-geowidget-js';
+      script.src = 'https://geowidget.inpost.pl/inpost-geowidget.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    }
+
+    // Globalna funkcja callback po wybraniu punktu na mapie
+    (window as any).onInpostPointSelected = (point: any) => {
+      const code = point?.name || point?.id || point?.address_details?.name;
+      if (code) {
+        setForm((prev) => ({ ...prev, paczkomatCode: String(code).toUpperCase() }));
+        setShowInpostMap(false);
+      }
+    };
+
+    const handlePointEvent = (e: any) => {
+      const code = e.detail?.name || e.detail?.id || e.name;
+      if (code) {
+        setForm((prev) => ({ ...prev, paczkomatCode: String(code).toUpperCase() }));
+        setShowInpostMap(false);
+      }
+    };
+
+    document.addEventListener('onpointselect', handlePointEvent);
+    document.addEventListener('inpost.geowidget.point_selected', handlePointEvent);
+
+    return () => {
+      document.removeEventListener('onpointselect', handlePointEvent);
+      document.removeEventListener('inpost.geowidget.point_selected', handlePointEvent);
+    };
+  }, []);
+
+  // Wstawianie elementu mapy po otwarciu modalu
+  useEffect(() => {
+    if (showInpostMap && mapContainerRef.current) {
+      mapContainerRef.current.innerHTML = `
+        <inpost-geowidget 
+          id="inpost-geowidget" 
+          onpoint="onInpostPointSelected" 
+          config="parcelCollect" 
+          language="pl" 
+          style="width: 100%; height: 100%; display: block;">
+        </inpost-geowidget>
+      `;
+      setMapLoaded(true);
+    }
+  }, [showInpostMap]);
 
   const validate = () => {
     const e: Record<string, string> = {};
@@ -210,6 +285,28 @@ function CheckoutPage() {
       <Header />
       <CartDrawer />
 
+      {/* Oficjalny modal z interaktywną mapą InPost Geowidget v5 */}
+      {showInpostMap && (
+        <div className="fixed inset-0 z-[200] bg-black/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-6 animate-fade-in">
+          <div className="bg-[#141414] border border-neutral-800 rounded-2xl w-full max-w-4xl h-[85vh] flex flex-col shadow-2xl overflow-hidden relative">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800 bg-[#111]">
+              <h3 className="text-white font-bold text-sm uppercase tracking-wider flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-[#FF6B00]" /> Wybierz Paczkomat InPost z mapy
+              </h3>
+              <button
+                onClick={() => setShowInpostMap(false)}
+                className="p-1.5 text-neutral-400 hover:text-white rounded-lg bg-white/5 transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 w-full bg-[#1c1c1c] relative overflow-hidden">
+              <div ref={mapContainerRef} className="w-full h-full" />
+            </div>
+          </div>
+        </div>
+      )}
+
       {blikStep !== 'idle' && (
         <div className="fixed inset-0 z-[100] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
           <div className="w-full max-w-sm bg-[#111] border-2 border-[#FF6B00]/40 rounded-2xl p-6 text-center shadow-[0_0_40px_rgba(255,107,0,0.2)]">
@@ -318,18 +415,14 @@ function CheckoutPage() {
                           onChange={(e) => setForm({ ...form, paczkomatCode: e.target.value.toUpperCase() })}
                         />
                       </div>
-                      <a
-                        href="https://geowidget.inpost.pl/"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-white/10 hover:bg-white/15 text-white font-bold text-xs rounded-xl transition-all flex-shrink-0 active:scale-95 border border-neutral-700"
+                      <button
+                        type="button"
+                        onClick={() => setShowInpostMap(true)}
+                        className="px-4 py-2.5 bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-bold text-xs rounded-xl transition-all flex-shrink-0 active:scale-95 shadow-[0_2px_10px_rgba(255,107,0,0.2)]"
                       >
-                        Mapa InPost <ExternalLink className="w-3.5 h-3.5" />
-                      </a>
+                        Wybierz z mapy
+                      </button>
                     </div>
-                    <p className="text-xs text-neutral-500">
-                      Kliknij „Mapa InPost”, aby znaleźć swój punkt, skopiuj jego kod (np. <span className="text-white font-mono">WAW01A</span>) i wklej go powyżej.
-                    </p>
                     {errors.paczkomatCode && <p className="text-red-400 text-xs mt-1">{errors.paczkomatCode}</p>}
                   </div>
                 )}
