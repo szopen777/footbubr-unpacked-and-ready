@@ -1,12 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useCart } from '@/lib/cart-context';
 import { supabase, formatOrderNumber, Order } from '@/lib/supabase';
 import { formatPrice, INPUT_CLASS } from '@/lib/utils';
 import { shippingCostFor, FREE_SHIPPING_THRESHOLD } from '@/lib/shipping';
 import Header from '@/components/Header';
 import CartDrawer from '@/components/CartDrawer';
-import { ArrowLeft, Package, Truck, CreditCard, CircleCheck as CheckCircle2, Loader as Loader2, MapPin, Tag, X, Check, CircleAlert as AlertCircle } from 'lucide-react';
+import { ArrowLeft, Package, Truck, CreditCard, CircleCheck as CheckCircle2, Loader as Loader2, MapPin, Tag, X, Check, CircleAlert as AlertCircle, ExternalLink } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 
 function CheckoutPage() {
@@ -15,7 +15,6 @@ function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [orderId, setOrderId] = useState('');
   const [orderRecord, setOrderRecord] = useState<Order | null>(null);
-  const [showInpostMap, setShowInpostMap] = useState(false);
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
@@ -37,25 +36,6 @@ function CheckoutPage() {
 
   const shippingCost = shippingCostFor(form.shippingMethod, discountedTotal);
   const orderTotal = discountedTotal + shippingCost;
-
-  // Inicjalizacja i nasłuchiwanie wyboru punktu z oficjalnego Geowidgetu InPost
-  useEffect(() => {
-    const handlePointSelect = (e: any) => {
-      const pointName = e.detail?.name || e.detail?.address_details?.name || e.name;
-      if (pointName) {
-        setForm((prev) => ({ ...prev, paczkomatCode: pointName.toUpperCase() }));
-        setShowInpostMap(false);
-      }
-    };
-
-    window.addEventListener('onpointselect', handlePointSelect);
-    window.addEventListener('inpost.geowidget.point_selected', handlePointSelect);
-
-    return () => {
-      window.removeEventListener('onpointselect', handlePointSelect);
-      window.removeEventListener('inpost.geowidget.point_selected', handlePointSelect);
-    };
-  }, []);
 
   const validate = () => {
     const e: Record<string, string> = {};
@@ -230,32 +210,6 @@ function CheckoutPage() {
       <Header />
       <CartDrawer />
 
-      {/* Oficjalna interaktywna mapa InPost osadzona bezpośrednio na stronie w modalu */}
-      {showInpostMap && (
-        <div className="fixed inset-0 z-[200] bg-black/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-6 animate-fade-in">
-          <div className="bg-[#141414] border border-neutral-800 rounded-2xl w-full max-w-4xl h-[85vh] flex flex-col shadow-2xl overflow-hidden relative">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800 bg-[#111]">
-              <h3 className="text-white font-bold text-sm uppercase tracking-wider flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-[#FF6B00]" /> Wybierz Paczkomat InPost z mapy
-              </h3>
-              <button
-                onClick={() => setShowInpostMap(false)}
-                className="p-1.5 text-neutral-400 hover:text-white rounded-lg bg-white/5 transition-all"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="flex-1 w-full bg-black relative overflow-hidden">
-              <iframe
-                src="https://geowidget.inpost.pl/?country=pl&language=pl&config=parcelCollect"
-                className="w-full h-full border-0 filter invert-[0.92] hue-rotate-180"
-                title="InPost Geowidget"
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
       {blikStep !== 'idle' && (
         <div className="fixed inset-0 z-[100] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
           <div className="w-full max-w-sm bg-[#111] border-2 border-[#FF6B00]/40 rounded-2xl p-6 text-center shadow-[0_0_40px_rgba(255,107,0,0.2)]">
@@ -358,20 +312,24 @@ function CheckoutPage() {
                       <div className="relative flex-1">
                         <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
                         <input
-                          className={`${inp} pl-9`}
+                          className={`${inp} pl-9 uppercase`}
                           placeholder="Kod paczkomatu (np. WAW123M) *"
                           value={form.paczkomatCode}
                           onChange={(e) => setForm({ ...form, paczkomatCode: e.target.value.toUpperCase() })}
                         />
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => setShowInpostMap(true)}
-                        className="px-4 py-2.5 bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-bold text-xs rounded-xl transition-all flex-shrink-0 active:scale-95 shadow-[0_2px_10px_rgba(255,107,0,0.2)]"
+                      <a
+                        href="https://geowidget.inpost.pl/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-white/10 hover:bg-white/15 text-white font-bold text-xs rounded-xl transition-all flex-shrink-0 active:scale-95 border border-neutral-700"
                       >
-                        Wybierz z mapy
-                      </button>
+                        Mapa InPost <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
                     </div>
+                    <p className="text-xs text-neutral-500">
+                      Kliknij „Mapa InPost”, aby znaleźć swój punkt, skopiuj jego kod (np. <span className="text-white font-mono">WAW01A</span>) i wklej go powyżej.
+                    </p>
                     {errors.paczkomatCode && <p className="text-red-400 text-xs mt-1">{errors.paczkomatCode}</p>}
                   </div>
                 )}
