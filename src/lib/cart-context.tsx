@@ -1,16 +1,17 @@
-
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { Product } from '@/lib/supabase';
 
-interface CartItem {
+export interface CartItem {
   product: Product;
+  quantity: number;
 }
 
 interface CartContextValue {
   items: CartItem[];
-  addItem: (product: Product) => void;
-  addItemSilent: (product: Product) => void;
+  addItem: (product: Product, quantity?: number) => void;
+  addItemSilent: (product: Product, quantity?: number) => void;
   removeItem: (productId: string) => void;
+  updateQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;
   isOpen: boolean;
   openCart: () => void;
@@ -42,18 +43,32 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setTimeout(() => setCartPulse(false), 600);
   }, []);
 
-  const addItem = useCallback((product: Product) => {
+  const addItem = useCallback((product: Product, quantity = 1) => {
     setItems((prev) => {
-      if (prev.some((i) => i.product.id === product.id)) return prev;
-      return [...prev, { product }];
+      const existingIndex = prev.findIndex((i) => i.product.id === product.id);
+      if (existingIndex > -1) {
+        const updated = [...prev];
+        const newQty = updated[existingIndex].quantity + quantity;
+        const maxStock = product.stock_quantity ?? 1;
+        updated[existingIndex].quantity = Math.min(newQty, maxStock);
+        return updated;
+      }
+      return [...prev, { product, quantity: Math.min(quantity, product.stock_quantity ?? 1) }];
     });
     setIsOpen(true);
   }, []);
 
-  const addItemSilent = useCallback((product: Product) => {
+  const addItemSilent = useCallback((product: Product, quantity = 1) => {
     setItems((prev) => {
-      if (prev.some((i) => i.product.id === product.id)) return prev;
-      return [...prev, { product }];
+      const existingIndex = prev.findIndex((i) => i.product.id === product.id);
+      if (existingIndex > -1) {
+        const updated = [...prev];
+        const newQty = updated[existingIndex].quantity + quantity;
+        const maxStock = product.stock_quantity ?? 1;
+        updated[existingIndex].quantity = Math.min(newQty, maxStock);
+        return updated;
+      }
+      return [...prev, { product, quantity: Math.min(quantity, product.stock_quantity ?? 1) }];
     });
     triggerPulse();
   }, [triggerPulse]);
@@ -62,12 +77,27 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setItems((prev) => prev.filter((i) => i.product.id !== productId));
   }, []);
 
+  const updateQuantity = useCallback((productId: string, quantity: number) => {
+    setItems((prev) => {
+      if (quantity <= 0) {
+        return prev.filter((i) => i.product.id !== productId);
+      }
+      return prev.map((item) => {
+        if (item.product.id === productId) {
+          const maxStock = item.product.stock_quantity ?? 1;
+          return { ...item, quantity: Math.min(quantity, maxStock) };
+        }
+        return item;
+      });
+    });
+  }, []);
+
   const clearCart = useCallback(() => {
     setItems([]);
     setPromoCode(null);
   }, []);
 
-  const total = items.reduce((sum, i) => sum + i.product.price, 0);
+  const total = items.reduce((sum, i) => sum + i.product.price * i.quantity, 0);
   const discountRate = promoCode ? VALID_PROMO_CODES[promoCode] ?? 0 : 0;
   const discountAmount = Math.round(total * discountRate);
   const discountedTotal = total - discountAmount;
@@ -90,6 +120,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         addItem,
         addItemSilent,
         removeItem,
+        updateQuantity,
         clearCart,
         isOpen,
         openCart: () => setIsOpen(true),
@@ -110,6 +141,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useCart() {
+  const ctx = useContext(CartContext);
   const ctx = useContext(CartContext);
   if (!ctx) throw new Error('useCart must be used within CartProvider');
   return ctx;
