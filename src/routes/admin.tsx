@@ -7,13 +7,14 @@ import {
   Package, ShoppingCart, LogOut, Eye, EyeOff, Loader as Loader2, Trash2, 
   CreditCard as Edit2, X, Check, CircleAlert as AlertCircle, ArrowLeft, 
   ChevronDown, Zap, Calendar, Menu, Sparkles, Copy, Truck, MapPin, 
-  Plus, Minus, FileText, Clock, Layers, Upload, Image as ImageIcon 
+  Plus, Minus, FileText, Clock, Layers, Upload, Footprints 
 } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 
 type View = 'products' | 'orders' | 'drop-settings';
 type CustomProductStatus = 'available' | 'draft' | 'drop' | 'sold';
 type DropTypeChoice = 'global' | 'custom';
+type ProductTypeChoice = 'boot' | 'accessory';
 
 const ADMIN_PASSWORD = '123';
 
@@ -26,6 +27,7 @@ function toLocalDatetimeInput(isoStr: string | null | undefined): string {
 }
 
 interface ProductForm {
+  productType: ProductTypeChoice;
   name: string;
   brand: string;
   model: string;
@@ -47,10 +49,20 @@ interface ProductForm {
   drop_scheduled_at: string;
 }
 
-const EMPTY_FORM: ProductForm = {
-  name: '', brand: '', model: '', size_eu: '', insole_length_cm: '',
+const EMPTY_BOOT_FORM: ProductForm = {
+  productType: 'boot',
+  name: '', brand: 'Nike', model: '', size_eu: '', insole_length_cm: '',
   price: '', original_price: '', stock_quantity: '1', surface_type: 'FG', level: 'Profesjonalny',
   condition: 'Nowe z metką', condition_detail: '', images: '',
+  box_included: false, bag_included: false, extras_description: '',
+  status: 'available', drop_type: 'global', drop_scheduled_at: '',
+};
+
+const EMPTY_ACCESSORY_FORM: ProductForm = {
+  productType: 'accessory',
+  name: 'Skarpety antypoślizgowe FOOTBUBR Białe', brand: 'FOOTBUBR', model: 'Skarpety', size_eu: '43', insole_length_cm: '',
+  price: '39', original_price: '59', stock_quantity: '100', surface_type: 'FG', level: 'Amatorski',
+  condition: 'Nowe z metką', condition_detail: 'Uniwersalny rozmiar ONE SIZE (41-45)', images: '',
   box_included: false, bag_included: false, extras_description: '',
   status: 'available', drop_type: 'global', drop_scheduled_at: '',
 };
@@ -64,7 +76,7 @@ function AdminPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<(Order & { product?: Product })[]>([]);
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState<ProductForm>(EMPTY_FORM);
+  const [form, setForm] = useState<ProductForm>(EMPTY_BOOT_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -228,11 +240,10 @@ function AdminPage() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
- const handleRemoveImage = async (indexToRemove: number) => {
+  const handleRemoveImage = async (indexToRemove: number) => {
     const imageList = form.images.split('\n').map((s) => s.trim()).filter(Boolean);
     const urlToRemove = imageList[indexToRemove];
 
-    // Próbujemy wyciągnąć ścieżkę pliku z URL i usunąć go z Supabase Storage
     if (urlToRemove && urlToRemove.includes('product-images')) {
       try {
         const parts = urlToRemove.split('/product-images/');
@@ -247,7 +258,7 @@ function AdminPage() {
 
     const updated = imageList.filter((_, idx) => idx !== indexToRemove);
     setForm((prev) => ({ ...prev, images: updated.join('\n') }));
-    showToast('Zdjęcie usunięte z serwera i formularza');
+    showToast('Zdjęcie usunięte');
   };
 
   const ORDER_STATUS_LABELS: Record<string, string> = {
@@ -343,7 +354,8 @@ function AdminPage() {
   };
 
   const handleSave = async () => {
-    if (!form.name || !form.brand || !form.price || !form.size_eu) return;
+    if (!form.name || !form.price) return;
+    if (form.productType === 'boot' && !form.size_eu) return;
     setSaving(true);
 
     let dbStatus: 'available' | 'draft' | 'sold' = 'available';
@@ -371,22 +383,24 @@ function AdminPage() {
       finalDropDate = null;
     }
 
+    const isAcc = form.productType === 'accessory';
+
     const payload: any = {
       name: form.name,
-      brand: form.brand,
-      model: form.model || form.name,
-      size_eu: parseFloat(form.size_eu),
-      insole_length_cm: form.insole_length_cm ? parseFloat(form.insole_length_cm) : null,
+      brand: isAcc ? 'FOOTBUBR' : form.brand,
+      model: isAcc ? 'Akcesoria' : (form.model || form.name),
+      size_eu: isAcc ? 43 : parseFloat(form.size_eu),
+      insole_length_cm: isAcc ? null : (form.insole_length_cm ? parseFloat(form.insole_length_cm) : null),
       price: parseFloat(form.price),
       original_price: form.original_price ? parseFloat(form.original_price) : null,
-      stock_quantity: form.stock_quantity ? parseInt(form.stock_quantity, 10) : 1,
-      surface_type: form.surface_type as any,
-      level: form.level as any,
+      stock_quantity: isAcc ? (form.stock_quantity ? parseInt(form.stock_quantity, 10) : 100) : 1,
+      surface_type: isAcc ? 'FG' : form.surface_type as any,
+      level: isAcc ? 'Amatorski' : form.level as any,
       condition: form.condition as any,
       condition_detail: form.condition_detail || null,
       images: form.images.split('\n').map((s) => s.trim()).filter(Boolean),
-      box_included: form.box_included,
-      bag_included: form.bag_included,
+      box_included: isAcc ? false : form.box_included,
+      bag_included: isAcc ? false : form.bag_included,
       extras_description: form.extras_description || null,
       status: dbStatus,
       drop_scheduled_at: finalDropDate,
@@ -395,7 +409,6 @@ function AdminPage() {
     if (editingId) {
       const { error } = await supabase.from('products').update(payload).eq('id', editingId);
       if (error) {
-        console.error('Product update failed:', error);
         showToast(`Błąd zapisu: ${error.message}`);
         setSaving(false);
         return;
@@ -404,7 +417,6 @@ function AdminPage() {
     } else {
       const { error } = await supabase.from('products').insert(payload);
       if (error) {
-        console.error('Product insert failed:', error);
         showToast(`Błąd dodawania: ${error.message}`);
         setSaving(false);
         return;
@@ -413,7 +425,7 @@ function AdminPage() {
     }
 
     await loadProducts();
-    setForm(EMPTY_FORM);
+    setForm(EMPTY_BOOT_FORM);
     setEditingId(null);
     setShowProductModal(false);
     setView('products');
@@ -436,11 +448,14 @@ function AdminPage() {
       }
     }
 
+    const isAcc = p.brand?.toLowerCase() === 'footbubr' || p.name?.toLowerCase().includes('skarpety') || p.name?.toLowerCase().includes('ochraniacze');
+
     setForm({
+      productType: isAcc ? 'accessory' : 'boot',
       name: p.name, brand: p.brand, model: p.model,
       size_eu: String(p.size_eu), insole_length_cm: p.insole_length_cm ? String(p.insole_length_cm) : '',
       price: String(p.price), original_price: p.original_price ? String(p.original_price) : '',
-      stock_quantity: String(p.stock_quantity ?? 1),
+      stock_quantity: String(p.stock_quantity ?? (isAcc ? 100 : 1)),
       surface_type: p.surface_type, level: p.level, condition: p.condition,
       condition_detail: p.condition_detail || '', images: p.images.join('\n'),
       box_included: p.box_included, bag_included: p.bag_included,
@@ -544,14 +559,12 @@ function AdminPage() {
 
   return (
     <div className="min-h-screen">
-      {/* Toast */}
       {toast && (
         <div className="fixed top-4 right-4 z-50 bg-[#FF6B00] text-black font-bold px-4 py-2.5 rounded-xl shadow-xl flex items-center gap-2 animate-fade-in-up">
           <Check className="w-4 h-4" /> {toast}
         </div>
       )}
 
-      {/* Publish confirmation modal */}
       {showPublishModal && (
         <>
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 animate-backdrop-in" onClick={() => setShowPublishModal(false)} />
@@ -567,7 +580,7 @@ function AdminPage() {
                 </div>
               </div>
               <p className="text-sm text-neutral-400 mb-6">
-                Czy na pewno chcesz opublikować wszystkie <span className="text-[#FF6B00] font-bold">{dropProducts.length}</span> produkty z zaplanowanego dropu? Zmienią status na "Dostępny" w sklepie.
+                Czy na pewno chcesz opublikować wszystkie <span className="text-[#FF6B00] font-bold">{dropProducts.length}</span> produkty z zaplanowanego dropu?
               </p>
               <div className="flex gap-3">
                 <button
@@ -597,7 +610,6 @@ function AdminPage() {
         </button>
       </div>
 
-      {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <>
           <div className="fixed inset-0 bg-black/60 z-40 lg:hidden animate-backdrop-in" onClick={() => setSidebarOpen(false)} />
@@ -612,7 +624,6 @@ function AdminPage() {
       )}
 
       <div className="flex min-h-screen">
-        {/* Desktop sidebar */}
         <aside className="hidden lg:flex w-56 bg-[#0c0c0c] border-r border-neutral-800/80 flex-col fixed h-full z-10">
           <div className="p-5 border-b border-neutral-800/80">
             <Link to="/" className="flex items-center gap-2">
@@ -623,9 +634,7 @@ function AdminPage() {
           <AdminNav view={view} setView={setView} setForm={setForm} setEditingId={setEditingId} productsCount={products.length} ordersCount={orders.length} onLogout={() => setAuthed(false)} />
         </aside>
 
-        {/* Main */}
         <main className="lg:ml-56 flex-1 p-4 sm:p-6 lg:p-8 min-w-0">
-          {/* Products list */}
           {view === 'products' && (
             <div className="animate-fade-in">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
@@ -637,7 +646,7 @@ function AdminPage() {
                 </div>
                 <div className="flex gap-2 flex-wrap">
                   <button
-                    onClick={() => { setForm(EMPTY_FORM); setEditingId(null); setShowProductModal(true); }}
+                    onClick={() => { setForm(EMPTY_BOOT_FORM); setEditingId(null); setShowProductModal(true); }}
                     className="flex items-center gap-2 bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-bold px-3 sm:px-4 py-2.5 rounded-xl transition-all hover:scale-[1.02] active:scale-95 shadow-[0_4px_15px_rgba(255,107,0,0.25)] text-sm"
                   >
                     + Dodaj produkt
@@ -676,9 +685,9 @@ function AdminPage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                             <span className="text-xs font-bold text-[#FF6B00] uppercase tracking-wider">{p.brand}</span>
-                            <span className="text-xs text-neutral-500">EU {p.size_eu}</span>
+                            <span className="text-xs text-neutral-500">{p.brand === 'FOOTBUBR' ? 'Akcesoria' : `EU ${p.size_eu}`}</span>
                             <span className="text-xs font-bold text-neutral-300 bg-white/5 border border-neutral-700 px-2 py-0.5 rounded-full">
-                              Stan: {p.stock_quantity ?? 1} szt.
+                              Magazyn: {p.stock_quantity ?? 1} szt.
                             </span>
                             
                             {isDraft && (
@@ -742,14 +751,14 @@ function AdminPage() {
             <>
               <div
                 className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 animate-backdrop-in"
-                onClick={() => { setShowProductModal(false); setForm(EMPTY_FORM); setEditingId(null); }}
+                onClick={() => { setShowProductModal(false); setForm(EMPTY_BOOT_FORM); setEditingId(null); }}
               />
               <div className="fixed inset-0 z-50 flex items-start justify-center p-3 sm:p-6 overflow-y-auto pointer-events-none">
                 <div className="bg-[#111] border border-neutral-800 rounded-2xl w-full max-w-2xl my-4 sm:my-8 animate-scale-in pointer-events-auto shadow-2xl">
                   <div className="sticky top-0 z-10 flex items-center justify-between gap-3 px-4 sm:px-6 py-4 border-b border-neutral-800 bg-[#111] rounded-t-2xl">
                     <h2 className="text-lg sm:text-xl font-black text-white uppercase tracking-tight">{editingId ? 'Edytuj produkt' : 'Dodaj nowy produkt'}</h2>
                     <button
-                      onClick={() => { setShowProductModal(false); setForm(EMPTY_FORM); setEditingId(null); }}
+                      onClick={() => { setShowProductModal(false); setForm(EMPTY_BOOT_FORM); setEditingId(null); }}
                       className="p-2 text-neutral-500 hover:text-white bg-white/5 rounded-xl transition-all active:scale-90"
                       aria-label="Zamknij"
                     >
@@ -757,67 +766,123 @@ function AdminPage() {
                     </button>
                   </div>
                   <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+                    
+                    {/* PRZEŁĄCZNIK TYPU PRODUKTU (Tylko przy dodawaniu nowego) */}
+                    {!editingId && (
+                      <div className="bg-[#141414] border border-neutral-800 rounded-2xl p-2">
+                        <p className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2 px-2">Wybierz typ dodawanego produktu:</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setForm(EMPTY_BOOT_FORM)}
+                            className={cn(
+                              'py-3 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all',
+                              form.productType === 'boot'
+                                ? 'bg-[#FF6B00] text-black shadow-[0_4px_15px_rgba(255,107,0,0.3)]'
+                                : 'bg-white/5 text-neutral-400 hover:text-white'
+                            )}
+                          >
+                            <Footprints className="w-4 h-4" /> Korki 1 of 1 (Buty)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setForm(EMPTY_ACCESSORY_FORM)}
+                            className={cn(
+                              'py-3 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all',
+                              form.productType === 'accessory'
+                                ? 'bg-[#FF6B00] text-black shadow-[0_4px_15px_rgba(255,107,0,0.3)]'
+                                : 'bg-white/5 text-neutral-400 hover:text-white'
+                            )}
+                          >
+                            <Package className="w-4 h-4" /> Akcesoria / Skarpety
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Basic info */}
                     <div className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-4 sm:p-5 space-y-3">
-                      <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-1">Podstawowe informacje</h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <input className={inp} placeholder="Marka *" value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} />
-                        <input className={inp} placeholder="Model *" value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} />
-                      </div>
+                      <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-1">
+                        {form.productType === 'boot' ? 'Informacje o korkach' : 'Informacje o akcesorium'}
+                      </h3>
+
+                      {form.productType === 'boot' ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <input className={inp} placeholder="Marka (np. Nike) *" value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} />
+                          <input className={inp} placeholder="Model (np. Mercurial Vapor) *" value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} />
+                        </div>
+                      ) : (
+                        <div className="p-3 bg-white/5 rounded-xl border border-neutral-800 text-xs text-neutral-300">
+                          Marka ustawiona automatycznie jako <span className="text-[#FF6B00] font-bold">FOOTBUBR</span>. One Size (41-45).
+                        </div>
+                      )}
+
                       <input className={inp} placeholder="Pełna nazwa produktu *" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                      
+                      {form.productType === 'boot' && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <input className={inp} placeholder="Rozmiar EU (np. 42.5) *" type="number" step="0.5" value={form.size_eu} onChange={(e) => setForm({ ...form, size_eu: e.target.value })} />
+                          <input className={inp} placeholder="Długość wkładki (cm)" type="number" step="0.5" value={form.insole_length_cm} onChange={(e) => setForm({ ...form, insole_length_cm: e.target.value })} />
+                        </div>
+                      )}
+
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <input className={inp} placeholder="Rozmiar EU *" type="number" step="0.5" value={form.size_eu} onChange={(e) => setForm({ ...form, size_eu: e.target.value })} />
-                        <input className={inp} placeholder="Długość wkładki (cm)" type="number" step="0.5" value={form.insole_length_cm} onChange={(e) => setForm({ ...form, insole_length_cm: e.target.value })} />
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <input className={inp} placeholder="Cena PLN *" type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
-                        <input className={inp} placeholder="Cena katalogowa" type="number" value={form.original_price} onChange={(e) => setForm({ ...form, original_price: e.target.value })} />
-                        <input className={inp} placeholder="Ilość sztuk w magazynie *" type="number" min="0" value={form.stock_quantity} onChange={(e) => setForm({ ...form, stock_quantity: e.target.value })} />
+                        <input className={inp} placeholder="Cena katalogowa PLN" type="number" value={form.original_price} onChange={(e) => setForm({ ...form, original_price: e.target.value })} />
                       </div>
+
+                      {form.productType === 'accessory' && (
+                        <div>
+                          <label className="text-xs text-neutral-500 mb-1 block">Ilość sztuk w magazynie (np. 100):</label>
+                          <input className={inp} placeholder="Ilość sztuk" type="number" min="1" value={form.stock_quantity} onChange={(e) => setForm({ ...form, stock_quantity: e.target.value })} />
+                        </div>
+                      )}
                     </div>
 
-                    {/* Product details */}
-                    <div className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-4 sm:p-5 space-y-3">
-                      <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-1">Specyfikacja</h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Product details (Tylko dla butów) */}
+                    {form.productType === 'boot' && (
+                      <div className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-4 sm:p-5 space-y-3">
+                        <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-1">Specyfikacja butów</h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="relative">
+                            <select className={sel} value={form.surface_type} onChange={(e) => setForm({ ...form, surface_type: e.target.value })}>
+                              <option value="FG">FG — Lanki</option>
+                              <option value="SG">SG — Wkręty/Mixy</option>
+                              <option value="AG">AG — Sztuczna trawa</option>
+                              <option value="TF">TF — Turfy</option>
+                              <option value="IC">IC — Halówki</option>
+                            </select>
+                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none" />
+                          </div>
+                          <div className="relative">
+                            <select className={sel} value={form.level} onChange={(e) => setForm({ ...form, level: e.target.value })}>
+                              {PRODUCT_LEVELS.map(({ value, label }) => (
+                                <option key={value} value={value}>{label}</option>
+                              ))}
+                            </select>
+                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none" />
+                          </div>
+                        </div>
                         <div className="relative">
-                          <select className={sel} value={form.surface_type} onChange={(e) => setForm({ ...form, surface_type: e.target.value })}>
-                            <option value="FG">FG — Lanki</option>
-                            <option value="SG">SG — Wkręty/Mixy</option>
-                            <option value="AG">AG — Sztuczna trawa</option>
-                            <option value="TF">TF — Turfy</option>
-                            <option value="IC">IC — Halówki</option>
+                          <select className={sel} value={form.condition} onChange={(e) => setForm({ ...form, condition: e.target.value })}>
+                            <option value="Nowe z metką">Nowe z metką</option>
+                            <option value="Nowe bez metki">Nowe bez metki / Outlet</option>
+                            <option value="Używane 9/10">Używane 9/10</option>
+                            <option value="Używane 8/10">Używane 8/10</option>
+                            <option value="Używane 7/10">Używane 7/10</option>
+                            <option value="Używane 6/10">Używane 6/10</option>
                           </select>
                           <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none" />
                         </div>
-                        <div className="relative">
-                          <select className={sel} value={form.level} onChange={(e) => setForm({ ...form, level: e.target.value })}>
-                            {PRODUCT_LEVELS.map(({ value, label }) => (
-                              <option key={value} value={value}>{label}</option>
-                            ))}
-                          </select>
-                          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none" />
-                        </div>
+                        <textarea
+                          className={`${inp} resize-none`}
+                          rows={2}
+                          placeholder="Szczegółowy opis stanu"
+                          value={form.condition_detail}
+                          onChange={(e) => setForm({ ...form, condition_detail: e.target.value })}
+                        />
                       </div>
-                      <div className="relative">
-                        <select className={sel} value={form.condition} onChange={(e) => setForm({ ...form, condition: e.target.value })}>
-                          <option value="Nowe z metką">Nowe z metką</option>
-                          <option value="Nowe bez metki">Nowe bez metki / Outlet</option>
-                          <option value="Używane 9/10">Używane 9/10</option>
-                          <option value="Używane 8/10">Używane 8/10</option>
-                          <option value="Używane 7/10">Używane 7/10</option>
-                          <option value="Używane 6/10">Używane 6/10</option>
-                        </select>
-                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none" />
-                      </div>
-                      <textarea
-                        className={`${inp} resize-none`}
-                        rows={2}
-                        placeholder="Szczegółowy opis stanu / specyfikacja produktu"
-                        value={form.condition_detail}
-                        onChange={(e) => setForm({ ...form, condition_detail: e.target.value })}
-                      />
-                    </div>
+                    )}
 
                     {/* Images & extras */}
                     <div className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-4 sm:p-5 space-y-3">
@@ -842,17 +907,16 @@ function AdminPage() {
                         />
                       </div>
                       <div>
-                        <p className="text-xs text-neutral-500 mb-1">URL zdjęć (lub wgraj przyciskiem powyżej):</p>
+                        <p className="text-xs text-neutral-500 mb-1">URL zdjęć:</p>
                         <textarea
                           className={`${inp} resize-none font-mono text-xs`}
                           rows={3}
-                          placeholder="https://images.pexels.com/..."
+                          placeholder="https://..."
                           value={form.images}
                           onChange={(e) => setForm({ ...form, images: e.target.value })}
                         />
                       </div>
 
-                      {/* Podgląd miniatur zdjęć z możliwością usuwania */}
                       {form.images.trim() && (
                         <div className="flex gap-3 overflow-x-auto py-2">
                           {form.images.split('\n').filter(Boolean).map((url, i) => (
@@ -862,7 +926,6 @@ function AdminPage() {
                                 type="button"
                                 onClick={() => handleRemoveImage(i)}
                                 className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-300 active:scale-90"
-                                title="Usuń zdjęcie"
                               >
                                 <Trash2 className="w-5 h-5 mb-0.5" />
                                 <span className="text-[9px] font-bold uppercase">Usuń</span>
@@ -872,154 +935,66 @@ function AdminPage() {
                         </div>
                       )}
 
-                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 pt-2 border-t border-neutral-800/60">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input type="checkbox" checked={form.box_included} onChange={(e) => setForm({ ...form, box_included: e.target.checked })} className="w-4 h-4 accent-[#FF6B00]" />
-                          <span className="text-sm text-neutral-300">Oryginalne pudełko</span>
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input type="checkbox" checked={form.bag_included} onChange={(e) => setForm({ ...form, bag_included: e.target.checked })} className="w-4 h-4 accent-[#FF6B00]" />
-                          <span className="text-sm text-neutral-300">Worek / torba</span>
-                        </label>
-                      </div>
-                      <textarea
-                        className={`${inp} resize-none`}
-                        rows={2}
-                        placeholder="Opis dodatków (opcjonalnie)"
-                        value={form.extras_description}
-                        onChange={(e) => setForm({ ...form, extras_description: e.target.value })}
-                      />
+                      {form.productType === 'boot' && (
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 pt-2 border-t border-neutral-800/60">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" checked={form.box_included} onChange={(e) => setForm({ ...form, box_included: e.target.checked })} className="w-4 h-4 accent-[#FF6B00]" />
+                            <span className="text-sm text-neutral-300">Oryginalne pudełko</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" checked={form.bag_included} onChange={(e) => setForm({ ...form, bag_included: e.target.checked })} className="w-4 h-4 accent-[#FF6B00]" />
+                            <span className="text-sm text-neutral-300">Worek / torba</span>
+                          </label>
+                        </div>
+                      )}
                     </div>
 
                     {/* Status selection */}
                     <div className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-4 sm:p-5 space-y-3">
                       <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-1">Status produktu</h3>
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
-                        {/* 1. Dostępny */}
                         <button
                           type="button"
                           onClick={() => setForm({ ...form, status: 'available' })}
-                          className={cn(
-                            'p-2.5 rounded-xl text-center border font-bold text-xs transition-all active:scale-95',
-                            form.status === 'available'
-                              ? 'bg-emerald-400/15 border-emerald-400/40 text-emerald-400'
-                              : 'bg-white/5 border-neutral-800 text-neutral-400 hover:text-white'
-                          )}
+                          className={cn('p-2.5 rounded-xl text-center border font-bold text-xs transition-all active:scale-95', form.status === 'available' ? 'bg-emerald-400/15 border-emerald-400/40 text-emerald-400' : 'bg-white/5 border-neutral-800 text-neutral-400')}
                         >
                           Dostępny
                         </button>
-
-                        {/* 2. Szkic */}
                         <button
                           type="button"
                           onClick={() => setForm({ ...form, status: 'draft' })}
-                          className={cn(
-                            'p-2.5 rounded-xl text-center border font-bold text-xs transition-all active:scale-95',
-                            form.status === 'draft'
-                              ? 'bg-neutral-400/20 border-neutral-400 text-white'
-                              : 'bg-white/5 border-neutral-800 text-neutral-400 hover:text-white'
-                          )}
+                          className={cn('p-2.5 rounded-xl text-center border font-bold text-xs transition-all active:scale-95', form.status === 'draft' ? 'bg-neutral-400/20 border-neutral-400 text-white' : 'bg-white/5 border-neutral-800 text-neutral-400')}
                         >
                           Szkic
                         </button>
-
-                        {/* 3. W dropie */}
                         <button
                           type="button"
                           onClick={() => setForm({ ...form, status: 'drop' })}
-                          className={cn(
-                            'p-2.5 rounded-xl text-center border font-bold text-xs transition-all active:scale-95',
-                            form.status === 'drop'
-                              ? 'bg-blue-400/15 border-blue-400/40 text-blue-400'
-                              : 'bg-white/5 border-neutral-800 text-neutral-400 hover:text-white'
-                          )}
+                          className={cn('p-2.5 rounded-xl text-center border font-bold text-xs transition-all active:scale-95', form.status === 'drop' ? 'bg-blue-400/15 border-blue-400/40 text-blue-400' : 'bg-white/5 border-neutral-800 text-neutral-400')}
                         >
                           W dropie
                         </button>
-
-                        {/* 4. Wyprzedany (archiwum) */}
                         <button
                           type="button"
                           onClick={() => setForm({ ...form, status: 'sold' })}
-                          className={cn(
-                            'p-2.5 rounded-xl text-center border font-bold text-xs transition-all active:scale-95',
-                            form.status === 'sold'
-                              ? 'bg-red-400/15 border-red-400/40 text-red-400'
-                              : 'bg-white/5 border-neutral-800 text-neutral-400 hover:text-white'
-                          )}
+                          className={cn('p-2.5 rounded-xl text-center border font-bold text-xs transition-all active:scale-95', form.status === 'sold' ? 'bg-red-400/15 border-red-400/40 text-red-400' : 'bg-white/5 border-neutral-800 text-neutral-400')}
                         >
-                          Wyprzedany (archiwum)
+                          Wyprzedany
                         </button>
                       </div>
-
-                      {/* Drop configuration */}
-                      {form.status === 'drop' && (
-                        <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl space-y-3 animate-fade-in">
-                          <p className="text-xs font-bold text-blue-400 uppercase tracking-wider flex items-center gap-1.5">
-                            <Layers className="w-3.5 h-3.5" />
-                            Wybór dropu dla tego produktu
-                          </p>
-
-                          <div className="space-y-2">
-                            <label className="flex items-center gap-2.5 cursor-pointer p-2.5 rounded-lg border border-neutral-800 hover:border-neutral-700 bg-black/40 transition-all">
-                              <input
-                                type="radio"
-                                name="dropTypeChoice"
-                                checked={form.drop_type === 'global'}
-                                onChange={() => setForm({ ...form, drop_type: 'global' })}
-                                className="accent-[#FF6B00]"
-                              />
-                              <div className="min-w-0 flex-1">
-                                <span className="text-sm font-semibold text-white block">Drop główny (ze zrobionych)</span>
-                                <span className="text-xs text-neutral-400 block mt-0.5">
-                                  {dropSettings?.title || 'Nowy drop'} — {dropSettings?.drop_date && !dropSettings.is_tbd
-                                    ? new Date(dropSettings.drop_date).toLocaleString('pl-PL')
-                                    : 'Brak ustalonej daty / Wkrótce'}
-                                </span>
-                              </div>
-                            </label>
-
-                            <label className="flex items-center gap-2.5 cursor-pointer p-2.5 rounded-lg border border-neutral-800 hover:border-neutral-700 bg-black/40 transition-all">
-                              <input
-                                type="radio"
-                                name="dropTypeChoice"
-                                checked={form.drop_type === 'custom'}
-                                onChange={() => setForm({ ...form, drop_type: 'custom' })}
-                                className="accent-[#FF6B00]"
-                              />
-                              <div className="min-w-0 flex-1">
-                                <span className="text-sm font-semibold text-white block">Drop indywidualny</span>
-                                <span className="text-xs text-neutral-400 block mt-0.5">Ustaw własną datę i godzinę tylko dla tego produktu</span>
-                              </div>
-                            </label>
-                          </div>
-
-                          {form.drop_type === 'custom' && (
-                            <div className="pt-2 animate-fade-in space-y-1">
-                              <label className="text-xs text-neutral-400 block">Wybierz własną datę i godzinę publikacji:</label>
-                              <input
-                                type="datetime-local"
-                                value={form.drop_scheduled_at}
-                                onChange={(e) => setForm({ ...form, drop_scheduled_at: e.target.value })}
-                                className={`${inp} [&::-webkit-calendar-picker-indicator]:invert`}
-                              />
-                            </div>
-                          )}
-                        </div>
-                      )}
                     </div>
 
                     <div className="flex gap-3">
                       <button
                         onClick={handleSave}
-                        disabled={saving || !form.name || !form.price || !form.size_eu}
-                        className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-black px-6 py-3 rounded-xl transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shadow-[0_4px_15px_rgba(255,107,0,0.25)]"
+                        disabled={saving || !form.name || !form.price}
+                        className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-black px-6 py-3 rounded-xl transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-40 shadow-[0_4px_15px_rgba(255,107,0,0.25)]"
                       >
                         {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                         {editingId ? 'Zapisz zmiany' : 'Dodaj produkt'}
                       </button>
                       <button
-                        onClick={() => { setShowProductModal(false); setForm(EMPTY_FORM); setEditingId(null); }}
+                        onClick={() => { setShowProductModal(false); setForm(EMPTY_BOOT_FORM); setEditingId(null); }}
                         className="px-6 py-3 rounded-xl text-neutral-400 hover:text-white bg-white/5 hover:bg-white/10 font-medium text-sm transition-all active:scale-95"
                       >
                         Anuluj
@@ -1031,7 +1006,6 @@ function AdminPage() {
             </>
           )}
 
-          {/* Orders */}
           {view === 'orders' && (
             <div className="animate-fade-in">
               <div className="mb-6">
@@ -1074,7 +1048,7 @@ function AdminPage() {
                               <p className="text-neutral-400 text-xs sm:text-sm">
                                 {o.shipping_method === 'paczkomat' ? `Paczkomat: ${o.paczkomat_code}` : `Kurier: ${o.shipping_address}`}
                               </p>
-                              <p className="text-neutral-400 text-xs sm:text-sm">Płatność: {o.payment_method === 'blik' ? 'BLIK' : o.payment_method === 'card' ? 'Karta' : o.payment_method === 'transfer' ? 'Przelew' : o.payment_method}</p>
+                              <p className="text-neutral-400 text-xs sm:text-sm">Płatność: {o.payment_method}</p>
                               {o.tracking_number && (
                                 <p className="text-blue-400 text-xs sm:text-sm mt-0.5 flex items-center gap-1">
                                   <Truck className="w-3 h-3" />
@@ -1099,7 +1073,6 @@ function AdminPage() {
             </div>
           )}
 
-          {/* Order detail modal */}
           {selectedOrder && (
             <>
               <div
@@ -1123,7 +1096,6 @@ function AdminPage() {
                     </button>
                   </div>
                   <div className="p-4 sm:p-6 space-y-5">
-                    {/* Status changer */}
                     <div className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-4">
                       <h3 className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-3">Zmień status</h3>
                       <div className="flex flex-wrap gap-2">
@@ -1144,7 +1116,6 @@ function AdminPage() {
                       </div>
                     </div>
 
-                    {/* Tracking number */}
                     <div className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-4">
                       <h3 className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
                         <Truck className="w-3.5 h-3.5" />
@@ -1153,7 +1124,7 @@ function AdminPage() {
                       <div className="flex gap-2">
                         <input
                           className={cn(inp, 'flex-1')}
-                          placeholder="np. INPOST123456789 / DPD123456789"
+                          placeholder="np. INPOST123456789"
                           value={orderTrackingInput}
                           onChange={(e) => setOrderTrackingInput(e.target.value)}
                         />
@@ -1168,7 +1139,6 @@ function AdminPage() {
                       </div>
                     </div>
 
-                    {/* Customer details */}
                     <div className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-4 space-y-3">
                       <h3 className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Dane klienta</h3>
                       <div className="grid sm:grid-cols-2 gap-3 text-sm">
@@ -1182,17 +1152,7 @@ function AdminPage() {
                         </div>
                         <div>
                           <p className="text-neutral-500 text-xs">Telefon</p>
-                          <div className="flex items-center gap-2">
-                            <p className="text-white">{selectedOrder.customer_phone || '—'}</p>
-                            {selectedOrder.customer_phone && (
-                              <button
-                                onClick={() => copyToClipboard(selectedOrder.customer_phone!, 'telefon')}
-                                className="p-1 text-neutral-500 hover:text-[#FF6B00] transition-colors active:scale-90"
-                              >
-                                <Copy className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                          </div>
+                          <p className="text-white">{selectedOrder.customer_phone || '—'}</p>
                         </div>
                       </div>
                       <div className="pt-2 border-t border-neutral-800">
@@ -1200,56 +1160,13 @@ function AdminPage() {
                           {selectedOrder.shipping_method === 'paczkomat' ? 'Kod paczkomatu' : 'Adres dostawy'}
                         </p>
                         {selectedOrder.shipping_method === 'paczkomat' ? (
-                          <div className="flex items-center gap-2">
-                            <p className="text-white font-mono font-bold text-lg">{selectedOrder.paczkomat_code}</p>
-                            <button
-                              onClick={() => copyToClipboard(selectedOrder.paczkomat_code!, 'paczkomat')}
-                              className="p-1 text-neutral-500 hover:text-[#FF6B00] transition-colors active:scale-90"
-                            >
-                              <Copy className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
+                          <p className="text-white font-mono font-bold text-lg">{selectedOrder.paczkomat_code}</p>
                         ) : (
-                          <div className="flex items-start gap-2">
-                            <MapPin className="w-4 h-4 text-neutral-500 mt-0.5 flex-shrink-0" />
-                            <p className="text-white">{selectedOrder.shipping_address || '—'}</p>
-                          </div>
+                          <p className="text-white">{selectedOrder.shipping_address || '—'}</p>
                         )}
-                      </div>
-                      <div className="pt-2 border-t border-neutral-800 flex items-center justify-between text-sm">
-                        <span className="text-neutral-500">Metoda płatności</span>
-                        <span className="text-white font-semibold">
-                          {selectedOrder.payment_method === 'blik' ? 'BLIK' : selectedOrder.payment_method === 'card' ? 'Karta' : selectedOrder.payment_method === 'transfer' ? 'Przelew' : selectedOrder.payment_method}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-neutral-500">Kwota</span>
-                        <span className="text-white font-black text-lg">{formatPrice(selectedOrder.total_price)}</span>
                       </div>
                     </div>
 
-                    {/* Product */}
-                    {selectedOrder.product && (
-                      <div className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-4">
-                        <h3 className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-3">Zakupiony produkt</h3>
-                        <div className="flex items-center gap-3">
-                          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden bg-white/5 border border-neutral-800 flex-shrink-0">
-                            {selectedOrder.product.images[0] ? (
-                              <img src={selectedOrder.product.images[0]} alt={selectedOrder.product.name} className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-neutral-600 text-xs">Brak</div>
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-white font-semibold text-sm truncate">{selectedOrder.product.name}</p>
-                            <p className="text-xs text-neutral-500">{selectedOrder.product.brand} · EU {selectedOrder.product.size_eu}</p>
-                            <p className="text-[#FF6B00] font-bold text-sm mt-0.5">{formatPrice(selectedOrder.product.price)}</p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Delete Order Button */}
                     <div className="pt-3 border-t border-neutral-800 flex justify-end">
                       <button
                         onClick={() => handleDeleteOrder(selectedOrder.id, selectedOrder.product_id)}
@@ -1266,38 +1183,26 @@ function AdminPage() {
             </>
           )}
 
-          {/* Drop Settings */}
           {view === 'drop-settings' && (
             <div className="animate-fade-in max-w-3xl space-y-6">
               <div>
                 <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">Ustawienia dropu</h2>
-                <p className="text-neutral-500 text-sm">Zarządzanie czasem, banerem i zawartością nadchodzącego dropu</p>
+                <p className="text-neutral-500 text-sm">Zarządzanie czasem i banerem nadchodzącego dropu</p>
               </div>
 
-              {/* General drop settings */}
               <div className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-5 sm:p-6 space-y-5">
                 <div>
                   <h3 className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-3">Status dropu</h3>
                   <div className="flex flex-col sm:flex-row gap-2">
                     <button
                       onClick={() => setSettingsForm({ ...settingsForm, is_tbd: true })}
-                      className={cn(
-                        'flex-1 px-4 py-3 rounded-xl text-sm font-bold transition-all border active:scale-95',
-                        settingsForm.is_tbd
-                          ? 'bg-blue-400/15 border-blue-400/40 text-blue-400'
-                          : 'bg-white/5 border-neutral-800 text-neutral-500 hover:text-neutral-300'
-                      )}
+                      className={cn('flex-1 px-4 py-3 rounded-xl text-sm font-bold transition-all border active:scale-95', settingsForm.is_tbd ? 'bg-blue-400/15 border-blue-400/40 text-blue-400' : 'bg-white/5 border-neutral-800 text-neutral-500')}
                     >
                       Brak ustalonej daty / Wkrótce
                     </button>
                     <button
                       onClick={() => setSettingsForm({ ...settingsForm, is_tbd: false })}
-                      className={cn(
-                        'flex-1 px-4 py-3 rounded-xl text-sm font-bold transition-all border active:scale-95',
-                        !settingsForm.is_tbd
-                          ? 'bg-emerald-400/15 border-emerald-400/40 text-emerald-400'
-                          : 'bg-white/5 border-neutral-800 text-neutral-500 hover:text-neutral-300'
-                      )}
+                      className={cn('flex-1 px-4 py-3 rounded-xl text-sm font-bold transition-all border active:scale-95', !settingsForm.is_tbd ? 'bg-emerald-400/15 border-emerald-400/40 text-emerald-400' : 'bg-white/5 border-neutral-800 text-neutral-500')}
                     >
                       Ustaw datę dropu
                     </button>
@@ -1319,38 +1224,11 @@ function AdminPage() {
                 <div className="space-y-3">
                   <div>
                     <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5 block">Tytuł</label>
-                    <input
-                      className={inp}
-                      placeholder="Nowy drop"
-                      value={settingsForm.title}
-                      onChange={(e) => setSettingsForm({ ...settingsForm, title: e.target.value })}
-                    />
+                    <input className={inp} value={settingsForm.title} onChange={(e) => setSettingsForm({ ...settingsForm, title: e.target.value })} />
                   </div>
                   <div>
                     <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5 block">Podtytuł / opis</label>
-                    <input
-                      className={inp}
-                      placeholder="Krótki opis dropu"
-                      value={settingsForm.subtitle}
-                      onChange={(e) => setSettingsForm({ ...settingsForm, subtitle: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5 block">Wyróżniony produkt (główny w Hero)</label>
-                  <div className="relative">
-                    <select
-                      className={sel}
-                      value={settingsForm.featured_product_id}
-                      onChange={(e) => setSettingsForm({ ...settingsForm, featured_product_id: e.target.value })}
-                    >
-                      <option value="none">Brak wyróżnionego produktu</option>
-                      {products.map((p) => (
-                        <option key={p.id} value={p.id}>{p.name} (EU {p.size_eu}) — {p.status}</option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none" />
+                    <input className={inp} value={settingsForm.subtitle} onChange={(e) => setSettingsForm({ ...settingsForm, subtitle: e.target.value })} />
                   </div>
                 </div>
 
@@ -1364,63 +1242,6 @@ function AdminPage() {
                     Zapisz ustawienia
                   </button>
                 </div>
-              </div>
-
-              {/* Products in drop */}
-              <div className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-5 sm:p-6 space-y-4">
-                <h3 className="font-bold text-white uppercase tracking-tight text-base flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-[#FF6B00]" />
-                  Produkty przypisane do zaplanowanego dropu ({dropProducts.length})
-                </h3>
-
-                <div className="space-y-2">
-                  {dropProducts.map((p) => (
-                    <div key={p.id} className="flex items-center justify-between p-3 bg-white/5 border border-neutral-800 rounded-xl">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-10 h-10 rounded-lg overflow-hidden bg-black/40 border border-neutral-800 flex-shrink-0">
-                          {p.images[0] && <img src={p.images[0]} alt={p.name} className="w-full h-full object-cover" />}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-white text-sm font-semibold truncate">{p.name}</p>
-                          <p className="text-xs text-neutral-500">{p.brand} · EU {p.size_eu} · {formatPrice(p.price)}</p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => handleQuickStatusChange(p.id, 'draft')}
-                        className="flex items-center gap-1 text-xs text-neutral-400 hover:text-white bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg transition-all active:scale-95"
-                      >
-                        <Minus className="w-3.5 h-3.5" /> Przenieś do szkiców
-                      </button>
-                    </div>
-                  ))}
-
-                  {dropProducts.length === 0 && (
-                    <p className="text-xs text-neutral-600 py-4 text-center">Brak produktów przypisanych do dropu.</p>
-                  )}
-                </div>
-
-                {/* Dodaj ze szkiców do dropu */}
-                {draftProducts.length > 0 && (
-                  <div className="pt-4 border-t border-neutral-800/80">
-                    <h4 className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2">Dodaj ze szkiców do dropu:</h4>
-                    <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-                      {draftProducts.map((p) => (
-                        <div key={p.id} className="flex items-center justify-between p-2.5 bg-black/30 border border-neutral-800/60 rounded-xl">
-                          <div className="min-w-0">
-                            <p className="text-neutral-300 text-xs font-semibold truncate">{p.name}</p>
-                            <p className="text-[11px] text-neutral-500">EU {p.size_eu} · {formatPrice(p.price)}</p>
-                          </div>
-                          <button
-                            onClick={() => handleQuickStatusChange(p.id, 'drop')}
-                            className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 bg-blue-400/10 hover:bg-blue-400/20 px-2.5 py-1 rounded-lg transition-all active:scale-95"
-                          >
-                            <Plus className="w-3.5 h-3.5" /> Dołącz do dropu
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           )}
@@ -1445,7 +1266,7 @@ function AdminNav({
     <>
       <nav className="flex-1 p-3 space-y-1">
         <button
-          onClick={() => { setView('products'); setForm(EMPTY_FORM); setEditingId(null); }}
+          onClick={() => { setView('products'); setForm(EMPTY_BOOT_FORM); setEditingId(null); }}
           className={cn('flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-medium transition-all active:scale-95', view === 'products' ? 'bg-[#FF6B00]/15 text-[#FF6B00]' : 'text-neutral-400 hover:text-white hover:bg-white/5')}
         >
           <Package className="w-4 h-4" /> Produkty
