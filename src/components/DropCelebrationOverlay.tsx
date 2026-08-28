@@ -18,12 +18,12 @@ export default function DropCelebrationOverlay({ onComplete }: DropCelebrationOv
   };
 
   useEffect(() => {
-    // 1. Po 3.5s rozpoczynamy płynne zanikanie
+    // Po 3.5s rozpoczynamy płynne zanikanie
     const fadeTimer = setTimeout(() => {
       setIsFadingOut(true);
     }, 3500);
 
-    // 2. Po 4s całkowicie usuwamy komponent
+    // Po 4s całkowicie zamykamy overlay
     const removeTimer = setTimeout(() => {
       onCompleteRef.current();
     }, 4000);
@@ -32,7 +32,7 @@ export default function DropCelebrationOverlay({ onComplete }: DropCelebrationOv
       clearTimeout(fadeTimer);
       clearTimeout(removeTimer);
     };
-  }, []); // Pusta tablica zależności – timer nie resetuje się co sekundę
+  }, []);
 
   return (
     <div
@@ -41,13 +41,14 @@ export default function DropCelebrationOverlay({ onComplete }: DropCelebrationOv
         isFadingOut ? 'opacity-0 pointer-events-none' : 'opacity-100'
       }`}
     >
-      {/* Ciemne tło z rozbłyskiem */}
-      <div className="absolute inset-0 bg-black/85 backdrop-blur-md animate-pulse" />
+      {/* Stałe, mocno zablurowane tło (bez migania) */}
+      <div className="absolute inset-0 bg-black/90 backdrop-blur-xl" />
 
-      {/* Przycisk zamknięcia w rogu */}
+      {/* Przycisk zamknięcia */}
       <button
         onClick={handleClose}
         className="absolute top-6 right-6 z-20 text-neutral-400 hover:text-white bg-white/10 hover:bg-white/20 p-2 rounded-full transition-all"
+        aria-label="Zamknij"
       >
         <X className="w-6 h-6" />
       </button>
@@ -55,11 +56,11 @@ export default function DropCelebrationOverlay({ onComplete }: DropCelebrationOv
       {/* Fala ognia przelatująca przez środek */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <div 
-          className="w-full h-44 sm:h-64 bg-gradient-to-r from-transparent via-[#FF4500] to-transparent blur-3xl opacity-90 animate-pulse"
+          className="w-full h-44 sm:h-64 bg-gradient-to-r from-transparent via-[#FF4500] to-transparent blur-3xl opacity-80"
           style={{ transform: 'scaleY(1.5)' }}
         />
         <div 
-          className="w-full h-24 sm:h-36 bg-gradient-to-r from-transparent via-[#FFA500] to-transparent blur-xl opacity-100" 
+          className="w-full h-24 sm:h-36 bg-gradient-to-r from-transparent via-[#FFA500] to-transparent blur-xl opacity-90" 
         />
         <div className="w-full h-8 bg-gradient-to-r from-transparent via-white to-transparent blur-sm opacity-100" />
       </div>
@@ -88,7 +89,7 @@ export default function DropCelebrationOverlay({ onComplete }: DropCelebrationOv
       {/* Główny napis */}
       <div className="relative z-10 text-center px-4 animate-scale-in pointer-events-none">
         <div className="inline-flex items-center gap-2 bg-[#FF4500]/25 border border-[#FF4500] backdrop-blur-xl rounded-full px-5 py-2 mb-4 shadow-[0_0_30px_rgba(255,69,0,0.6)]">
-          <Flame className="w-5 h-5 text-[#FF6B00] animate-pulse" />
+          <Flame className="w-5 h-5 text-[#FF6B00]" />
           <span className="text-xs sm:text-sm font-black text-[#FFA500] uppercase tracking-widest">
             NOWY DROP WŁAŚNIE WYSTARTOWAŁ
           </span>
