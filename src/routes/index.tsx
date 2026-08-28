@@ -164,14 +164,17 @@ function HomePage() {
 
       const selectedCategory = filters.category || 'all';
 
+      // 1. Główne filtry kategorii z paska bocznego (Wszystko / Korki / Akcesoria)
       if (selectedCategory === 'boots' && isAccessory) return false;
       if (selectedCategory === 'accessories' && !isAccessory) return false;
 
+      // 2. Wyszukiwanie tekstowe
       if (search) {
         const q = search.toLowerCase();
         if (!pName.includes(q) && !pBrand.includes(q) && !pModel.includes(q)) return false;
       }
 
+      // 3. Filtry specyficzne dla butów (jeśli to nie jest akcesorium)
       if (!isAccessory) {
         if (filters.sizes?.length && !filters.sizes.includes(p.size_eu)) return false;
         if (filters.brands?.length && !filters.brands.includes(p.brand)) return false;
@@ -180,9 +183,9 @@ function HomePage() {
         if (filters.conditions?.length && !filters.conditions.includes(p.condition)) return false;
       }
 
-      // Jeśli zaznaczono filtry rodzajów akcesoriów
+      // 4. Filtry rodzajów akcesoriów (jeśli zaznaczono konkretny typ akcesorium)
       if (filters.accessoryTypes?.length) {
-        if (!isAccessory) return false; // Ukryj buty, gdy filtrowane są konkretne akcesoria
+        if (!isAccessory) return false; // Jeśli wybrano filtr akcesoriów, schowaj buty
 
         const matchesType = filters.accessoryTypes.some((type) => {
           const target = type.toLowerCase();
@@ -195,6 +198,7 @@ function HomePage() {
         if (!matchesType) return false;
       }
 
+      // 5. Filtry cenowe
       if (filters.priceMin && p.price < Number(filters.priceMin)) return false;
       if (filters.priceMax && p.price > Number(filters.priceMax)) return false;
 
