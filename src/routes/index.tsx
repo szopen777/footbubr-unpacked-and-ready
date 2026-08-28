@@ -9,11 +9,13 @@ import DropCountdownBanner, { Countdown, calculateCountdown } from '@/components
 import { Zap, Package2, ShieldCheck, Loader as Loader2, ChevronDown } from 'lucide-react';
 
 const DEFAULT_FILTERS: FilterState = {
+  category: 'all',
   sizes: [],
   brands: [],
   levels: [],
   surfaces: [],
   conditions: [],
+  accessoryTypes: [],
   priceMin: '',
   priceMax: '',
 };
@@ -29,7 +31,7 @@ function HomePage() {
   const [featuredProduct, setFeaturedProduct] = useState<Product | null>(null);
   const [currentTime, setCurrentTime] = useState(Date.now());
 
-  // Co sekundę aktualizujemy zegar, aby dropy z datą w przeszłości natychmiast się ujawniały
+  // Zegar sprawdzający odliczanie co sekundę
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(Date.now()), 1000);
     return () => clearInterval(timer);
@@ -39,17 +41,18 @@ function HomePage() {
     setLoading(true);
     const nowIso = new Date().toISOString();
 
-    // Jeśli minął czas dropu, aktualizujemy rekord w bazie na 'available'
+    // 1. Automatycznie aktualizujemy w bazie produkty z dropu, których czas minął
     await supabase
       .from('products')
       .update({ status: 'available', drop_scheduled_at: null })
       .eq('status', 'draft')
       .lte('drop_scheduled_at', nowIso);
 
+    // 2. Pobieramy produkty dostępne oraz te z zaplanowanym dropem
     const { data, error } = await supabase
       .from('products')
       .select('*')
-      .eq('status', 'available')
+      .in('status', ['available', 'draft'])
       .order('created_at', { ascending: false });
 
     if (!error && data) setProducts(data as Product[]);
@@ -106,31 +109,68 @@ function HomePage() {
     return () => clearInterval(interval);
   }, [countdownTarget]);
 
-  // Filtrowanie: produkty dostępne w sklepie
-  // 1. Mają status 'available'
-  // 2. LUB mają status 'draft', ale posiadają 'drop_scheduled_at' i ten czas już minął (drop_scheduled_at <= currentTime)
+  // Produkty widoczne w sklepie (dostępne lub odblokowane po czasie dropu)
   const visibleProducts = products.filter((p) => {
     if (p.status === 'available') return true;
     if (p.status === 'draft' && p.drop_scheduled_at) {
       const dropTime = new Date(p.drop_scheduled_at).getTime();
       return !isNaN(dropTime) && dropTime <= currentTime;
     }
-    return false; // Szkice robocze w magazynie (bez daty) nie są pokazywane
+    return false;
   });
 
   const filtered = visibleProducts
     .filter((p) => {
+      // Rozróżnianie akcesoriów od butów
+      const isAccessory =
+        p.brand?.toLowerCase() === 'footbubr' ||
+        p.name?.toLowerCase().includes('skarpety') ||
+        p.name?.toLowerCase().includes('ochraniacze') ||
+        p.name?.toLowerCase().includes('taśma') ||
+        p.name?.toLowerCase().includes('zestaw') ||
+        p.model?.toLowerCase().includes('skarpety') ||
+        p.model?.toLowerCase().includes('ochraniacze');
+
+      // 1. Filtr kafelkowy kategorii
+      if (filters.category === 'boots' && isAccessory) return false;
+      if (filters.category === 'accessories' && !isAccessory) return false;
+
+      // 2. Wyszukiwarka tekstowa
       if (search) {
         const q = search.toLowerCase();
-        if (!p.name.toLowerCase().includes(q) && !p.brand.toLowerCase().includes(q) && !p.model.toLowerCase().includes(q)) return false;
+        if (
+          !p.name.toLowerCase().includes(q) &&
+          !p.brand.toLowerCase().includes(q) &&
+          !p.model.toLowerCase().includes(q)
+        )
+          return false;
       }
-      if (filters.sizes.length && !filters.sizes.includes(p.size_eu)) return false;
-      if (filters.brands.length && !filters.brands.includes(p.brand)) return false;
-      if (filters.levels.length && !filters.levels.includes(p.level)) return false;
-      if (filters.surfaces.length && !filters.surfaces.includes(p.surface_type)) return false;
-      if (filters.conditions.length && !filters.conditions.includes(p.condition)) return false;
+
+      // 3. Filtry dedykowane korkom
+      if (!isAccessory) {
+        if (filters.sizes.length && !filters.sizes.includes(p.size_eu)) return false;
+        if (filters.brands.length && !filters.brands.includes(p.brand)) return false;
+        if (filters.levels.length && !filters.levels.includes(p.level)) return false;
+        if (filters.surfaces.length && !filters.surfaces.includes(p.surface_type)) return false;
+        if (filters.conditions.length && !filters.conditions.includes(p.condition)) return false;
+      }
+
+      // 4. Filtry dedykowane akcesoriom
+      if (isAccessory && filters.accessoryTypes.length) {
+        const matchesType = filters.accessoryTypes.some((type) => {
+          if (type.includes('Skarpety') && (p.name.toLowerCase().includes('skarpety') || p.model.toLowerCase().includes('skarpety'))) return true;
+          if (type.includes('ochraniacze') && (p.name.toLowerCase().includes('ochraniacze') || p.model.toLowerCase().includes('ochraniacze'))) return true;
+          if (type.includes('Taśmy') && (p.name.toLowerCase().includes('taśm') || p.model.toLowerCase().includes('taśm') || p.name.toLowerCase().includes('tape'))) return true;
+          if (type.includes('Zestawy') && (p.name.toLowerCase().includes('zestaw') || p.model.toLowerCase().includes('set'))) return true;
+          return false;
+        });
+        if (!matchesType) return false;
+      }
+
+      // 5. Filtr ceny
       if (filters.priceMin && p.price < Number(filters.priceMin)) return false;
       if (filters.priceMax && p.price > Number(filters.priceMax)) return false;
+
       return true;
     })
     .sort((a, b) => {
@@ -161,7 +201,7 @@ function HomePage() {
           <div className="max-w-2xl mx-auto text-center">
             <div className="inline-flex items-center gap-2 bg-[#FF6B00]/10 border border-[#FF6B00]/20 backdrop-blur-md rounded-full px-4 py-1.5 mb-4 sm:mb-6 animate-fade-in-up">
               <Zap className="w-3.5 h-3.5 text-[#FF6B00]" />
-              <span className="text-xs font-bold text-[#FF6B00] uppercase tracking-wider">Dropy 1 of 1</span>
+              <span className="text-xs font-bold text-[#FF6B00] uppercase tracking-wider">Dropy 1 of 1 & Akcesoria</span>
             </div>
             <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white leading-[1.1] mb-3 sm:mb-4 uppercase tracking-tight animate-fade-in-up delay-100">
               Unikatowe korki<br />
@@ -182,14 +222,14 @@ function HomePage() {
               </div>
               <div className="flex items-center gap-1.5">
                 <Zap className="w-4 h-4 text-[#FF6B00]" />
-                {visibleProducts.length} par dostępnych
+                {visibleProducts.length} produktów w ofercie
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Full-width orange countdown banner */}
+      {/* Countdown banner */}
       <DropCountdownBanner
         dropSettings={dropSettings}
         featuredProduct={featuredProduct}
@@ -199,17 +239,17 @@ function HomePage() {
       {/* Main content */}
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-6 sm:py-8">
         <div className="flex gap-6 lg:gap-8">
-          {/* Sidebar */}
-          <div className="hidden lg:block w-60 flex-shrink-0">
+          {/* Sidebar desktop */}
+          <div className="hidden lg:block w-64 flex-shrink-0">
             <FilterSidebar filters={filters} onChange={setFilters} sortBy={sortBy} onSortChange={setSortBy} />
           </div>
 
           {/* Grid */}
           <div className="flex-1 min-w-0">
-            {/* Sort bar — desktop */}
+            {/* Sort bar desktop */}
             <div className="hidden lg:flex items-center justify-between mb-6 gap-4">
               <p className="text-sm text-neutral-500">
-                {loading ? 'Ładowanie...' : `${allShown.length} ${allShown.length === 1 ? 'para' : 'par'}`}
+                {loading ? 'Ładowanie...' : `${allShown.length} ${allShown.length === 1 ? 'produkt' : 'produktów'}`}
               </p>
               <div className="relative">
                 <select
@@ -225,14 +265,14 @@ function HomePage() {
               </div>
             </div>
 
-            {/* Mobile filter button */}
+            {/* Mobile filter */}
             <div className="lg:hidden">
               <FilterSidebar filters={filters} onChange={setFilters} sortBy={sortBy} onSortChange={setSortBy} />
             </div>
 
             {/* Mobile count */}
             <p className="lg:hidden text-sm text-neutral-500 mb-4 mt-3">
-              {loading ? 'Ładowanie...' : `${allShown.length} ${allShown.length === 1 ? 'para' : 'par'}`}
+              {loading ? 'Ładowanie...' : `${allShown.length} ${allShown.length === 1 ? 'produkt' : 'produktów'}`}
             </p>
 
             {loading ? (
@@ -265,10 +305,10 @@ export const Route = createFileRoute('/')({
   component: HomePage,
   head: () => ({
     meta: [
-      { title: 'FootBubr — unikatowe korki piłkarskie w dropach 1 of 1' },
-      { name: 'description', content: 'Resale korków piłkarskich 1-of-1: Nike, Adidas, Puma. Każda para to unikat — gdy sprzedana, znika na zawsze.' },
+      { title: 'FootBubr — unikatowe korki piłkarskie w dropach 1 of 1 & Akcesoria' },
+      { name: 'description', content: 'Resale korków piłkarskich 1-of-1 oraz akcesoria piłkarskie FOOTBUBR. Wysyłka InPost lub kurier.' },
       { property: 'og:title', content: 'FootBubr — unikatowe korki piłkarskie' },
-      { property: 'og:description', content: 'Dropy korków 1 of 1. Nike, Adidas, Puma i więcej. Wysyłka InPost lub kurier.' },
+      { property: 'og:description', content: 'Dropy korków 1 of 1 oraz akcesoria piłkarskie. Wysyłka InPost lub kurier.' },
     ],
   }),
 });
