@@ -6,17 +6,8 @@ import { formatPrice, INPUT_CLASS } from '@/lib/utils';
 import { shippingCostFor, FREE_SHIPPING_THRESHOLD } from '@/lib/shipping';
 import Header from '@/components/Header';
 import CartDrawer from '@/components/CartDrawer';
-import { ArrowLeft, Package, Truck, CreditCard, CircleCheck as CheckCircle2, Loader as Loader2, MapPin, Tag, X, Check, CircleAlert as AlertCircle, Search } from 'lucide-react';
+import { ArrowLeft, Package, Truck, CreditCard, CircleCheck as CheckCircle2, Loader as Loader2, MapPin, Tag, X, Check, CircleAlert as AlertCircle } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
-
-interface InPostPoint {
-  name: string;
-  address_details: {
-    city: string;
-    street: string;
-    building_number: string;
-  };
-}
 
 function CheckoutPage() {
   const { items, total, discountedTotal, discountAmount, promoCode, applyPromo, removePromo, clearCart } = useCart();
@@ -25,9 +16,6 @@ function CheckoutPage() {
   const [orderId, setOrderId] = useState('');
   const [orderRecord, setOrderRecord] = useState<Order | null>(null);
   const [showInpostMap, setShowInpostMap] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [allPoints, setAllPoints] = useState<InPostPoint[]>([]);
-  const [loadingPoints, setLoadingPoints] = useState(false);
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
@@ -50,35 +38,24 @@ function CheckoutPage() {
   const shippingCost = shippingCostFor(form.shippingMethod, discountedTotal);
   const orderTotal = discountedTotal + shippingCost;
 
-  // Pobieranie paczkomatów z publicznego API InPost po otwarciu modalu
+  // Inicjalizacja i nasłuchiwanie wyboru punktu z oficjalnego Geowidgetu InPost
   useEffect(() => {
-    if (!showInpostMap || allPoints.length > 0) return;
-    
-    const fetchInPostPoints = async () => {
-      setLoadingPoints(true);
-      try {
-        const res = await fetch('https://api.inpost.pl/v1/points?type=parcel_locker');
-        const data = await res.json();
-        if (data && data.items) {
-          setAllPoints(data.items);
-        }
-      } catch (err) {
-        console.error('Błąd pobierania paczkomatów InPost:', err);
-      } finally {
-        setLoadingPoints(false);
+    const handlePointSelect = (e: any) => {
+      const pointName = e.detail?.name || e.detail?.address_details?.name || e.name;
+      if (pointName) {
+        setForm((prev) => ({ ...prev, paczkomatCode: pointName.toUpperCase() }));
+        setShowInpostMap(false);
       }
     };
 
-    fetchInPostPoints();
-  }, [showInpostMap, allPoints.length]);
+    window.addEventListener('onpointselect', handlePointSelect);
+    window.addEventListener('inpost.geowidget.point_selected', handlePointSelect);
 
-  const filteredPaczkomats = allPoints.filter((p) => {
-    const q = searchQuery.toLowerCase();
-    const code = (p.name || '').toLowerCase();
-    const city = (p.address_details?.city || '').toLowerCase();
-    const street = (p.address_details?.street || '').toLowerCase();
-    return code.includes(q) || city.includes(q) || street.includes(q);
-  }).slice(0, 50); // Ograniczenie do 50 wyników dla płynności
+    return () => {
+      window.removeEventListener('onpointselect', handlePointSelect);
+      window.removeEventListener('inpost.geowidget.point_selected', handlePointSelect);
+    };
+  }, []);
 
   const validate = () => {
     const e: Record<string, string> = {};
@@ -253,13 +230,13 @@ function CheckoutPage() {
       <Header />
       <CartDrawer />
 
-      {/* Wyszukiwarka paczkomatów z oficjalnego API InPost bezpośrednio w modalu */}
+      {/* Oficjalna interaktywna mapa InPost osadzona bezpośrednio na stronie w modalu */}
       {showInpostMap && (
-        <div className="fixed inset-0 z-[200] bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-fade-in">
-          <div className="bg-[#141414] border border-neutral-800 rounded-2xl w-full max-w-xl h-[80vh] flex flex-col shadow-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3.5 border-b border-neutral-800 bg-[#111]">
+        <div className="fixed inset-0 z-[200] bg-black/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-6 animate-fade-in">
+          <div className="bg-[#141414] border border-neutral-800 rounded-2xl w-full max-w-4xl h-[85vh] flex flex-col shadow-2xl overflow-hidden relative">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800 bg-[#111]">
               <h3 className="text-white font-bold text-sm uppercase tracking-wider flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-[#FF6B00]" /> Wybierz Paczkomat InPost
+                <MapPin className="w-4 h-4 text-[#FF6B00]" /> Wybierz Paczkomat InPost z mapy
               </h3>
               <button
                 onClick={() => setShowInpostMap(false)}
@@ -268,58 +245,12 @@ function CheckoutPage() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
-            <div className="p-4 border-b border-neutral-800/80 bg-[#111]/50">
-              <div className="relative">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
-                <input
-                  type="text"
-                  placeholder="Wpisz miasto lub kod (np. Warszawa, WAW01)..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-black/60 border border-neutral-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-neutral-500 focus:outline-none focus:border-[#FF6B00]/70 transition-all"
-                />
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
-              {loadingPoints ? (
-                <div className="flex flex-col items-center justify-center py-16 text-neutral-500">
-                  <Loader2 className="w-8 h-8 text-[#FF6B00] animate-spin mb-3" />
-                  <p className="text-sm">Pobieranie bazy paczkomatów InPost...</p>
-                </div>
-              ) : (
-                <>
-                  {filteredPaczkomats.map((p) => (
-                    <div
-                      key={p.name}
-                      onClick={() => {
-                        setForm((prev) => ({ ...prev, paczkomatCode: p.name.toUpperCase() }));
-                        setShowInpostMap(false);
-                      }}
-                      className="flex items-center justify-between p-3.5 bg-white/5 hover:bg-[#FF6B00]/10 border border-neutral-800 hover:border-[#FF6B00]/40 rounded-xl cursor-pointer transition-all group"
-                    >
-                      <div className="flex items-start gap-3 min-w-0">
-                        <div className="w-9 h-9 rounded-lg bg-[#FF6B00]/10 border border-[#FF6B00]/20 flex items-center justify-center flex-shrink-0 mt-0.5 group-hover:bg-[#FF6B00] group-hover:text-black transition-colors text-[#FF6B00]">
-                          <MapPin className="w-4 h-4" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-white font-bold text-sm group-hover:text-[#FF6B00] transition-colors">{p.name}</p>
-                          <p className="text-neutral-400 text-xs truncate">
-                            {p.address_details?.city}, {p.address_details?.street} {p.address_details?.building_number}
-                          </p>
-                        </div>
-                      </div>
-                      <span className="text-xs font-bold text-black bg-[#FF6B00] px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                        Wybierz
-                      </span>
-                    </div>
-                  ))}
-                  {filteredPaczkomats.length === 0 && (
-                    <p className="text-center text-neutral-500 py-8 text-sm">Brak paczkomatów pasujących do wyszukiwania.</p>
-                  )}
-                </>
-              )}
+            <div className="flex-1 w-full bg-black relative overflow-hidden">
+              <iframe
+                src="https://geowidget.inpost.pl/?country=pl&language=pl&config=parcelCollect"
+                className="w-full h-full border-0 filter invert-[0.92] hue-rotate-180"
+                title="InPost Geowidget"
+              />
             </div>
           </div>
         </div>
@@ -438,7 +369,7 @@ function CheckoutPage() {
                         onClick={() => setShowInpostMap(true)}
                         className="px-4 py-2.5 bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-bold text-xs rounded-xl transition-all flex-shrink-0 active:scale-95 shadow-[0_2px_10px_rgba(255,107,0,0.2)]"
                       >
-                        Wybierz z listy
+                        Wybierz z mapy
                       </button>
                     </div>
                     {errors.paczkomatCode && <p className="text-red-400 text-xs mt-1">{errors.paczkomatCode}</p>}
