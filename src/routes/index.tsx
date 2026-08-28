@@ -145,10 +145,11 @@ function HomePage() {
   });
 
   const filtered = visibleProducts
-    .filter((p) => {
+    .filter((p: any) => {
       const pName = (p.name || '').toLowerCase();
       const pBrand = (p.brand || '').toLowerCase();
       const pModel = (p.model || '').toLowerCase();
+      const pAccType = (p.accessory_type || '').toLowerCase();
 
       const isAccessory =
         pBrand === 'footbubr' ||
@@ -158,7 +159,8 @@ function HomePage() {
         pName.includes('tasma') ||
         pName.includes('zestaw') ||
         pModel.includes('skarpety') ||
-        pModel.includes('ochraniacze');
+        pModel.includes('ochraniacze') ||
+        Boolean(p.accessory_type);
 
       const selectedCategory = filters.category || 'all';
 
@@ -180,13 +182,17 @@ function HomePage() {
 
       if (isAccessory && filters.accessoryTypes?.length) {
         const matchesType = filters.accessoryTypes.some((type) => {
-          if (type.includes('Skarpety') && (pName.includes('skarpety') || pModel.includes('skarpety'))) return true;
-          if (type.includes('ochraniacze') && (pName.includes('ochraniacze') || pModel.includes('ochraniacze'))) return true;
-          if (type.includes('Taśmy') && (pName.includes('taśm') || pName.includes('tasm') || pModel.includes('taśm') || pName.includes('tape'))) return true;
-          if (type.includes('Zestawy') && (pName.includes('zestaw') || pModel.includes('set'))) return true;
+          const target = type.toLowerCase();
+          if (target.includes('skarpety') && (pAccType.includes('skarpety') || pName.includes('skarpety') || pModel.includes('skarpety'))) return true;
+          if (target.includes('ochraniacze') && (pAccType.includes('ochraniacze') || pName.includes('ochraniacze') || pModel.includes('ochraniacze'))) return true;
+          if (target.includes('taśmy') && (pAccType.includes('taśm') || pName.includes('taśm') || pName.includes('tasm') || pName.includes('tape'))) return true;
+          if (target.includes('zestawy') && (pAccType.includes('zestaw') || pName.includes('zestaw') || pModel.includes('set'))) return true;
           return false;
         });
         if (!matchesType) return false;
+      } else if (!isAccessory && filters.accessoryTypes?.length && (filters.category === 'all' || !filters.category)) {
+        // Jeśli to nie jest akcesorium (czyli są to buty), a zaznaczono filtr akcesoriów przy widoku "Wszystko",
+        // nie ukrywamy butów – pozostają widoczne na liście.
       }
 
       if (filters.priceMin && p.price < Number(filters.priceMin)) return false;
@@ -319,7 +325,6 @@ function HomePage() {
         </div>
       </div>
 
-      {/* Animacja ognia – znika samoczynnie po 4s lub po kliknięciu */}
       {showCelebration && (
         <DropCelebrationOverlay onComplete={handleCloseCelebration} />
       )}
