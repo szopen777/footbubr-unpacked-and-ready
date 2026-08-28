@@ -180,7 +180,10 @@ function HomePage() {
         if (filters.conditions?.length && !filters.conditions.includes(p.condition)) return false;
       }
 
-      if (isAccessory && filters.accessoryTypes?.length) {
+      // Jeśli zaznaczono filtry rodzajów akcesoriów
+      if (filters.accessoryTypes?.length) {
+        if (!isAccessory) return false; // Ukryj buty, gdy filtrowane są konkretne akcesoria
+
         const matchesType = filters.accessoryTypes.some((type) => {
           const target = type.toLowerCase();
           if (target.includes('skarpety') && (pAccType.includes('skarpety') || pName.includes('skarpety') || pModel.includes('skarpety'))) return true;
@@ -190,9 +193,6 @@ function HomePage() {
           return false;
         });
         if (!matchesType) return false;
-      } else if (!isAccessory && filters.accessoryTypes?.length && (filters.category === 'all' || !filters.category)) {
-        // Jeśli to nie jest akcesorium (czyli są to buty), a zaznaczono filtr akcesoriów przy widoku "Wszystko",
-        // nie ukrywamy butów – pozostają widoczne na liście.
       }
 
       if (filters.priceMin && p.price < Number(filters.priceMin)) return false;
