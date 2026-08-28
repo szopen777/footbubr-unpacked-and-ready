@@ -60,9 +60,9 @@ const EMPTY_BOOT_FORM: ProductForm = {
 
 const EMPTY_ACCESSORY_FORM: ProductForm = {
   productType: 'accessory',
-  name: 'Skarpety antypoślizgowe FOOTBUBR Białe', brand: 'FOOTBUBR', model: 'Skarpety', size_eu: '43', insole_length_cm: '',
-  price: '39', original_price: '59', stock_quantity: '100', surface_type: 'FG', level: 'Amatorski',
-  condition: 'Nowe z metką', condition_detail: 'Uniwersalny rozmiar ONE SIZE (41-45)', images: '',
+  name: 'Mini ochraniacze piłkarskie FOOTBUBR', brand: 'FOOTBUBR', model: 'Ochraniacze', size_eu: 'UNI', insole_length_cm: '',
+  price: '49', original_price: '69', stock_quantity: '50', surface_type: 'FG', level: 'Amatorski',
+  condition: 'Nowe z metką', condition_detail: 'Rozmiar uniwersalny / S-M', images: '',
   box_included: false, bag_included: false, extras_description: '',
   status: 'available', drop_type: 'global', drop_scheduled_at: '',
 };
@@ -355,7 +355,6 @@ function AdminPage() {
 
   const handleSave = async () => {
     if (!form.name || !form.price) return;
-    if (form.productType === 'boot' && !form.size_eu) return;
     setSaving(true);
 
     let dbStatus: 'available' | 'draft' | 'sold' = 'available';
@@ -389,11 +388,11 @@ function AdminPage() {
       name: form.name,
       brand: isAcc ? 'FOOTBUBR' : form.brand,
       model: isAcc ? 'Akcesoria' : (form.model || form.name),
-      size_eu: isAcc ? 43 : parseFloat(form.size_eu),
+      size_eu: isAcc ? (parseFloat(form.size_eu) || 43) : parseFloat(form.size_eu),
       insole_length_cm: isAcc ? null : (form.insole_length_cm ? parseFloat(form.insole_length_cm) : null),
       price: parseFloat(form.price),
       original_price: form.original_price ? parseFloat(form.original_price) : null,
-      stock_quantity: isAcc ? (form.stock_quantity ? parseInt(form.stock_quantity, 10) : 100) : 1,
+      stock_quantity: isAcc ? (form.stock_quantity ? parseInt(form.stock_quantity, 10) : 50) : 1,
       surface_type: isAcc ? 'FG' : form.surface_type as any,
       level: isAcc ? 'Amatorski' : form.level as any,
       condition: form.condition as any,
@@ -455,7 +454,7 @@ function AdminPage() {
       name: p.name, brand: p.brand, model: p.model,
       size_eu: String(p.size_eu), insole_length_cm: p.insole_length_cm ? String(p.insole_length_cm) : '',
       price: String(p.price), original_price: p.original_price ? String(p.original_price) : '',
-      stock_quantity: String(p.stock_quantity ?? (isAcc ? 100 : 1)),
+      stock_quantity: String(p.stock_quantity ?? (isAcc ? 50 : 1)),
       surface_type: p.surface_type, level: p.level, condition: p.condition,
       condition_detail: p.condition_detail || '', images: p.images.join('\n'),
       box_included: p.box_included, bag_included: p.bag_included,
@@ -602,7 +601,6 @@ function AdminPage() {
         </>
       )}
 
-      {/* Mobile top bar */}
       <div className="lg:hidden sticky top-0 z-30 bg-[#0c0c0c] border-b border-neutral-800 px-4 py-3 flex items-center justify-between">
         <Link to="/" className="font-black text-lg text-white uppercase">Foot<span className="text-[#FF6B00]">Bubr</span></Link>
         <button onClick={() => setSidebarOpen(true)} className="p-2 text-neutral-400 hover:text-white">
@@ -685,7 +683,7 @@ function AdminPage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                             <span className="text-xs font-bold text-[#FF6B00] uppercase tracking-wider">{p.brand}</span>
-                            <span className="text-xs text-neutral-500">{p.brand === 'FOOTBUBR' ? 'Akcesoria' : `EU ${p.size_eu}`}</span>
+                            <span className="text-xs text-neutral-500">{p.brand === 'FOOTBUBR' ? `Rozmiar: ${p.size_eu}` : `EU ${p.size_eu}`}</span>
                             <span className="text-xs font-bold text-neutral-300 bg-white/5 border border-neutral-700 px-2 py-0.5 rounded-full">
                               Magazyn: {p.stock_quantity ?? 1} szt.
                             </span>
@@ -767,7 +765,7 @@ function AdminPage() {
                   </div>
                   <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
                     
-                    {/* PRZEŁĄCZNIK TYPU PRODUKTU (Tylko przy dodawaniu nowego) */}
+                    {/* PRZEŁĄCZNIK TYPU PRODUKTU */}
                     {!editingId && (
                       <div className="bg-[#141414] border border-neutral-800 rounded-2xl p-2">
                         <p className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2 px-2">Wybierz typ dodawanego produktu:</p>
@@ -794,7 +792,7 @@ function AdminPage() {
                                 : 'bg-white/5 text-neutral-400 hover:text-white'
                             )}
                           >
-                            <Package className="w-4 h-4" /> Akcesoria / Skarpety
+                            <Package className="w-4 h-4" /> Akcesoria / Ochraniacze
                           </button>
                         </div>
                       </div>
@@ -808,33 +806,56 @@ function AdminPage() {
 
                       {form.productType === 'boot' ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <input className={inp} placeholder="Marka (np. Nike) *" value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} />
-                          <input className={inp} placeholder="Model (np. Mercurial Vapor) *" value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} />
+                          <div>
+                            <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Marka</label>
+                            <input className={inp} placeholder="np. Nike" value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} />
+                          </div>
+                          <div>
+                            <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Model</label>
+                            <input className={inp} placeholder="np. Mercurial Vapor" value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} />
+                          </div>
                         </div>
                       ) : (
                         <div className="p-3 bg-white/5 rounded-xl border border-neutral-800 text-xs text-neutral-300">
-                          Marka ustawiona automatycznie jako <span className="text-[#FF6B00] font-bold">FOOTBUBR</span>. One Size (41-45).
+                          Marka ustawiona automatycznie jako <span className="text-[#FF6B00] font-bold">FOOTBUBR</span>.
                         </div>
                       )}
 
-                      <input className={inp} placeholder="Pełna nazwa produktu *" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                      <div>
+                        <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Pełna nazwa produktu *</label>
+                        <input className={inp} placeholder="np. Nike Mercurial Elite 1 of 1" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                      </div>
                       
-                      {form.productType === 'boot' && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <input className={inp} placeholder="Rozmiar EU (np. 42.5) *" type="number" step="0.5" value={form.size_eu} onChange={(e) => setForm({ ...form, size_eu: e.target.value })} />
-                          <input className={inp} placeholder="Długość wkładki (cm)" type="number" step="0.5" value={form.insole_length_cm} onChange={(e) => setForm({ ...form, insole_length_cm: e.target.value })} />
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">
+                            {form.productType === 'boot' ? 'Rozmiar EU *' : 'Rozmiar (np. uniwersalny / S / M / 41-45) *'}
+                          </label>
+                          <input className={inp} placeholder={form.productType === 'boot' ? '42.5' : 'Uniwersalny'} type="text" value={form.size_eu} onChange={(e) => setForm({ ...form, size_eu: e.target.value })} />
                         </div>
-                      )}
+                        {form.productType === 'boot' && (
+                          <div>
+                            <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Długość wkładki (cm)</label>
+                            <input className={inp} placeholder="27.0" type="number" step="0.5" value={form.insole_length_cm} onChange={(e) => setForm({ ...form, insole_length_cm: e.target.value })} />
+                          </div>
+                        )}
+                      </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <input className={inp} placeholder="Cena PLN *" type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
-                        <input className={inp} placeholder="Cena katalogowa PLN" type="number" value={form.original_price} onChange={(e) => setForm({ ...form, original_price: e.target.value })} />
+                        <div>
+                          <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Cena PLN *</label>
+                          <input className={inp} placeholder="399" type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Cena katalogowa PLN</label>
+                          <input className={inp} placeholder="799" type="number" value={form.original_price} onChange={(e) => setForm({ ...form, original_price: e.target.value })} />
+                        </div>
                       </div>
 
                       {form.productType === 'accessory' && (
                         <div>
-                          <label className="text-xs text-neutral-500 mb-1 block">Ilość sztuk w magazynie (np. 100):</label>
-                          <input className={inp} placeholder="Ilość sztuk" type="number" min="1" value={form.stock_quantity} onChange={(e) => setForm({ ...form, stock_quantity: e.target.value })} />
+                          <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Ilość sztuk w magazynie *</label>
+                          <input className={inp} placeholder="50" type="number" min="1" value={form.stock_quantity} onChange={(e) => setForm({ ...form, stock_quantity: e.target.value })} />
                         </div>
                       )}
                     </div>
@@ -844,43 +865,55 @@ function AdminPage() {
                       <div className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-4 sm:p-5 space-y-3">
                         <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-1">Specyfikacja butów</h3>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div className="relative">
-                            <select className={sel} value={form.surface_type} onChange={(e) => setForm({ ...form, surface_type: e.target.value })}>
-                              <option value="FG">FG — Lanki</option>
-                              <option value="SG">SG — Wkręty/Mixy</option>
-                              <option value="AG">AG — Sztuczna trawa</option>
-                              <option value="TF">TF — Turfy</option>
-                              <option value="IC">IC — Halówki</option>
-                            </select>
-                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none" />
+                          <div>
+                            <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Nawierzchnia</label>
+                            <div className="relative">
+                              <select className={sel} value={form.surface_type} onChange={(e) => setForm({ ...form, surface_type: e.target.value })}>
+                                <option value="FG">FG — Lanki</option>
+                                <option value="SG">SG — Wkręty/Mixy</option>
+                                <option value="AG">AG — Sztuczna trawa</option>
+                                <option value="TF">TF — Turfy</option>
+                                <option value="IC">IC — Halówki</option>
+                              </select>
+                              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none" />
+                            </div>
                           </div>
+                          <div>
+                            <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Poziom zaawansowania</label>
+                            <div className="relative">
+                              <select className={sel} value={form.level} onChange={(e) => setForm({ ...form, level: e.target.value })}>
+                                {PRODUCT_LEVELS.map(({ value, label }) => (
+                                  <option key={value} value={value}>{label}</option>
+                                ))}
+                              </select>
+                              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none" />
+                            </div>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Stan obuwia</label>
                           <div className="relative">
-                            <select className={sel} value={form.level} onChange={(e) => setForm({ ...form, level: e.target.value })}>
-                              {PRODUCT_LEVELS.map(({ value, label }) => (
-                                <option key={value} value={value}>{label}</option>
-                              ))}
+                            <select className={sel} value={form.condition} onChange={(e) => setForm({ ...form, condition: e.target.value })}>
+                              <option value="Nowe z metką">Nowe z metką</option>
+                              <option value="Nowe bez metki">Nowe bez metki / Outlet</option>
+                              <option value="Używane 9/10">Używane 9/10</option>
+                              <option value="Używane 8/10">Używane 8/10</option>
+                              <option value="Używane 7/10">Używane 7/10</option>
+                              <option value="Używane 6/10">Używane 6/10</option>
                             </select>
                             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none" />
                           </div>
                         </div>
-                        <div className="relative">
-                          <select className={sel} value={form.condition} onChange={(e) => setForm({ ...form, condition: e.target.value })}>
-                            <option value="Nowe z metką">Nowe z metką</option>
-                            <option value="Nowe bez metki">Nowe bez metki / Outlet</option>
-                            <option value="Używane 9/10">Używane 9/10</option>
-                            <option value="Używane 8/10">Używane 8/10</option>
-                            <option value="Używane 7/10">Używane 7/10</option>
-                            <option value="Używane 6/10">Używane 6/10</option>
-                          </select>
-                          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none" />
+                        <div>
+                          <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Opis stanu</label>
+                          <textarea
+                            className={`${inp} resize-none`}
+                            rows={2}
+                            placeholder="Szczegółowy opis stanu"
+                            value={form.condition_detail}
+                            onChange={(e) => setForm({ ...form, condition_detail: e.target.value })}
+                          />
                         </div>
-                        <textarea
-                          className={`${inp} resize-none`}
-                          rows={2}
-                          placeholder="Szczegółowy opis stanu"
-                          value={form.condition_detail}
-                          onChange={(e) => setForm({ ...form, condition_detail: e.target.value })}
-                        />
                       </div>
                     )}
 
@@ -907,7 +940,7 @@ function AdminPage() {
                         />
                       </div>
                       <div>
-                        <p className="text-xs text-neutral-500 mb-1">URL zdjęć:</p>
+                        <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">URL zdjęć</label>
                         <textarea
                           className={`${inp} resize-none font-mono text-xs`}
                           rows={3}
