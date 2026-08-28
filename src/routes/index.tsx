@@ -37,11 +37,19 @@ function HomePage() {
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
-    // Pobieramy produkty ze statusem available ORAZ draft (dropy)
+    const nowIso = new Date().toISOString();
+
+    // Jeśli minął czas dropu, aktualizujemy rekord w bazie na 'available'
+    await supabase
+      .from('products')
+      .update({ status: 'available', drop_scheduled_at: null })
+      .eq('status', 'draft')
+      .lte('drop_scheduled_at', nowIso);
+
     const { data, error } = await supabase
       .from('products')
       .select('*')
-      .in('status', ['available', 'draft'])
+      .eq('status', 'available')
       .order('created_at', { ascending: false });
 
     if (!error && data) setProducts(data as Product[]);
