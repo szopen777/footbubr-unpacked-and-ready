@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { supabase, Product, Order, DropSettings, PRODUCT_LEVELS, formatOrderNumber } from '@/lib/supabase';
 
 import { formatPrice, INPUT_CLASS, SELECT_CLASS, cn } from '@/lib/utils';
-import { Package, ShoppingCart, LogOut, Eye, EyeOff, Loader as Loader2, Trash2, CreditCard as Edit2, X, Check, CircleAlert as AlertCircle, ArrowLeft, ChevronDown, Zap, Calendar, Menu, Sparkles, Copy, Truck, Phone as PhoneIcon, MapPin } from 'lucide-react';
+import { Package, ShoppingCart, LogOut, Eye, EyeOff, Loader as Loader2, Trash2, CreditCard as Edit2, X, Check, CircleAlert as AlertCircle, ArrowLeft, ChevronDown, Zap, Calendar, Menu, Sparkles, Copy, Truck, MapPin } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -63,6 +63,7 @@ function AdminPage() {
   const [selectedOrder, setSelectedOrder] = useState<(Order & { product?: Product }) | null>(null);
   const [orderTrackingInput, setOrderTrackingInput] = useState('');
   const [orderSaving, setOrderSaving] = useState(false);
+  const [deletingOrder, setDeletingOrder] = useState(false);
   const [dropSettings, setDropSettings] = useState<DropSettings | null>(null);
   const [settingsForm, setSettingsForm] = useState({
     drop_date: '',
@@ -117,7 +118,34 @@ function AdminPage() {
     showToast('Numer śledzenia zapisany');
   };
 
-  const openOrderDetail = (order: (Order & { product?: Product })[]) => {
+  const handleDeleteOrder = async (orderId: string, productId?: string) => {
+    if (!confirm('Czy na pewno chcesz usunąć to zamówienie?')) return;
+    setDeletingOrder(true);
+
+    const { error } = await supabase.from('orders').delete().eq('id', orderId);
+
+    if (error) {
+      setDeletingOrder(false);
+      showToast(`Błąd usuwania: ${error.message}`);
+      return;
+    }
+
+    // Jeśli zamówienie dotyczyło korków (1-of-1), pytamy o przywrócenie dostępności
+    if (productId) {
+      const restore = confirm('Czy chcesz przywrócić ten produkt jako "Dostępny" w sklepie?');
+      if (restore) {
+        await supabase.from('products').update({ status: 'available' }).eq('id', productId);
+        await loadProducts();
+      }
+    }
+
+    setDeletingOrder(false);
+    setSelectedOrder(null);
+    await loadOrders();
+    showToast('Zamówienie zostało usunięte');
+  };
+
+  const openOrderDetail = (order: Order & { product?: Product }) => {
     setSelectedOrder(order);
     setOrderTrackingInput(order.tracking_number || '');
   };
@@ -303,8 +331,6 @@ function AdminPage() {
   };
 
   const handleStatusChange = async (id: string, status: string) => {
-    // 'archived' is a UI-only label — the DB only allows available/sold/draft,
-    // so we persist 'sold' and treat it as archived in the archive page.
     const dbStatus = status === 'archived' ? 'sold' : status;
     const updates: ProductUpdate = { status: dbStatus };
     if (status !== 'draft') updates.drop_scheduled_at = null;
@@ -946,6 +972,18 @@ function AdminPage() {
                         </div>
                       </div>
                     )}
+
+                    {/* Delete Order Button */}
+                    <div className="pt-3 border-t border-neutral-800 flex justify-end">
+                      <button
+                        onClick={() => handleDeleteOrder(selectedOrder.id, selectedOrder.product_id)}
+                        disabled={deletingOrder}
+                        className="flex items-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 font-bold px-4 py-2.5 rounded-xl transition-all active:scale-95 text-sm disabled:opacity-40"
+                      >
+                        {deletingOrder ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                        Usuń zamówienie
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
