@@ -32,6 +32,7 @@ interface ProductForm {
   brand: string;
   model: string;
   size_eu: string;
+  accessory_type: string;
   insole_length_cm: string;
   price: string;
   original_price: string;
@@ -51,7 +52,7 @@ interface ProductForm {
 
 const EMPTY_BOOT_FORM: ProductForm = {
   productType: 'boot',
-  name: '', brand: 'Nike', model: '', size_eu: '', insole_length_cm: '',
+  name: '', brand: 'Nike', model: '', size_eu: '', accessory_type: 'Skarpety antypoślizgowe', insole_length_cm: '',
   price: '', original_price: '', stock_quantity: '1', surface_type: 'FG', level: 'Profesjonalny',
   condition: 'Nowe z metką', condition_detail: '', images: '',
   box_included: false, bag_included: false, extras_description: '',
@@ -60,7 +61,7 @@ const EMPTY_BOOT_FORM: ProductForm = {
 
 const EMPTY_ACCESSORY_FORM: ProductForm = {
   productType: 'accessory',
-  name: 'Skarpety antypoślizgowe FOOTBUBR Białe', brand: 'FOOTBUBR', model: 'Skarpety', size_eu: 'One Size (41-45)', insole_length_cm: '',
+  name: 'Skarpety antypoślizgowe FOOTBUBR Białe', brand: 'FOOTBUBR', model: 'Skarpety', size_eu: 'One Size (41-45)', accessory_type: 'Skarpety antypoślizgowe', insole_length_cm: '',
   price: '39', original_price: '59', stock_quantity: '100', surface_type: 'FG', level: 'Amatorski',
   condition: 'Nowe z metką', condition_detail: 'Rozmiar uniwersalny', images: '',
   box_included: false, bag_included: false, extras_description: '',
@@ -384,11 +385,24 @@ function AdminPage() {
 
     const isAcc = form.productType === 'accessory';
 
+    // Jeśli to akcesorium, upewniamy się, że nazwa/model zawiera odpowiednie słowa kluczowe, aby filtr na stronie głównej je złapał
+    let accName = form.name;
+    if (isAcc) {
+      if (form.accessory_type === 'Mini ochraniacze' && !accName.toLowerCase().includes('ochraniacze')) {
+        accName = `${accName} - Mini ochraniacze`;
+      } else if (form.accessory_type === 'Taśmy / Cohesive Tape' && !accName.toLowerCase().includes('taśma') && !accName.toLowerCase().includes('tape')) {
+        accName = `${accName} - Taśma`;
+      } else if (form.accessory_type === 'Zestawy FOOTBUBR' && !accName.toLowerCase().includes('zestaw')) {
+        accName = `${accName} - Zestaw`;
+      }
+    }
+
     const payload: any = {
-      name: form.name,
+      name: accName,
       brand: isAcc ? 'FOOTBUBR' : form.brand,
-      model: isAcc ? 'Akcesoria' : (form.model || form.name),
-      size_eu: form.size_eu, // teraz zapisywane jako tekst (np. "One Size (41-45)" lub "42.5")
+      model: isAcc ? form.accessory_type : (form.model || form.name),
+      size_eu: form.size_eu,
+      accessory_type: isAcc ? form.accessory_type : null,
       insole_length_cm: isAcc ? null : (form.insole_length_cm ? parseFloat(form.insole_length_cm) : null),
       price: parseFloat(form.price),
       original_price: form.original_price ? parseFloat(form.original_price) : null,
@@ -431,7 +445,7 @@ function AdminPage() {
     setSaving(false);
   };
 
-  const handleEdit = (p: Product & { stock_quantity?: number }) => {
+  const handleEdit = (p: Product & { stock_quantity?: number; accessory_type?: string }) => {
     let customStatus: CustomProductStatus = 'available';
     let dType: DropTypeChoice = 'global';
 
@@ -452,7 +466,7 @@ function AdminPage() {
     setForm({
       productType: isAcc ? 'accessory' : 'boot',
       name: p.name, brand: p.brand, model: p.model,
-      size_eu: String(p.size_eu), insole_length_cm: p.insole_length_cm ? String(p.insole_length_cm) : '',
+      size_eu: String(p.size_eu), accessory_type: p.accessory_type || 'Skarpety antypoślizgowe', insole_length_cm: p.insole_length_cm ? String(p.insole_length_cm) : '',
       price: String(p.price), original_price: p.original_price ? String(p.original_price) : '',
       stock_quantity: String(p.stock_quantity ?? (isAcc ? 100 : 1)),
       surface_type: p.surface_type, level: p.level, condition: p.condition,
@@ -684,6 +698,11 @@ function AdminPage() {
                           <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                             <span className="text-xs font-bold text-[#FF6B00] uppercase tracking-wider">{p.brand}</span>
                             <span className="text-xs text-neutral-500">Rozmiar: {p.size_eu}</span>
+                            {p.accessory_type && (
+                              <span className="text-xs text-neutral-400 bg-white/5 border border-neutral-800 px-2 py-0.5 rounded-full">
+                                {p.accessory_type}
+                              </span>
+                            )}
                             <span className="text-xs font-bold text-neutral-300 bg-white/5 border border-neutral-700 px-2 py-0.5 rounded-full">
                               Magazyn: {p.stock_quantity ?? 1} szt.
                             </span>
@@ -816,8 +835,26 @@ function AdminPage() {
                           </div>
                         </div>
                       ) : (
-                        <div className="p-3 bg-white/5 rounded-xl border border-neutral-800 text-xs text-neutral-300">
-                          Marka ustawiona automatycznie jako <span className="text-[#FF6B00] font-bold">FOOTBUBR</span>.
+                        <div className="space-y-3">
+                          <div className="p-3 bg-white/5 rounded-xl border border-neutral-800 text-xs text-neutral-300">
+                            Marka ustawiona automatycznie jako <span className="text-[#FF6B00] font-bold">FOOTBUBR</span>.
+                          </div>
+                          <div>
+                            <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Rodzaj akcesorium (do filtrów) *</label>
+                            <div className="relative">
+                              <select 
+                                className={sel} 
+                                value={form.accessory_type} 
+                                onChange={(e) => setForm({ ...form, accessory_type: e.target.value })}
+                              >
+                                <option value="Skarpety antypoślizgowe">Skarpety antypoślizgowe</option>
+                                <option value="Mini ochraniacze">Mini ochraniacze</option>
+                                <option value="Taśmy / Cohesive Tape">Taśmy / Cohesive Tape</option>
+                                <option value="Zestawy FOOTBUBR">Zestawy FOOTBUBR</option>
+                              </select>
+                              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none" />
+                            </div>
+                          </div>
                         </div>
                       )}
 
