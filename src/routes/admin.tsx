@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { supabase, Product, Order, DropSettings, PRODUCT_LEVELS, formatOrderNumber } from '@/lib/supabase';
 
 import { formatPrice, INPUT_CLASS, SELECT_CLASS, cn } from '@/lib/utils';
-import { Package, ShoppingCart, LogOut, Eye, EyeOff, Loader as Loader2, Trash2, CreditCard as Edit2, X, Check, CircleAlert as AlertCircle, ArrowLeft, ChevronDown, Zap, Calendar, Menu, Sparkles, Copy, Truck, MapPin, Plus, Minus } from 'lucide-react';
+import { Package, ShoppingCart, LogOut, Eye, EyeOff, Loader as Loader2, Trash2, CreditCard as Edit2, X, Check, CircleAlert as AlertCircle, ArrowLeft, ChevronDown, Zap, Calendar, Menu, Sparkles, Copy, Truck, MapPin, Plus, Minus, FileText, Clock } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -13,6 +13,7 @@ type ProductUpdate = Database['public']['Tables']['products']['Update'];
 const ADMIN_PASSWORD = '123';
 
 type View = 'products' | 'orders' | 'drop-settings';
+type CustomProductStatus = 'available' | 'draft' | 'drop' | 'sold';
 
 interface ProductForm {
   name: string;
@@ -30,17 +31,16 @@ interface ProductForm {
   box_included: boolean;
   bag_included: boolean;
   extras_description: string;
-  status: string;
+  status: CustomProductStatus;
   drop_scheduled_at: string;
-  use_global_drop: boolean;
 }
 
 const EMPTY_FORM: ProductForm = {
   name: '', brand: '', model: '', size_eu: '', insole_length_cm: '',
   price: '', original_price: '', surface_type: 'FG', level: 'Profesjonalny',
   condition: 'Nowe z metką', condition_detail: '', images: '',
-  box_included: false, bag_included: false, extras_description: '', status: 'available',
-  drop_scheduled_at: '', use_global_drop: true,
+  box_included: false, bag_included: false, extras_description: '',
+  status: 'available', drop_scheduled_at: '',
 };
 
 function AdminPage() {
@@ -74,9 +74,11 @@ function AdminPage() {
   });
   const [savingSettings, setSavingSettings] = useState(false);
 
-  const draftCount = products.filter((p) => p.status === 'draft').length;
-  const dropProducts = products.filter((p) => p.status === 'draft');
+  // Filtrowanie produktów
   const availableProducts = products.filter((p) => p.status === 'available');
+  const draftProducts = products.filter((p) => p.status === 'draft' && !p.drop_scheduled_at);
+  const dropProducts = products.filter((p) => p.status === 'draft' && p.drop_scheduled_at !== null);
+  const soldProducts = products.filter((p) => p.status === 'sold');
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -222,14 +224,6 @@ function AdminPage() {
 
     const { error } = await supabase.from('drop_settings').upsert(payload).eq('id', 1);
 
-    // Zsynchronizuj produkty w dropie z nową datą
-    if (!error && dropDateIso) {
-      await supabase
-        .from('products')
-        .update({ drop_scheduled_at: dropDateIso })
-        .eq('status', 'draft');
-    }
-
     setSavingSettings(false);
     if (error) {
       console.error('Drop settings save failed:', error);
@@ -238,27 +232,6 @@ function AdminPage() {
     }
     showToast('Ustawienia dropu zapisane');
     await Promise.all([loadDropSettings(), loadProducts()]);
-  };
-
-  const toggleProductDropStatus = async (productId: string, currentStatus: string) => {
-    const isDraft = currentStatus === 'draft';
-    const newStatus = isDraft ? 'available' : 'draft';
-    const newDropDate = !isDraft && dropSettings?.drop_date && !dropSettings.is_tbd
-      ? dropSettings.drop_date
-      : null;
-
-    const { error } = await supabase
-      .from('products')
-      .update({ status: newStatus, drop_scheduled_at: newDropDate })
-      .eq('id', productId);
-
-    if (error) {
-      showToast(`Błąd: ${error.message}`);
-      return;
-    }
-
-    showToast(isDraft ? 'Usunięto z dropu (jest Dostępny)' : 'Dodano do zaplanowanego dropu (Szkic)');
-    await loadProducts();
   };
 
   useEffect(() => {
@@ -282,13 +255,25 @@ function AdminPage() {
     if (!form.name || !form.brand || !form.price || !form.size_eu) return;
     setSaving(true);
 
-    let finalDropScheduledAt: string | null = null;
-    if (form.status === 'draft') {
-      if (form.use_global_drop && dropSettings?.drop_date && !dropSettings.is_tbd) {
-        finalDropScheduledAt = dropSettings.drop_date;
-      } else if (!form.use_global_drop && form.drop_scheduled_at) {
-        finalDropScheduledAt = new Date(form.drop_scheduled_at).toISOString();
-      }
+    let dbStatus: 'available' | 'draft' | 'sold' = 'available';
+    let finalDropDate: string | null = null;
+
+    if (form.status === 'available') {
+      dbStatus = 'available';
+      finalDropDate = null;
+    } else if (form.status === 'draft') {
+      dbStatus = 'draft';
+      finalDropDate = null; // Czysty szkic w panelu
+    } else if (form.status === 'drop') {
+      dbStatus = 'draft';
+      finalDropDate = form.drop_scheduled_at
+        ? new Date(form.drop_scheduled_at).toISOString()
+        : dropSettings?.drop_date && !dropSettings.is_tbd
+          ? dropSettings.drop_date
+          : new Date().toISOString();
+    } else if (form.status === 'sold') {
+      dbStatus = 'sold';
+      finalDropDate = null;
     }
 
     const payload: ProductInsert = {
@@ -307,8 +292,8 @@ function AdminPage() {
       box_included: form.box_included,
       bag_included: form.bag_included,
       extras_description: form.extras_description || null,
-      status: form.status === 'archived' ? 'sold' : (form.status as any),
-      drop_scheduled_at: finalDropScheduledAt,
+      status: dbStatus,
+      drop_scheduled_at: finalDropDate,
     };
 
     if (editingId) {
@@ -340,7 +325,11 @@ function AdminPage() {
   };
 
   const handleEdit = (p: Product) => {
-    const isGlobalDate = Boolean(p.drop_scheduled_at && dropSettings?.drop_date && p.drop_scheduled_at === dropSettings.drop_date);
+    let customStatus: CustomProductStatus = 'available';
+    if (p.status === 'sold') customStatus = 'sold';
+    else if (p.status === 'draft') {
+      customStatus = p.drop_scheduled_at ? 'drop' : 'draft';
+    }
 
     setForm({
       name: p.name, brand: p.brand, model: p.model,
@@ -349,9 +338,9 @@ function AdminPage() {
       surface_type: p.surface_type, level: p.level, condition: p.condition,
       condition_detail: p.condition_detail || '', images: p.images.join('\n'),
       box_included: p.box_included, bag_included: p.bag_included,
-      extras_description: p.extras_description || '', status: p.status,
+      extras_description: p.extras_description || '',
+      status: customStatus,
       drop_scheduled_at: p.drop_scheduled_at ? new Date(p.drop_scheduled_at).toISOString().slice(0, 16) : '',
-      use_global_drop: isGlobalDate || !p.drop_scheduled_at,
     });
     setEditingId(p.id);
     setShowProductModal(true);
@@ -364,36 +353,43 @@ function AdminPage() {
     showToast('Produkt usunięty');
   };
 
-  const handleStatusChange = async (id: string, status: string) => {
-    const dbStatus = status === 'archived' ? 'sold' : status;
-    const updates: ProductUpdate = { status: dbStatus as any };
-
-    if (status === 'draft') {
-      updates.drop_scheduled_at = dropSettings?.drop_date && !dropSettings.is_tbd ? dropSettings.drop_date : null;
-    } else {
+  const handleQuickStatusChange = async (id: string, newStatus: CustomProductStatus) => {
+    const updates: ProductUpdate = {};
+    if (newStatus === 'available') {
+      updates.status = 'available';
+      updates.drop_scheduled_at = null;
+    } else if (newStatus === 'draft') {
+      updates.status = 'draft';
+      updates.drop_scheduled_at = null;
+    } else if (newStatus === 'drop') {
+      updates.status = 'draft';
+      updates.drop_scheduled_at = dropSettings?.drop_date && !dropSettings.is_tbd ? dropSettings.drop_date : new Date().toISOString();
+    } else if (newStatus === 'sold') {
+      updates.status = 'sold';
       updates.drop_scheduled_at = null;
     }
 
-    const { error } = await supabase.from('products').update(updates).eq('id', id).select('id');
+    const { error } = await supabase.from('products').update(updates).eq('id', id);
     await loadProducts();
     if (error) {
-      showToast(`Nie udało się zapisać statusu: ${error.message}`);
+      showToast(`Błąd: ${error.message}`);
       return;
     }
-    showToast(status === 'archived' ? 'Produkt przeniesiony do archiwum' : 'Status zaktualizowany');
+    showToast('Status zmieniony');
   };
 
-  const handlePublishAllDrafts = async () => {
+  const handlePublishAllDrop = async () => {
     setPublishing(true);
     const { data } = await supabase
       .from('products')
       .update({ status: 'available', drop_scheduled_at: null })
       .eq('status', 'draft')
+      .not('drop_scheduled_at', 'is', null)
       .select('id');
     setShowPublishModal(false);
     setPublishing(false);
     if (data) {
-      showToast(`Opublikowano ${data.length} ${data.length === 1 ? 'produkt' : 'produktów'}`);
+      showToast(`Opublikowano ${data.length} produktów z dropu`);
       await loadProducts();
     }
   };
@@ -464,12 +460,12 @@ function AdminPage() {
                 </div>
               </div>
               <p className="text-sm text-neutral-400 mb-6">
-                Czy na pewno chcesz opublikować wszystkie <span className="text-[#FF6B00] font-bold">{draftCount}</span> {draftCount === 1 ? 'szkic' : draftCount < 5 ? 'szkice' : 'szkiców'}? Wszystkie produkty ze statusem "W dropie / Szkic" natychmiast zmienią status na "Dostępny" i pojawią się w sklepie.
+                Czy na pewno chcesz opublikować wszystkie <span className="text-[#FF6B00] font-bold">{dropProducts.length}</span> produkty z zaplanowanego dropu? Zmienią status na "Dostępny" w sklepie. Produkty ze statusem "Szkic" pozostaną niewidoczne w panelu.
               </p>
               <div className="flex gap-3">
                 <button
-                  onClick={handlePublishAllDrafts}
-                  disabled={publishing || draftCount === 0}
+                  onClick={handlePublishAllDrop}
+                  disabled={publishing || dropProducts.length === 0}
                   className="flex-1 bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-bold py-3 rounded-xl transition-all active:scale-95 disabled:opacity-40 shadow-[0_4px_15px_rgba(255,107,0,0.25)]"
                 >
                   {publishing ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Opublikuj teraz'}
@@ -498,7 +494,7 @@ function AdminPage() {
       {sidebarOpen && (
         <>
           <div className="fixed inset-0 bg-black/60 z-40 lg:hidden animate-backdrop-in" onClick={() => setSidebarOpen(false)} />
-          <aside className="fixed left-0 top-0 h-full w-64 bg-[#0c0c0c] border-r border-neutral-800/80 flex flex-col z-40 lg:hidden animate-slide-in-right" style={{ animationName: 'slide-in-right', transform: 'translateX(0)' }}>
+          <aside className="fixed left-0 top-0 h-full w-64 bg-[#0c0c0c] border-r border-neutral-800/80 flex flex-col z-40 lg:hidden animate-slide-in-right">
             <div className="p-5 border-b border-neutral-800/80 flex items-center justify-between">
               <Link to="/" className="font-black text-lg text-white uppercase">Foot<span className="text-[#FF6B00]">Bubr</span></Link>
               <button onClick={() => setSidebarOpen(false)} className="p-1 text-neutral-500 hover:text-white"><X className="w-5 h-5" /></button>
@@ -528,7 +524,9 @@ function AdminPage() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
                 <div>
                   <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">Produkty</h2>
-                  <p className="text-neutral-500 text-sm">{products.filter((p) => p.status === 'available').length} dostępnych, {products.filter((p) => p.status === 'sold').length} sprzedanych, {draftCount} w dropie</p>
+                  <p className="text-neutral-500 text-sm">
+                    {availableProducts.length} dostępnych · {draftProducts.length} szkiców · {dropProducts.length} w dropie · {soldProducts.length} wyprzedanych
+                  </p>
                 </div>
                 <div className="flex gap-2 flex-wrap">
                   <button
@@ -539,14 +537,11 @@ function AdminPage() {
                   </button>
                   <button
                     onClick={() => setShowPublishModal(true)}
-                    disabled={draftCount === 0}
+                    disabled={dropProducts.length === 0}
                     className="flex items-center gap-2 bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/25 font-bold px-3 sm:px-4 py-2.5 rounded-xl transition-all hover:scale-[1.02] active:scale-95 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <Zap className="w-4 h-4" />
-                    Opublikuj drop
-                    {draftCount > 0 && (
-                      <span className="bg-emerald-500 text-black text-xs font-black w-5 h-5 rounded-full flex items-center justify-center">{draftCount}</span>
-                    )}
+                    Opublikuj drop ({dropProducts.length})
                   </button>
                 </div>
               </div>
@@ -557,57 +552,70 @@ function AdminPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {products.map((p) => (
-                    <div key={p.id} className="flex items-center gap-3 sm:gap-4 bg-[#141414] border border-neutral-800/80 rounded-2xl p-3 sm:p-4 hover:border-neutral-700 transition-all">
-                      <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden bg-white/5 border border-neutral-800 flex-shrink-0">
-                        {p.images[0] ? <img src={p.images[0]} alt={p.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-neutral-600 text-xs">Brak</div>}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                          <span className="text-xs font-bold text-[#FF6B00] uppercase tracking-wider">{p.brand}</span>
-                          <span className="text-xs text-neutral-500">EU {p.size_eu}</span>
-                          {p.status === 'draft' && (
-                            <span className="text-xs text-blue-400 bg-blue-400/10 border border-blue-400/20 px-2 py-0.5 rounded-full flex items-center gap-1 font-medium">
-                              <Calendar className="w-3 h-3" />
-                              {p.drop_scheduled_at
-                                ? new Date(p.drop_scheduled_at).toLocaleDateString('pl-PL', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
-                                : 'Zaplanowany drop (Wkrótce)'}
-                            </span>
-                          )}
-                        </div>
-                        <p className="font-semibold text-white text-sm truncate">{p.name}</p>
-                        <p className="text-sm font-bold text-white mt-0.5">{formatPrice(p.price)}</p>
-                      </div>
-                      <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
-                        <div className="relative">
-                          <select
-                            value={p.status}
-                            onChange={(e) => handleStatusChange(p.id, e.target.value)}
-                            className={cn(
-                              'appearance-none text-xs font-bold px-2 sm:px-3 py-2 pr-7 rounded-lg border cursor-pointer focus:outline-none transition-all [&>option]:bg-[#1a1a1a] [&>option]:text-neutral-100',
-                              p.status === 'available' && 'text-emerald-400 border-emerald-400/30 bg-[#1a1a1a]',
-                              p.status === 'sold' && 'text-red-400 border-red-400/30 bg-[#1a1a1a]',
-                              p.status === 'draft' && 'text-blue-400 border-blue-400/30 bg-[#1a1a1a]',
-                              p.status === 'archived' && 'text-neutral-400 border-neutral-600 bg-[#1a1a1a]',
-                            )}
-                          >
-                            <option value="available">Dostępny</option>
-                            <option value="draft">W dropie (Szkic)</option>
-                            <option value="sold">Wyprzedany</option>
-                            <option value="archived">Archiwum</option>
-                          </select>
+                  {products.map((p) => {
+                    const isDrop = p.status === 'draft' && p.drop_scheduled_at !== null;
+                    const isDraft = p.status === 'draft' && p.drop_scheduled_at === null;
 
-                          <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 pointer-events-none opacity-50" />
+                    let currentCustomStatus: CustomProductStatus = 'available';
+                    if (p.status === 'sold') currentCustomStatus = 'sold';
+                    else if (isDraft) currentCustomStatus = 'draft';
+                    else if (isDrop) currentCustomStatus = 'drop';
+
+                    return (
+                      <div key={p.id} className="flex items-center gap-3 sm:gap-4 bg-[#141414] border border-neutral-800/80 rounded-2xl p-3 sm:p-4 hover:border-neutral-700 transition-all">
+                        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden bg-white/5 border border-neutral-800 flex-shrink-0">
+                          {p.images[0] ? <img src={p.images[0]} alt={p.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-neutral-600 text-xs">Brak</div>}
                         </div>
-                        <button onClick={() => handleEdit(p)} className="p-2 text-neutral-500 hover:text-white bg-white/5 rounded-xl transition-all hover:bg-white/10 active:scale-90">
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => handleDelete(p.id)} className="p-2 text-neutral-500 hover:text-red-400 bg-white/5 rounded-xl transition-all hover:bg-red-400/10 active:scale-90">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                            <span className="text-xs font-bold text-[#FF6B00] uppercase tracking-wider">{p.brand}</span>
+                            <span className="text-xs text-neutral-500">EU {p.size_eu}</span>
+                            
+                            {isDraft && (
+                              <span className="text-xs text-neutral-400 bg-neutral-800 px-2 py-0.5 rounded-full flex items-center gap-1 font-medium">
+                                <FileText className="w-3 h-3" /> Szkic
+                              </span>
+                            )}
+
+                            {isDrop && (
+                              <span className="text-xs text-blue-400 bg-blue-400/10 border border-blue-400/20 px-2 py-0.5 rounded-full flex items-center gap-1 font-medium">
+                                <Clock className="w-3 h-3" /> W dropie
+                              </span>
+                            )}
+                          </div>
+                          <p className="font-semibold text-white text-sm truncate">{p.name}</p>
+                          <p className="text-sm font-bold text-white mt-0.5">{formatPrice(p.price)}</p>
+                        </div>
+                        <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+                          <div className="relative">
+                            <select
+                              value={currentCustomStatus}
+                              onChange={(e) => handleQuickStatusChange(p.id, e.target.value as CustomProductStatus)}
+                              className={cn(
+                                'appearance-none text-xs font-bold px-2 sm:px-3 py-2 pr-7 rounded-lg border cursor-pointer focus:outline-none transition-all [&>option]:bg-[#1a1a1a] [&>option]:text-neutral-100',
+                                currentCustomStatus === 'available' && 'text-emerald-400 border-emerald-400/30 bg-[#1a1a1a]',
+                                currentCustomStatus === 'draft' && 'text-neutral-300 border-neutral-700 bg-[#1a1a1a]',
+                                currentCustomStatus === 'drop' && 'text-blue-400 border-blue-400/30 bg-[#1a1a1a]',
+                                currentCustomStatus === 'sold' && 'text-red-400 border-red-400/30 bg-[#1a1a1a]',
+                              )}
+                            >
+                              <option value="available">Dostępny</option>
+                              <option value="draft">Szkic</option>
+                              <option value="drop">W dropie</option>
+                              <option value="sold">Wyprzedany (archiwum)</option>
+                            </select>
+                            <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 pointer-events-none opacity-50" />
+                          </div>
+                          <button onClick={() => handleEdit(p)} className="p-2 text-neutral-500 hover:text-white bg-white/5 rounded-xl transition-all hover:bg-white/10 active:scale-90">
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => handleDelete(p.id)} className="p-2 text-neutral-500 hover:text-red-400 bg-white/5 rounded-xl transition-all hover:bg-red-400/10 active:scale-90">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   {products.length === 0 && (
                     <div className="text-center py-16 text-neutral-600">
                       <Package className="w-10 h-10 mx-auto mb-3 opacity-50" />
@@ -639,188 +647,190 @@ function AdminPage() {
                     </button>
                   </div>
                   <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
-                {/* Basic info */}
-                <div className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-4 sm:p-5 space-y-3">
-                  <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-1">Podstawowe informacje</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <input className={inp} placeholder="Marka *" value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} />
-                    <input className={inp} placeholder="Model *" value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} />
-                  </div>
-                  <input className={inp} placeholder="Pełna nazwa produktu *" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <input className={inp} placeholder="Rozmiar EU *" type="number" step="0.5" value={form.size_eu} onChange={(e) => setForm({ ...form, size_eu: e.target.value })} />
-                    <input className={inp} placeholder="Długość wkładki (cm)" type="number" step="0.5" value={form.insole_length_cm} onChange={(e) => setForm({ ...form, insole_length_cm: e.target.value })} />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <input className={inp} placeholder="Cena PLN *" type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
-                    <input className={inp} placeholder="Cena katalogowa PLN" type="number" value={form.original_price} onChange={(e) => setForm({ ...form, original_price: e.target.value })} />
-                  </div>
-                </div>
-
-                {/* Product details */}
-                <div className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-4 sm:p-5 space-y-3">
-                  <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-1">Specyfikacja</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="relative">
-                      <select className={sel} value={form.surface_type} onChange={(e) => setForm({ ...form, surface_type: e.target.value })}>
-                        <option value="FG">FG — Lanki</option>
-                        <option value="SG">SG — Wkręty/Mixy</option>
-                        <option value="AG">AG — Sztuczna trawa</option>
-                        <option value="TF">TF — Turfy</option>
-                        <option value="IC">IC — Halówki</option>
-                      </select>
-                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none" />
+                    {/* Basic info */}
+                    <div className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-4 sm:p-5 space-y-3">
+                      <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-1">Podstawowe informacje</h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <input className={inp} placeholder="Marka *" value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} />
+                        <input className={inp} placeholder="Model *" value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} />
+                      </div>
+                      <input className={inp} placeholder="Pełna nazwa produktu *" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <input className={inp} placeholder="Rozmiar EU *" type="number" step="0.5" value={form.size_eu} onChange={(e) => setForm({ ...form, size_eu: e.target.value })} />
+                        <input className={inp} placeholder="Długość wkładki (cm)" type="number" step="0.5" value={form.insole_length_cm} onChange={(e) => setForm({ ...form, insole_length_cm: e.target.value })} />
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <input className={inp} placeholder="Cena PLN *" type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
+                        <input className={inp} placeholder="Cena katalogowa PLN" type="number" value={form.original_price} onChange={(e) => setForm({ ...form, original_price: e.target.value })} />
+                      </div>
                     </div>
-                    <div className="relative">
-                      <select className={sel} value={form.level} onChange={(e) => setForm({ ...form, level: e.target.value })}>
-                        {PRODUCT_LEVELS.map(({ value, label }) => (
-                          <option key={value} value={value}>{label}</option>
-                        ))}
-                      </select>
-                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none" />
+
+                    {/* Product details */}
+                    <div className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-4 sm:p-5 space-y-3">
+                      <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-1">Specyfikacja</h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="relative">
+                          <select className={sel} value={form.surface_type} onChange={(e) => setForm({ ...form, surface_type: e.target.value })}>
+                            <option value="FG">FG — Lanki</option>
+                            <option value="SG">SG — Wkręty/Mixy</option>
+                            <option value="AG">AG — Sztuczna trawa</option>
+                            <option value="TF">TF — Turfy</option>
+                            <option value="IC">IC — Halówki</option>
+                          </select>
+                          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none" />
+                        </div>
+                        <div className="relative">
+                          <select className={sel} value={form.level} onChange={(e) => setForm({ ...form, level: e.target.value })}>
+                            {PRODUCT_LEVELS.map(({ value, label }) => (
+                              <option key={value} value={value}>{label}</option>
+                            ))}
+                          </select>
+                          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none" />
+                        </div>
+                      </div>
+                      <div className="relative">
+                        <select className={sel} value={form.condition} onChange={(e) => setForm({ ...form, condition: e.target.value })}>
+                          <option value="Nowe z metką">Nowe z metką</option>
+                          <option value="Nowe bez metki">Nowe bez metki / Outlet</option>
+                          <option value="Używane 9/10">Używane 9/10</option>
+                          <option value="Używane 8/10">Używane 8/10</option>
+                          <option value="Używane 7/10">Używane 7/10</option>
+                          <option value="Używane 6/10">Używane 6/10</option>
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none" />
+                      </div>
+                      <textarea
+                        className={`${inp} resize-none`}
+                        rows={2}
+                        placeholder="Szczegółowy opis stanu (np. drobne ślady na podeszwie)"
+                        value={form.condition_detail}
+                        onChange={(e) => setForm({ ...form, condition_detail: e.target.value })}
+                      />
                     </div>
-                  </div>
-                  <div className="relative">
-                    <select className={sel} value={form.condition} onChange={(e) => setForm({ ...form, condition: e.target.value })}>
-                      <option value="Nowe z metką">Nowe z metką</option>
-                      <option value="Nowe bez metki">Nowe bez metki / Outlet</option>
-                      <option value="Używane 9/10">Używane 9/10</option>
-                      <option value="Używane 8/10">Używane 8/10</option>
-                      <option value="Używane 7/10">Używane 7/10</option>
-                      <option value="Używane 6/10">Używane 6/10</option>
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none" />
-                  </div>
-                  <textarea
-                    className={`${inp} resize-none`}
-                    rows={2}
-                    placeholder="Szczegółowy opis stanu (np. drobne ślady na podeszwie)"
-                    value={form.condition_detail}
-                    onChange={(e) => setForm({ ...form, condition_detail: e.target.value })}
-                  />
-                </div>
 
-                {/* Images & extras */}
-                <div className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-4 sm:p-5 space-y-3">
-                  <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-1">Zdjęcia i dodatki</h3>
-                  <div>
-                    <p className="text-xs text-neutral-500 mb-1">URL zdjęć (każdy w nowej linii)</p>
-                    <textarea
-                      className={`${inp} resize-none font-mono text-xs`}
-                      rows={4}
-                      placeholder="https://images.pexels.com/..."
-                      value={form.images}
-                      onChange={(e) => setForm({ ...form, images: e.target.value })}
-                    />
-                  </div>
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" checked={form.box_included} onChange={(e) => setForm({ ...form, box_included: e.target.checked })} className="w-4 h-4 accent-[#FF6B00]" />
-                      <span className="text-sm text-neutral-300">Oryginalne pudełko</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" checked={form.bag_included} onChange={(e) => setForm({ ...form, bag_included: e.target.checked })} className="w-4 h-4 accent-[#FF6B00]" />
-                      <span className="text-sm text-neutral-300">Worek / torba</span>
-                    </label>
-                  </div>
-                  <textarea
-                    className={`${inp} resize-none`}
-                    rows={2}
-                    placeholder="Opis dodatków (opcjonalnie)"
-                    value={form.extras_description}
-                    onChange={(e) => setForm({ ...form, extras_description: e.target.value })}
-                  />
-                </div>
-
-                {/* Status & Drop Assignment */}
-                <div className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-4 sm:p-5 space-y-3">
-                  <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-1">Status i planowanie dropu</h3>
-                  <div className="flex flex-wrap gap-2 mb-2">
-                    {(['available', 'draft', 'sold', 'archived'] as const).map((s) => (
-                      <button
-                        key={s}
-                        onClick={() => setForm({ ...form, status: s })}
-                        className={cn(
-                          'px-4 py-2 rounded-xl text-sm font-semibold transition-all border active:scale-95',
-                          form.status === s
-                            ? s === 'available' ? 'bg-emerald-400/15 border-emerald-400/40 text-emerald-400'
-                              : s === 'draft' ? 'bg-blue-400/15 border-blue-400/40 text-blue-400'
-                              : s === 'sold' ? 'bg-red-400/15 border-red-400/40 text-red-400'
-                              : 'bg-neutral-400/15 border-neutral-400/40 text-neutral-300'
-                            : 'bg-white/5 border-neutral-800 text-neutral-500 hover:text-neutral-300'
-                        )}
-                      >
-                        {s === 'available' ? 'Dostępny w sklepie' : s === 'draft' ? 'W dropie (Szkic)' : s === 'sold' ? 'Wyprzedany' : 'Archiwum'}
-                      </button>
-                    ))}
-                  </div>
-
-                  {form.status === 'draft' && (
-                    <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl space-y-3 animate-fade-in">
-                      <p className="text-xs font-bold text-blue-400 uppercase tracking-wider flex items-center gap-1.5">
-                        <Sparkles className="w-3.5 h-3.5" />
-                        Konfiguracja dropu dla tego produktu
-                      </p>
-                      
-                      <div className="space-y-2">
+                    {/* Images & extras */}
+                    <div className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-4 sm:p-5 space-y-3">
+                      <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-1">Zdjęcia i dodatki</h3>
+                      <div>
+                        <p className="text-xs text-neutral-500 mb-1">URL zdjęć (każdy w nowej linii)</p>
+                        <textarea
+                          className={`${inp} resize-none font-mono text-xs`}
+                          rows={4}
+                          placeholder="https://images.pexels.com/..."
+                          value={form.images}
+                          onChange={(e) => setForm({ ...form, images: e.target.value })}
+                        />
+                      </div>
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
                         <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="radio"
-                            name="dropChoice"
-                            checked={form.use_global_drop}
-                            onChange={() => setForm({ ...form, use_global_drop: true })}
-                            className="accent-[#FF6B00]"
-                          />
-                          <span className="text-sm text-neutral-200">
-                            Przypisz do głównego dropu{' '}
-                            <span className="text-xs text-neutral-400">
-                              ({dropSettings?.drop_date && !dropSettings.is_tbd ? new Date(dropSettings.drop_date).toLocaleString('pl-PL') : 'Wkrótce / brak ustalonej daty'})
-                            </span>
-                          </span>
+                          <input type="checkbox" checked={form.box_included} onChange={(e) => setForm({ ...form, box_included: e.target.checked })} className="w-4 h-4 accent-[#FF6B00]" />
+                          <span className="text-sm text-neutral-300">Oryginalne pudełko</span>
                         </label>
-
                         <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="radio"
-                            name="dropChoice"
-                            checked={!form.use_global_drop}
-                            onChange={() => setForm({ ...form, use_global_drop: false })}
-                            className="accent-[#FF6B00]"
-                          />
-                          <span className="text-sm text-neutral-200">Ustaw własną datę publikacji</span>
+                          <input type="checkbox" checked={form.bag_included} onChange={(e) => setForm({ ...form, bag_included: e.target.checked })} className="w-4 h-4 accent-[#FF6B00]" />
+                          <span className="text-sm text-neutral-300">Worek / torba</span>
                         </label>
                       </div>
+                      <textarea
+                        className={`${inp} resize-none`}
+                        rows={2}
+                        placeholder="Opis dodatków (opcjonalnie)"
+                        value={form.extras_description}
+                        onChange={(e) => setForm({ ...form, extras_description: e.target.value })}
+                      />
+                    </div>
 
-                      {!form.use_global_drop && (
-                        <div className="pt-2 animate-fade-in">
+                    {/* Status selection */}
+                    <div className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-4 sm:p-5 space-y-3">
+                      <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-1">Status produktu</h3>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
+                        {/* 1. Dostępny */}
+                        <button
+                          type="button"
+                          onClick={() => setForm({ ...form, status: 'available' })}
+                          className={cn(
+                            'p-2.5 rounded-xl text-center border font-bold text-xs transition-all active:scale-95',
+                            form.status === 'available'
+                              ? 'bg-emerald-400/15 border-emerald-400/40 text-emerald-400'
+                              : 'bg-white/5 border-neutral-800 text-neutral-400 hover:text-white'
+                          )}
+                        >
+                          Dostępny
+                        </button>
+
+                        {/* 2. Szkic */}
+                        <button
+                          type="button"
+                          onClick={() => setForm({ ...form, status: 'draft' })}
+                          className={cn(
+                            'p-2.5 rounded-xl text-center border font-bold text-xs transition-all active:scale-95',
+                            form.status === 'draft'
+                              ? 'bg-neutral-400/20 border-neutral-400 text-white'
+                              : 'bg-white/5 border-neutral-800 text-neutral-400 hover:text-white'
+                          )}
+                        >
+                          Szkic
+                        </button>
+
+                        {/* 3. W dropie */}
+                        <button
+                          type="button"
+                          onClick={() => setForm({ ...form, status: 'drop' })}
+                          className={cn(
+                            'p-2.5 rounded-xl text-center border font-bold text-xs transition-all active:scale-95',
+                            form.status === 'drop'
+                              ? 'bg-blue-400/15 border-blue-400/40 text-blue-400'
+                              : 'bg-white/5 border-neutral-800 text-neutral-400 hover:text-white'
+                          )}
+                        >
+                          W dropie
+                        </button>
+
+                        {/* 4. Wyprzedany (archiwum) */}
+                        <button
+                          type="button"
+                          onClick={() => setForm({ ...form, status: 'sold' })}
+                          className={cn(
+                            'p-2.5 rounded-xl text-center border font-bold text-xs transition-all active:scale-95',
+                            form.status === 'sold'
+                              ? 'bg-red-400/15 border-red-400/40 text-red-400'
+                              : 'bg-white/5 border-neutral-800 text-neutral-400 hover:text-white'
+                          )}
+                        >
+                          Wyprzedany (archiwum)
+                        </button>
+                      </div>
+
+                      {form.status === 'drop' && (
+                        <div className="pt-2 animate-fade-in space-y-1">
+                          <label className="text-xs text-neutral-400 block">Indywidualna data dropu dla tego produktu (opcjonalnie):</label>
                           <input
                             type="datetime-local"
                             value={form.drop_scheduled_at}
                             onChange={(e) => setForm({ ...form, drop_scheduled_at: e.target.value })}
                             className={`${inp} [&::-webkit-calendar-picker-indicator]:invert`}
                           />
+                          <p className="text-xs text-neutral-600">Jeśli pozostawisz puste, produkt użyje głównej daty dropu z Ustawień dropu.</p>
                         </div>
                       )}
                     </div>
-                  )}
-                </div>
 
-                <div className="flex gap-3">
-                  <button
-                    onClick={handleSave}
-                    disabled={saving || !form.name || !form.price || !form.size_eu}
-                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-black px-6 py-3 rounded-xl transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shadow-[0_4px_15px_rgba(255,107,0,0.25)]"
-                  >
-                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                    {editingId ? 'Zapisz zmiany' : 'Dodaj produkt'}
-                  </button>
-                  <button
-                    onClick={() => { setShowProductModal(false); setForm(EMPTY_FORM); setEditingId(null); }}
-                    className="px-6 py-3 rounded-xl text-neutral-400 hover:text-white bg-white/5 hover:bg-white/10 font-medium text-sm transition-all active:scale-95"
-                  >
-                    Anuluj
-                  </button>
-                </div>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={handleSave}
+                        disabled={saving || !form.name || !form.price || !form.size_eu}
+                        className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-black px-6 py-3 rounded-xl transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shadow-[0_4px_15px_rgba(255,107,0,0.25)]"
+                      >
+                        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                        {editingId ? 'Zapisz zmiany' : 'Dodaj produkt'}
+                      </button>
+                      <button
+                        onClick={() => { setShowProductModal(false); setForm(EMPTY_FORM); setEditingId(null); }}
+                        className="px-6 py-3 rounded-xl text-neutral-400 hover:text-white bg-white/5 hover:bg-white/10 font-medium text-sm transition-all active:scale-95"
+                      >
+                        Anuluj
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1143,7 +1153,7 @@ function AdminPage() {
                     >
                       <option value="none">Brak wyróżnionego produktu</option>
                       {products.map((p) => (
-                        <option key={p.id} value={p.id}>{p.name} (EU {p.size_eu}) — {p.status === 'draft' ? 'W dropie' : p.status}</option>
+                        <option key={p.id} value={p.id}>{p.name} (EU {p.size_eu}) — {p.status}</option>
                       ))}
                     </select>
                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none" />
@@ -1162,17 +1172,12 @@ function AdminPage() {
                 </div>
               </div>
 
-              {/* Products in current drop manager */}
+              {/* Products in drop */}
               <div className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-5 sm:p-6 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-bold text-white uppercase tracking-tight text-base flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-[#FF6B00]" />
-                      Produkty przypisane do tego dropu ({dropProducts.length})
-                    </h3>
-                    <p className="text-xs text-neutral-500 mt-0.5">Produkty, które pojawią się w sklepie po odliczeniu dropu lub kliknięciu "Opublikuj drop"</p>
-                  </div>
-                </div>
+                <h3 className="font-bold text-white uppercase tracking-tight text-base flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-[#FF6B00]" />
+                  Produkty przypisane do zaplanowanego dropu ({dropProducts.length})
+                </h3>
 
                 <div className="space-y-2">
                   {dropProducts.map((p) => (
@@ -1187,34 +1192,35 @@ function AdminPage() {
                         </div>
                       </div>
                       <button
-                        onClick={() => toggleProductDropStatus(p.id, p.status)}
-                        className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300 bg-red-400/10 hover:bg-red-400/20 px-3 py-1.5 rounded-lg transition-all active:scale-95"
+                        onClick={() => handleQuickStatusChange(p.id, 'draft')}
+                        className="flex items-center gap-1 text-xs text-neutral-400 hover:text-white bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg transition-all active:scale-95"
                       >
-                        <Minus className="w-3.5 h-3.5" /> Usuń z dropu
+                        <Minus className="w-3.5 h-3.5" /> Przenieś do szkiców
                       </button>
                     </div>
                   ))}
 
                   {dropProducts.length === 0 && (
-                    <p className="text-xs text-neutral-600 py-4 text-center">Brak produktów w dropie. Dodaj produkty poniżej!</p>
+                    <p className="text-xs text-neutral-600 py-4 text-center">Brak produktów przypisanych do dropu.</p>
                   )}
                 </div>
 
-                {availableProducts.length > 0 && (
+                {/* Dodaj ze szkiców do dropu */}
+                {draftProducts.length > 0 && (
                   <div className="pt-4 border-t border-neutral-800/80">
-                    <h4 className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2">Dodaj ze sklepu do dropu:</h4>
+                    <h4 className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2">Dodaj ze szkiców do dropu:</h4>
                     <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-                      {availableProducts.map((p) => (
+                      {draftProducts.map((p) => (
                         <div key={p.id} className="flex items-center justify-between p-2.5 bg-black/30 border border-neutral-800/60 rounded-xl">
                           <div className="min-w-0">
                             <p className="text-neutral-300 text-xs font-semibold truncate">{p.name}</p>
                             <p className="text-[11px] text-neutral-500">EU {p.size_eu} · {formatPrice(p.price)}</p>
                           </div>
                           <button
-                            onClick={() => toggleProductDropStatus(p.id, p.status)}
-                            className="flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300 bg-emerald-400/10 hover:bg-emerald-400/20 px-2.5 py-1 rounded-lg transition-all active:scale-95"
+                            onClick={() => handleQuickStatusChange(p.id, 'drop')}
+                            className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 bg-blue-400/10 hover:bg-blue-400/20 px-2.5 py-1 rounded-lg transition-all active:scale-95"
                           >
-                            <Plus className="w-3.5 h-3.5" /> Dodaj do dropu
+                            <Plus className="w-3.5 h-3.5" /> Dołącz do dropu
                           </button>
                         </div>
                       ))}
