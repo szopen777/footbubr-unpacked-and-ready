@@ -17,19 +17,19 @@ export default function Header({ searchValue = '', onSearchChange }: HeaderProps
 
   return (
     <header className="sticky top-0 z-40 bg-[#0a0a0a]/95 backdrop-blur-xl border-b border-neutral-800/80">
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-18 sm:h-20 md:h-22 gap-2 sm:gap-6 py-1">
+      <div className="max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-20 sm:h-20 md:h-22 gap-1.5 sm:gap-6 py-1">
           
-          {/* Logo FootBubr — duże na telefonie, dopasowane i czytelne na komputerze */}
-          <Link to="/" className="flex items-center gap-2.5 sm:gap-3.5 flex-shrink-0 group py-1">
-            <div className="w-14 h-14 sm:w-14 sm:h-14 md:w-16 md:h-16 flex items-center justify-center transition-transform group-hover:scale-105 duration-200 flex-shrink-0">
+          {/* Bardzo duże i czytelne logo na telefonie oraz komputerze */}
+          <Link to="/" className="flex items-center gap-2 sm:gap-3.5 flex-shrink-0 group py-1">
+            <div className="w-16 h-16 sm:w-16 sm:h-16 md:w-16 md:h-16 flex items-center justify-center transition-transform group-hover:scale-105 duration-200 flex-shrink-0">
               <img 
                 src={logoPng} 
                 alt="FootBubr Logo" 
-                className="w-full h-full object-contain invert brightness-200"
+                className="w-full h-full object-contain invert brightness-200 scale-115 sm:scale-100"
               />
             </div>
-            <span className="font-black text-2xl sm:text-2xl md:text-3xl lg:text-4xl tracking-tight text-white uppercase leading-none select-none">
+            <span className="font-black text-3xl sm:text-2xl md:text-3xl lg:text-4xl tracking-tight text-white uppercase leading-none select-none">
               Foot<span className="text-[#FF6B00]">Bubr</span>
             </span>
           </Link>
@@ -98,7 +98,7 @@ export default function Header({ searchValue = '', onSearchChange }: HeaderProps
               onClick={() => setMenuOpen(!menuOpen)}
               aria-label="Menu"
             >
-              {menuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+              {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
         </div>
