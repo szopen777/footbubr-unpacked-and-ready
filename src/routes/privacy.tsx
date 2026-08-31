@@ -36,7 +36,7 @@ function PrivacyPage() {
             <section>
               <h2 className="text-base font-bold text-white mb-2 uppercase tracking-wide">1. Administrator Danych</h2>
               <p>
-                Administratorem danych osobowych jest [Twoje Imię i Nazwisko], prowadzący działalność nierejestrowaną pod marką FootBubr, e-mail: <strong>kontakt@footbubr.pl</strong>.
+                Administratorem danych osobowych jest Ignacy Chodor, prowadzący działalność nierejestrowaną pod marką FootBubr, e-mail: <strong>kontakt@footbubr.pl</strong>.
               </p>
             </section>
 
