@@ -30,7 +30,7 @@ function CheckoutPage() {
     firstName: '',
     lastName: '',
     email: '',
-    phone: '',
+    phone: '', // Przechowuje czyste 9 cyfr
     shippingMethod: 'paczkomat' as 'paczkomat' | 'kurier',
     paczkomatCode: '',
     address: '',
@@ -121,12 +121,12 @@ function CheckoutPage() {
       e.email = 'Podaj poprawny adres email (np. jan@domena.pl)';
     }
 
-    // Walidacja Telefonu (wymagane 9 cyfr po usunięciu spacji i ew. +48)
-    const cleanPhone = form.phone.replace(/\D/g, '').replace(/^48/, '');
-    if (!form.phone.trim()) {
+    // Walidacja Telefonu (dokładnie 9 cyfr)
+    const cleanPhone = form.phone.replace(/\D/g, '');
+    if (!cleanPhone) {
       e.phone = 'Numer telefonu jest wymagany';
     } else if (cleanPhone.length !== 9) {
-      e.phone = 'Numer telefonu musi składać się z dokładnie 9 cyfr';
+      e.phone = 'Wpisz 9 cyfr numeru telefonu';
     }
 
     if (form.shippingMethod === 'paczkomat' && !form.paczkomatCode.trim()) e.paczkomatCode = 'Podaj kod paczkomatu';
@@ -179,7 +179,7 @@ function CheckoutPage() {
     try {
       const placedOrderIds: string[] = [];
       let firstRecord: Order | null = null;
-      const cleanPhone = form.phone.replace(/\D/g, '').replace(/^48/, '');
+      const cleanPhone = `+48${form.phone.replace(/\D/g, '')}`;
 
       for (const { product, quantity } of items) {
         const pName = (product.name || '').toLowerCase();
@@ -212,7 +212,7 @@ function CheckoutPage() {
           product_id: product.id,
           customer_name: `${form.firstName.trim()} ${form.lastName.trim()}`,
           customer_email: form.email.trim().toLowerCase(),
-          customer_phone: cleanPhone || null,
+          customer_phone: cleanPhone,
           shipping_method: form.shippingMethod,
           paczkomat_code: form.shippingMethod === 'paczkomat' ? form.paczkomatCode.trim().toUpperCase() : null,
           shipping_address:
@@ -397,17 +397,25 @@ function CheckoutPage() {
                   {errors.email && <p className="text-red-400 text-xs mt-1">{errors.email}</p>}
                 </div>
                 <div>
-                  <input
-                    className={inp}
-                    placeholder="Numer telefonu (9 cyfr) *"
-                    type="tel"
-                    maxLength={15}
-                    value={form.phone}
-                    onChange={(e) => {
-                      setForm({ ...form, phone: e.target.value });
-                      if (errors.phone) setErrors({ ...errors, phone: '' });
-                    }}
-                  />
+                  {/* Zablokowany prefiks +48 i pole na 9 cyfr */}
+                  <div className="relative flex rounded-xl overflow-hidden border border-neutral-800 bg-white/5 focus-within:border-[#FF6B00]/60 transition-all">
+                    <span className="inline-flex items-center px-3.5 bg-neutral-900 border-r border-neutral-800 text-xs font-bold text-neutral-400 select-none">
+                      🇵🇱 +48
+                    </span>
+                    <input
+                      className="w-full bg-transparent px-3 py-2.5 text-sm text-neutral-100 placeholder:text-neutral-500 focus:outline-none font-mono"
+                      placeholder="123 456 789 *"
+                      type="tel"
+                      inputMode="numeric"
+                      maxLength={9}
+                      value={form.phone}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, '').slice(0, 9);
+                        setForm({ ...form, phone: val });
+                        if (errors.phone) setErrors({ ...errors, phone: '' });
+                      }}
+                    />
+                  </div>
                   {errors.phone && <p className="text-red-400 text-xs mt-1">{errors.phone}</p>}
                 </div>
               </div>
