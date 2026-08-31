@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router';
-import { ShoppingBag, Search, Menu, X, Archive } from 'lucide-react';
+import { ShoppingBag, Search, Menu, X, Archive, Package } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -20,7 +20,7 @@ export default function Header({ searchValue = '', onSearchChange }: HeaderProps
       <div className="max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20 sm:h-20 md:h-22 gap-1.5 sm:gap-6 py-1">
           
-          {/* Bardzo duże i czytelne logo na telefonie oraz komputerze */}
+          {/* Logo */}
           <Link to="/" className="flex items-center gap-2 sm:gap-3.5 flex-shrink-0 group py-1">
             <div className="w-16 h-16 sm:w-16 sm:h-16 md:w-16 md:h-16 flex items-center justify-center transition-transform group-hover:scale-105 duration-200 flex-shrink-0">
               <img 
@@ -59,9 +59,19 @@ export default function Header({ searchValue = '', onSearchChange }: HeaderProps
               <Search className="w-4 h-4 text-neutral-400" />
             </button>
 
+            {/* Śledzenie zamówienia (Desktop) */}
+            <Link
+              to="/track-order"
+              className="hidden lg:flex items-center gap-1.5 text-neutral-300 hover:text-[#FF6B00] transition-colors px-2.5 py-2 font-bold tracking-wide uppercase text-xs sm:text-sm"
+            >
+              <Package className="w-4 h-4 text-[#FF6B00]" />
+              Śledź zamówienie
+            </Link>
+
+            {/* Archiwum */}
             <Link
               to="/archive"
-              className="hidden sm:flex items-center gap-1.5 text-neutral-300 hover:text-[#FF6B00] transition-colors px-3 py-2 font-bold tracking-wide uppercase text-xs sm:text-sm"
+              className="hidden sm:flex items-center gap-1.5 text-neutral-300 hover:text-[#FF6B00] transition-colors px-2.5 py-2 font-bold tracking-wide uppercase text-xs sm:text-sm"
             >
               <Archive className="w-4 h-4 text-[#FF6B00]" />
               Archiwum
@@ -69,7 +79,7 @@ export default function Header({ searchValue = '', onSearchChange }: HeaderProps
 
             <Link
               to="/admin"
-              className="hidden md:block text-sm text-neutral-400 hover:text-white transition-colors px-3 py-2 font-medium"
+              className="hidden md:block text-sm text-neutral-400 hover:text-white transition-colors px-2.5 py-2 font-medium"
             >
               Panel
             </Link>
@@ -123,6 +133,14 @@ export default function Header({ searchValue = '', onSearchChange }: HeaderProps
         {/* Menu rozwijane na telefonie */}
         {menuOpen && (
           <div className="md:hidden py-3 border-t border-neutral-800 animate-fade-in flex flex-col gap-1">
+            <Link
+              to="/track-order"
+              onClick={() => setMenuOpen(false)}
+              className="flex items-center gap-2 text-sm text-neutral-200 hover:text-[#FF6B00] py-2.5 px-2 rounded-lg font-bold uppercase transition-colors"
+            >
+              <Package className="w-4 h-4 text-[#FF6B00]" />
+              Śledź zamówienie
+            </Link>
             <Link
               to="/archive"
               onClick={() => setMenuOpen(false)}
