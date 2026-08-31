@@ -348,10 +348,11 @@ export const Route = createFileRoute('/')({
   component: HomePage,
   head: () => ({
     meta: [
-      { title: 'FootBubr — unikatowe korki piłkarskie w dropach 1 of 1 & Akcesoria' },
-      { name: 'description', content: 'Resale korków piłkarskich 1-of-1 oraz akcesoria piłkarskie FOOTBUBR. Wysyłka InPost lub kurier.' },
-      { property: 'og:title', content: 'FootBubr — unikatowe korki piłkarskie' },
-      { property: 'og:description', content: 'Dropy korków 1 of 1 oraz akcesoria piłkarskie. Wysyłka InPost lub kurier.' },
+      { title: 'FootBubr' },
+      { name: 'description', content: 'Resale korków piłkarskich 1 of 1 oraz akcesoria piłkarskie FOOTBUBR.' },
+      { property: 'og:title', content: 'FootBubr' },
+      { property: 'og:description', content: 'Dropy korków 1 of 1 oraz akcesoria piłkarskie.' },
+      
     ],
   }),
 });
