@@ -9,10 +9,6 @@ import FilterSidebar, { FilterState, SortOption } from '@/components/FilterSideb
 import DropCountdownBanner, { Countdown, calculateCountdown } from '@/components/DropCountdownBanner';
 import { Zap, Package2, ShieldCheck, Loader as Loader2, ChevronDown } from 'lucide-react';
 
-// Bezpośrednie importy grafik z folderu public
-import cleatLeft from '/cleat-left.png';
-import cleatRight from '/cleat-right.png';
-
 const DEFAULT_FILTERS: FilterState = {
   category: 'all',
   sizes: [],
@@ -231,37 +227,12 @@ function HomePage() {
       <Header searchValue={search} onSearchChange={setSearch} />
       <CartDrawer />
 
-      {/* Hero Showcase z dwoma lewitującymi butami */}
+      {/* Hero */}
       <section className="relative overflow-hidden border-b border-neutral-800/80">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#FF6B00]/10 via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-br from-[#FF6B00]/8 via-transparent to-transparent" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-[#FF6B00]/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
         <div className="absolute inset-0 bg-radial-grid opacity-50" />
-
-        {/* But lewy (Predator) */}
-        <div className="hidden lg:block absolute left-2 xl:left-12 2xl:left-24 top-1/2 -translate-y-1/2 w-64 xl:w-80 pointer-events-none select-none z-10">
-          <div className="relative animate-float-left">
-            <div className="absolute inset-0 bg-[#FF6B00]/20 blur-3xl rounded-full scale-75" />
-            <img
-              src={cleatLeft}
-              alt="Predator Cleat"
-              className="relative w-full h-auto object-contain drop-shadow-[0_25px_40px_rgba(0,0,0,0.95)]"
-            />
-          </div>
-        </div>
-
-        {/* But prawy (Podeszwa) */}
-        <div className="hidden lg:block absolute right-2 xl:right-12 2xl:right-24 top-1/2 -translate-y-1/2 w-72 xl:w-96 pointer-events-none select-none z-10">
-          <div className="relative animate-float-right">
-            <div className="absolute inset-0 bg-[#FF6B00]/20 blur-3xl rounded-full scale-75" />
-            <img
-              src={cleatRight}
-              alt="Cleat Sole"
-              className="relative w-full h-auto object-contain drop-shadow-[0_25px_40px_rgba(0,0,0,0.95)]"
-            />
-          </div>
-        </div>
-
-        {/* Tekst centralny */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-20 md:py-28 relative z-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-24 relative">
           <div className="max-w-2xl mx-auto text-center">
             <div className="inline-flex items-center gap-2 bg-[#FF6B00]/10 border border-[#FF6B00]/20 backdrop-blur-md rounded-full px-4 py-1.5 mb-4 sm:mb-6 animate-fade-in-up">
               <Zap className="w-3.5 h-3.5 text-[#FF6B00]" />
