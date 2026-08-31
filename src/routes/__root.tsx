@@ -81,19 +81,38 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "FootBubr — unikatowe korki piłkarskie" },
+      { title: "FootBubr — Unikalne Korki Piłkarskie 1 of 1 & Akcesoria" },
       {
         name: "description",
         content:
-          "Resale korków piłkarskich w dropach 1 of 1. Nike, Adidas, Puma i więcej.",
+          "Limitowane pary korków piłkarskich 1 of 1, skarpety antypoślizgowe i akcesoria. Oryginalne modele Nike, Adidas, Puma.",
       },
-      { property: "og:title", content: "FootBubr — unikatowe korki piłkarskie" },
+      { name: "theme-color", content: "#0c0c0c" },
+
+      // Open Graph (Messenger, Facebook, Instagram, WhatsApp, Discord, iMessage)
+      { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://footbubr-unpacked-and-ready.vercel.app/" },
+      { property: "og:site_name", content: "FootBubr" },
+      { property: "og:title", content: "FootBubr — Unikalne Korki Piłkarskie 1 of 1" },
       {
         property: "og:description",
-        content: "Resale korków piłkarskich w dropach 1 of 1.",
+        content: "Limitowane pary korków 1 of 1 oraz profesjonalne akcesoria piłkarskie. Sprawdź najnowszy drop!",
       },
-      { property: "og:type", content: "website" },
+      { property: "og:image", content: "https://footbubr-unpacked-and-ready.vercel.app/og-image.png" },
+      { property: "og:image:type", content: "image/png" },
+      { property: "og:image:width", content: "1200" },
+      { property: "og:image:height", content: "630" },
+      { property: "og:locale", content: "pl_PL" },
+
+      // Twitter / X Cards
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:url", content: "https://footbubr-unpacked-and-ready.vercel.app/" },
+      { name: "twitter:title", content: "FootBubr — Unikalne Korki Piłkarskie 1 of 1" },
+      {
+        name: "twitter:description",
+        content: "Limitowane pary korków 1 of 1 oraz profesjonalne akcesoria piłkarskie. Sprawdź najnowszy drop!",
+      },
+      { name: "twitter:image", content: "https://footbubr-unpacked-and-ready.vercel.app/og-image.png" },
     ],
     links: [
       {
