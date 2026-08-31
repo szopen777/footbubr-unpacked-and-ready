@@ -7,7 +7,7 @@ export type MainCategory = 'all' | 'boots' | 'accessories';
 
 export interface FilterState {
   category?: MainCategory;
-  sizes?: number[];
+  sizes?: string[];
   brands?: string[];
   levels?: string[];
   surfaces?: string[];
@@ -19,7 +19,11 @@ export interface FilterState {
 
 export type SortOption = 'newest' | 'price_asc' | 'price_desc';
 
-const SIZES = [39, 39.5, 40, 40.5, 41, 41.5, 42, 42.5, 43, 43.5, 44, 44.5, 45, 45.5, 46, 46.5, 47, 47.5];
+const SIZES = [
+  '39', '39.5', '40', '40.5', '41', '41.5', '42', '42.5',
+  '43', '43.5', '44', '44.5', '45', '45.5', '46', '46.5', '47', '47.5'
+];
+
 const BRANDS = ['Nike', 'Adidas', 'Puma', 'Mizuno', 'New Balance', 'Under Armour', 'Umbro', 'Lotto'];
 const SURFACES = [
   { value: 'FG', label: 'FG — Lanki' },
@@ -101,7 +105,7 @@ export default function FilterSidebar({ filters, onChange, sortBy, onSortChange 
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const currentCategory = filters.category || 'all';
-  const currentSizes = filters.sizes || [];
+  const currentSizes = (filters.sizes || []).map(String);
   const currentBrands = filters.brands || [];
   const currentLevels = filters.levels || [];
   const currentSurfaces = filters.surfaces || [];
@@ -437,7 +441,7 @@ export default function FilterSidebar({ filters, onChange, sortBy, onSortChange 
           </span>
           {activeCount > 0 && (
             <button onClick={clearAll} className="text-xs text-[#FF6B00] hover:underline flex items-center gap-1 transition-all active:scale-90">
-              <X className="w-3 h-3" />
+              <X className="w-3 conc-3" />
               Wyczyść ({activeCount})
             </button>
           )}
