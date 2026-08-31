@@ -251,7 +251,25 @@ function AdminPage() {
     if (productId) {
       const restore = confirm('Czy chcesz przywrócić ten produkt jako "Dostępny" w sklepie?');
       if (restore) {
-        await supabase.from('products').update({ status: 'available' }).eq('id', productId);
+        // Sprawdź czy to korki, aby ustawić stock_quantity: 1
+        const prod = products.find((p) => p.id === productId);
+        const pName = (prod?.name || '').toLowerCase();
+        const pBrand = (prod?.brand || '').toLowerCase();
+        const isAccessory =
+          pBrand === 'footbubr' ||
+          pName.includes('skarpety') ||
+          pName.includes('ochraniacze') ||
+          pName.includes('taśma') ||
+          pName.includes('tasma') ||
+          pName.includes('zestaw') ||
+          Boolean(prod?.accessory_type);
+
+        const updateData: ProductUpdate = { status: 'available' };
+        if (!isAccessory) {
+          updateData.stock_quantity = 1;
+        }
+
+        await supabase.from('products').update(updateData).eq('id', productId);
         await loadProducts();
       }
     }
@@ -470,6 +488,9 @@ function AdminPage() {
       }
     }
 
+    // Dla korków: 1 szt. jeśli dostępny/szkic/drop, 0 szt. jeśli sold
+    const bootStock = dbStatus === 'sold' ? 0 : 1;
+
     const payload: ProductInsert = {
       name: accName,
       brand: isAcc ? 'FOOTBUBR' : form.brand,
@@ -479,7 +500,7 @@ function AdminPage() {
       insole_length_cm: isAcc ? null : (form.insole_length_cm ? parseFloat(form.insole_length_cm) : null),
       price: parseFloat(form.price),
       original_price: form.original_price ? parseFloat(form.original_price) : null,
-      stock_quantity: isAcc ? (form.stock_quantity ? parseInt(form.stock_quantity, 10) : 100) : 1,
+      stock_quantity: isAcc ? (form.stock_quantity ? parseInt(form.stock_quantity, 10) : 100) : bootStock,
       surface_type: isAcc ? 'FG' : form.surface_type as any,
       level: isAcc ? 'Amatorski' : form.level as any,
       condition: form.condition as any,
@@ -540,24 +561,24 @@ function AdminPage() {
       productType: isAcc ? 'accessory' : 'boot',
       name: p.name, 
       brand: p.brand, 
-      model: p.model,
+      model: p.model, 
       size_eu: String(p.size_eu), 
       accessory_type: p.accessory_type || 'Skarpety antypoślizgowe', 
-      insole_length_cm: p.insole_length_cm ? String(p.insole_length_cm) : '',
+      insole_length_cm: p.insole_length_cm ? String(p.insole_length_cm) : '', 
       price: String(p.price), 
-      original_price: p.original_price ? String(p.original_price) : '',
-      stock_quantity: String(p.stock_quantity ?? (isAcc ? 100 : 1)),
+      original_price: p.original_price ? String(p.original_price) : '', 
+      stock_quantity: String(p.stock_quantity ?? (isAcc ? 100 : 1)), 
       surface_type: p.surface_type, 
       level: p.level, 
-      condition: p.condition,
+      condition: p.condition, 
       condition_detail: p.condition_detail || '', 
-      images: p.images.join('\n'),
+      images: p.images.join('\n'), 
       box_included: p.box_included, 
-      bag_included: p.bag_included,
-      extras_description: p.extras_description || '',
-      status: customStatus,
-      drop_type: dType,
-      drop_scheduled_at: toLocalDatetimeInput(p.drop_scheduled_at),
+      bag_included: p.bag_included, 
+      extras_description: p.extras_description || '', 
+      status: customStatus, 
+      drop_type: dType, 
+      drop_scheduled_at: toLocalDatetimeInput(p.drop_scheduled_at), 
     });
     setEditingId(p.id);
     setShowProductModal(true);
@@ -570,20 +591,50 @@ function AdminPage() {
     showToast('Produkt usunięty');
   };
 
+  // ZMIANA STATUSU Z AUTOMATYCZNYM ZARZĄDZANIEM STANEM MAGAZYNOWYM TYLKO DLA KORKÓW
   const handleQuickStatusChange = async (id: string, newStatus: CustomProductStatus) => {
+    const targetProduct = products.find((p) => p.id === id);
+    
+    // Sprawdzamy czy to akcesorium czy korki 1 of 1
+    const pName = (targetProduct?.name || '').toLowerCase();
+    const pBrand = (targetProduct?.brand || '').toLowerCase();
+    const isAccessory =
+      pBrand === 'footbubr' ||
+      pName.includes('skarpety') ||
+      pName.includes('ochraniacze') ||
+      pName.includes('taśma') ||
+      pName.includes('tasma') ||
+      pName.includes('zestaw') ||
+      Boolean(targetProduct?.accessory_type);
+
     const updates: ProductUpdate = {};
+
     if (newStatus === 'available') {
       updates.status = 'available';
       updates.drop_scheduled_at = null;
+      // TYLKO DLA KORKÓW: przywracamy 1 sztukę
+      if (!isAccessory) {
+        updates.stock_quantity = 1;
+      }
     } else if (newStatus === 'draft') {
       updates.status = 'draft';
       updates.drop_scheduled_at = null;
+      if (!isAccessory) {
+        updates.stock_quantity = 1;
+      }
     } else if (newStatus === 'drop') {
       updates.status = 'draft';
       updates.drop_scheduled_at = dropSettings?.drop_date && !dropSettings.is_tbd ? dropSettings.drop_date : new Date().toISOString();
+      if (!isAccessory) {
+        updates.stock_quantity = 1;
+      }
     } else if (newStatus === 'sold') {
       updates.status = 'sold';
       updates.drop_scheduled_at = null;
+      // TYLKO DLA KORKÓW: zerujemy magazyn
+      if (!isAccessory) {
+        updates.stock_quantity = 0;
+      }
     }
 
     const { error } = await supabase.from('products').update(updates).eq('id', id);
@@ -592,14 +643,14 @@ function AdminPage() {
       showToast(`Błąd: ${error.message}`);
       return;
     }
-    showToast('Status zmieniony');
+    showToast('Status i stan magazynowy zaktualizowane');
   };
 
   const handlePublishAllDrop = async () => {
     setPublishing(true);
     const { data } = await supabase
       .from('products')
-      .update({ status: 'available', drop_scheduled_at: null })
+      .update({ status: 'available', drop_scheduled_at: null, stock_quantity: 1 })
       .eq('status', 'draft')
       .not('drop_scheduled_at', 'is', null)
       .select('id');
