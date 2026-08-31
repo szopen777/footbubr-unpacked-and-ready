@@ -88,8 +88,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "Limitowane pary korków piłkarskich 1 of 1, skarpety antypoślizgowe i akcesoria. Oryginalne modele Nike, Adidas, Puma.",
       },
       { name: "theme-color", content: "#0c0c0c" },
-
-      // Open Graph (Messenger, Facebook, Instagram, WhatsApp, Discord, iMessage)
       { property: "og:type", content: "website" },
       { property: "og:url", content: "https://footbubr-unpacked-and-ready.vercel.app/" },
       { property: "og:site_name", content: "FootBubr" },
@@ -99,12 +97,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         content: "Limitowane pary korków 1 of 1 oraz profesjonalne akcesoria piłkarskie. Sprawdź najnowszy drop!",
       },
       { property: "og:image", content: "https://footbubr-unpacked-and-ready.vercel.app/og-image.png" },
+      { property: "og:image:secure_url", content: "https://footbubr-unpacked-and-ready.vercel.app/og-image.png" },
       { property: "og:image:type", content: "image/png" },
       { property: "og:image:width", content: "1200" },
       { property: "og:image:height", content: "630" },
       { property: "og:locale", content: "pl_PL" },
-
-      // Twitter / X Cards
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:url", content: "https://footbubr-unpacked-and-ready.vercel.app/" },
       { name: "twitter:title", content: "FootBubr — Unikalne Korki Piłkarskie 1 of 1" },
@@ -142,6 +139,25 @@ function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="pl" className="dark">
       <head>
+        {/* Wstrzykiwanie tagów Open Graph na sztywno w HTML dla botów */}
+        <meta charSet="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>FootBubr — Unikalne Korki Piłkarskie 1 of 1 & Akcesoria</title>
+        <meta name="description" content="Limitowane pary korków piłkarskich 1 of 1, skarpety antypoślizgowe i akcesoria. Oryginalne modele Nike, Adidas, Puma." />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://footbubr-unpacked-and-ready.vercel.app/" />
+        <meta property="og:site_name" content="FootBubr" />
+        <meta property="og:title" content="FootBubr — Unikalne Korki Piłkarskie 1 of 1" />
+        <meta property="og:description" content="Limitowane pary korków 1 of 1 oraz profesjonalne akcesoria piłkarskie. Sprawdź najnowszy drop!" />
+        <meta property="og:image" content="https://footbubr-unpacked-and-ready.vercel.app/og-image.png" />
+        <meta property="og:image:secure_url" content="https://footbubr-unpacked-and-ready.vercel.app/og-image.png" />
+        <meta property="og:image:type" content="image/png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:locale" content="pl_PL" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:image" content="https://footbubr-unpacked-and-ready.vercel.app/og-image.png" />
+        
         <HeadContent />
       </head>
       <body>
