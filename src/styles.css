@@ -225,6 +225,34 @@ select option:focus {
   will-change: transform;
 }
 
+/* Animacja spadających korków w tle */
+@keyframes cleat-fall {
+  0% {
+    transform: translateY(-120px) rotate(0deg) scale(0.9);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.7;
+  }
+  85% {
+    opacity: 0.7;
+  }
+  100% {
+    transform: translateY(520px) rotate(25deg) scale(1.05);
+    opacity: 0;
+  }
+}
+
+@utility animate-cleat-fall-1 {
+  animation: cleat-fall 9s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@utility animate-cleat-fall-2 {
+  animation: cleat-fall 12s cubic-bezier(0.4, 0, 0.6, 1) infinite 3.5s;
+}
+@utility animate-cleat-fall-3 {
+  animation: cleat-fall 8s cubic-bezier(0.4, 0, 0.6, 1) infinite 6s;
+}
+
 .animate-fade-in-up {
   animation: fade-in-up 0.6s ease-out forwards;
   opacity: 0;
