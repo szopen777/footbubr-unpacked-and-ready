@@ -41,7 +41,7 @@ function TermsPage() {
                 1. Sklep internetowy <strong>FootBubr</strong> prowadzony jest w ramach <strong>działalności nierejestrowanej</strong> (zgodnie z art. 5 Ustawy z dnia 6 marca 2018 r. – Prawo przedsiębiorców).
               </p>
               <p className="mb-2">
-                2. <strong>Dane Sprzedawcy:</strong> [Twoje Imię i Nazwisko], adres do doręczeń: [Twój Adres Korespondencyjny], e-mail kontaktowy: <strong>kontakt@footbubr.pl</strong>.
+                2. <strong>Dane Sprzedawcy:</strong> Ignacy Chodor, adres do doręczeń: Wrocław, 50-323, Kluczborska 6/10, e-mail kontaktowy: <strong>kontakt@footbubr.pl</strong>.
               </p>
               <p>
                 3. Wszystkie ceny w Sklepie podane są w złotych polskich (PLN). Sprzedawca korzysta ze zwolnienia podmiotowego z podatku VAT.
@@ -59,7 +59,7 @@ function TermsPage() {
                 2. Każda para butów jest w 100% oryginalna i przechodzi rygorystyczną weryfikację autentyczności.
               </p>
               <p>
-                3. Stan obuwia (nowe z pudełkiem, nowe bez pudełka, stan kolekcjonerski) jest zawsze dokładnie opisany i sfotografowany na karcie produktu.
+                3. Stan obuwia (nowe z pudełkiem, nowe bez pudełka) jest zawsze dokładnie opisany i sfotografowany na karcie produktu.
               </p>
             </section>
 
