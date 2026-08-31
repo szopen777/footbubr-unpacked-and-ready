@@ -1,4 +1,3 @@
-
 import { Product } from '@/lib/supabase';
 import { cn, formatPrice, CONDITION_COLORS } from '@/lib/utils';
 import { ShoppingBag, Eye, Zap } from 'lucide-react';
@@ -16,6 +15,20 @@ export default function ProductCard({ product }: ProductCardProps) {
   const navigate = useNavigate();
   const inCart = items.some((i) => i.product.id === product.id);
   const isSold = product.status === 'sold';
+
+  const pName = (product.name || '').toLowerCase();
+  const pBrand = (product.brand || '').toLowerCase();
+  const pModel = (product.model || '').toLowerCase();
+  const isAccessory =
+    pBrand === 'footbubr' ||
+    pName.includes('skarpety') ||
+    pName.includes('ochraniacze') ||
+    pName.includes('taśma') ||
+    pName.includes('tasma') ||
+    pName.includes('zestaw') ||
+    pModel.includes('skarpety') ||
+    pModel.includes('ochraniacze') ||
+    Boolean((product as any).accessory_type);
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -42,7 +55,7 @@ export default function ProductCard({ product }: ProductCardProps) {
         isSold && 'opacity-70'
       )}
     >
-      {/* Image */}
+      {/* Zdjęcie */}
       <Link to="/product/$id" params={{ id: product.id }} className="block relative aspect-square overflow-hidden bg-[#1a1a1a]">
         {product.images[0] ? (
           <img
@@ -57,7 +70,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           <div className="w-full h-full flex items-center justify-center text-neutral-700 text-sm">Brak zdjęcia</div>
         )}
 
-        {/* Sold overlay */}
+        {/* Nakładka wyprzedane */}
         {isSold && (
           <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
             <span className="text-white font-black text-base sm:text-xl tracking-widest rotate-[-12deg] border-2 sm:border-4 border-white/80 px-3 sm:px-4 py-1 sm:py-1.5 rounded backdrop-blur-md bg-black/30">
@@ -66,21 +79,23 @@ export default function ProductCard({ product }: ProductCardProps) {
           </div>
         )}
 
-        {/* Surface badge — glassmorphism */}
-        <div className="absolute top-2 left-2 sm:top-2.5 sm:left-2.5">
-          <span className="text-[10px] sm:text-xs font-bold backdrop-blur-md bg-white/5 border border-white/10 text-neutral-200 px-1.5 sm:px-2 py-0.5 rounded-md">
-            {product.surface_type}
-          </span>
-        </div>
+        {/* Wyrazista odznaka nawierzchni (tylko dla butów) */}
+        {!isAccessory && product.surface_type && (
+          <div className="absolute top-2 left-2 sm:top-2.5 sm:left-2.5">
+            <span className="text-xs sm:text-sm font-black bg-[#111111]/90 text-white border border-neutral-700 px-2 sm:px-2.5 py-0.5 rounded-md shadow-[0_4px_12px_rgba(0,0,0,0.6)] backdrop-blur-md tracking-wide">
+              {product.surface_type}
+            </span>
+          </div>
+        )}
 
-        {/* Size badge — prominent orange */}
+        {/* Odznaka rozmiaru */}
         <div className="absolute top-2 right-2 sm:top-2.5 sm:right-2.5">
           <span className="text-xs sm:text-sm font-black bg-[#FF6B00] text-black px-2 sm:px-2.5 py-0.5 rounded-md shadow-[0_2px_10px_rgba(255,107,0,0.3)]">
-            EU {product.size_eu}
+            {isAccessory ? product.size_eu : `EU ${product.size_eu}`}
           </span>
         </div>
 
-        {/* Quick view overlay */}
+        {/* Podgląd */}
         {!isSold && (
           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 hidden sm:flex items-center justify-center">
             <span className="flex items-center gap-2 bg-white text-black font-semibold text-sm px-4 py-2 rounded-xl transition-all transform translate-y-2 group-hover:translate-y-0 duration-300">
@@ -91,7 +106,7 @@ export default function ProductCard({ product }: ProductCardProps) {
         )}
       </Link>
 
-      {/* Content */}
+      {/* Treść karty */}
       <div className="p-3 sm:p-4">
         <div className="mb-1">
           <span className="text-[10px] sm:text-xs font-bold text-[#FF6B00] uppercase tracking-wider">{product.brand}</span>
@@ -107,7 +122,9 @@ export default function ProductCard({ product }: ProductCardProps) {
           >
             {product.condition}
           </span>
-          <span className="text-[10px] sm:text-xs text-neutral-500 hidden sm:inline">{product.level}</span>
+          {!isAccessory && product.level && (
+            <span className="text-[10px] sm:text-xs text-neutral-500 hidden sm:inline">{product.level}</span>
+          )}
         </div>
 
         <div className="flex items-baseline gap-1.5 mb-3">
@@ -117,7 +134,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           )}
         </div>
 
-        {/* Dual buttons */}
+        {/* Przyciski */}
         {!isSold ? (
           <div className="flex gap-2">
             <button
