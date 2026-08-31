@@ -56,6 +56,11 @@ export default function Footer() {
             <h3 className="text-xs font-black uppercase tracking-[0.18em] text-neutral-400">Informacje</h3>
             <ul className="space-y-2 text-sm text-neutral-400">
               <li>
+                <Link to="/track-order" className="text-[#FF6B00] hover:underline font-semibold transition-colors">
+                  Śledź zamówienie
+                </Link>
+              </li>
+              <li>
                 <Link to="/terms" className="hover:text-[#FF6B00] transition-colors">
                   Regulamin
                 </Link>
