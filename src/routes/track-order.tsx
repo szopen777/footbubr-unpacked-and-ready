@@ -64,19 +64,61 @@ const STATUS_MAP: Record<string, { label: string; color: string; step: number; d
 function getNormalizedStatus(rawStatus?: string) {
   if (!rawStatus) return STATUS_MAP.nowe;
   
-  // Usunięcie znaków diakrytycznych, spacji i myślników
   const clean = rawStatus
+    .toString()
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z]/g, '');
+    .replace(/[^a-z0-9]/g, '');
 
-  if (clean.includes('oplac') || clean === 'paid') return STATUS_MAP.oplacone;
-  if (clean.includes('realizacj') || clean === 'processing') return STATUS_MAP.wrealizacji;
-  if (clean.includes('wyslan') || clean === 'shipped') return STATUS_MAP.wyslane;
-  if (clean.includes('zakoncz') || clean.includes('dorecz') || clean === 'delivered') return STATUS_MAP.zakonczone;
-  if (clean.includes('anulow') || clean === 'cancelled') return STATUS_MAP.anulowane;
+  // 1. Anulowane
+  if (clean.includes('anulow') || clean.includes('cancel')) {
+    return STATUS_MAP.anulowane;
+  }
   
+  // 2. Zakończone / Doręczone
+  if (
+    clean.includes('zakoncz') || 
+    clean.includes('dorecz') || 
+    clean.includes('complet') || 
+    clean.includes('deliver') ||
+    clean.includes('done')
+  ) {
+    return STATUS_MAP.zakonczone;
+  }
+  
+  // 3. Wysłane
+  if (
+    clean.includes('wyslan') || 
+    clean.includes('ship') || 
+    clean.includes('sent')
+  ) {
+    return STATUS_MAP.wyslane;
+  }
+  
+  // 4. W realizacji / Pakowanie
+  if (
+    clean.includes('realizacj') || 
+    clean.includes('process') || 
+    clean.includes('pack') || 
+    clean.includes('przygotow')
+  ) {
+    return STATUS_MAP.wrealizacji;
+  }
+  
+  // 5. Opłacone
+  if (
+    clean.includes('oplac') || 
+    clean.includes('paid')
+  ) {
+    return STATUS_MAP.oplacone;
+  }
+
+  // 6. Nowe
+  if (clean.includes('nowe') || clean.includes('new') || clean.includes('pend')) {
+    return STATUS_MAP.nowe;
+  }
+
   return STATUS_MAP[clean] || STATUS_MAP.nowe;
 }
 
@@ -220,7 +262,7 @@ function TrackOrderPage() {
                   <span className={statusInfo.step >= 3 ? 'text-white' : 'text-neutral-600'}>
                     3. Wysłane
                   </span>
-                  <span className={statusInfo.step >= 4 ? 'text-emerald-400' : 'text-neutral-600'}>
+                  <span className={statusInfo.step >= 4 ? 'text-emerald-400 font-black' : 'text-neutral-600'}>
                     4. Doręczone
                   </span>
                 </div>
