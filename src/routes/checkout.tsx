@@ -120,7 +120,6 @@ function CheckoutPage() {
     if (!form.firstName.trim()) e.firstName = 'Imię jest wymagane';
     if (!form.lastName.trim()) e.lastName = 'Nazwisko jest wymagane';
     
-    // Walidacja Email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
     if (!form.email.trim()) {
       e.email = 'Adres email jest wymagany';
@@ -128,7 +127,6 @@ function CheckoutPage() {
       e.email = 'Podaj poprawny adres email (np. jan@domena.pl)';
     }
 
-    // Walidacja Telefonu (dokładnie 9 cyfr)
     const cleanPhone = form.phone.replace(/\D/g, '');
     if (!cleanPhone) {
       e.phone = 'Numer telefonu jest wymagany';
@@ -176,18 +174,49 @@ function CheckoutPage() {
 
     setSubmitting(true);
 
-    if (form.paymentMethod === 'blik') {
-      setBlikStep('waiting');
-      await new Promise((r) => setTimeout(r, 1800));
-      setBlikStep('confirmed');
-      await new Promise((r) => setTimeout(r, 600));
-    }
-
     try {
+      // 1. PANCERNA WERYFIKACJA STANU MAGAZYNOWEGO NA ŻYWO W SUPABASE PRZED PŁATNOŚCIĄ
+      for (const { product, quantity } of items) {
+        const { data: currentProd, error: checkError } = await supabase
+          .from('products')
+          .select('id, name, status, stock_quantity')
+          .eq('id', product.id)
+          .single();
+
+        if (checkError || !currentProd) {
+          setGeneralError('Nie udało się zweryfikować dostępności produktów. Spróbuj ponownie.');
+          setSubmitting(false);
+          return;
+        }
+
+        // Sprawdzenie czy ktoś nie wykupił pary 1 of 1
+        if (currentProd.status === 'sold') {
+          setGeneralError(`Niestety! Produkt "${currentProd.name}" został właśnie wykupiony przez kogoś innego.`);
+          setSubmitting(false);
+          return;
+        }
+
+        // Sprawdzenie ilości dla akcesoriów
+        if (currentProd.stock_quantity !== null && currentProd.stock_quantity < quantity) {
+          setGeneralError(`Brak wystarczającej ilości dla produktu "${currentProd.name}". Dostępne: ${currentProd.stock_quantity} szt.`);
+          setSubmitting(false);
+          return;
+        }
+      }
+
+      // 2. Symulacja płatności BLIK (po pomyślnej weryfikacji dostępności)
+      if (form.paymentMethod === 'blik') {
+        setBlikStep('waiting');
+        await new Promise((r) => setTimeout(r, 1800));
+        setBlikStep('confirmed');
+        await new Promise((r) => setTimeout(r, 600));
+      }
+
       const placedOrderIds: string[] = [];
       let firstRecord: Order | null = null;
       const cleanPhone = `+48${form.phone.replace(/\D/g, '')}`;
 
+      // 3. Składanie zamówienia i aktualizacja stanów
       for (const { product, quantity } of items) {
         const pName = (product.name || '').toLowerCase();
         const pBrand = (product.brand || '').toLowerCase();
@@ -257,7 +286,11 @@ function CheckoutPage() {
             })
             .eq('id', product.id);
         } else {
-          await supabase.from('products').update({ status: 'sold' }).eq('id', product.id);
+          // Zablokowanie produktu 1 of 1 jako sprzedany
+          await supabase
+            .from('products')
+            .update({ status: 'sold', stock_quantity: 0 })
+            .eq('id', product.id);
         }
       }
 
@@ -715,7 +748,7 @@ function CheckoutPage() {
               </div>
 
               {generalError && (
-                <div className="mt-4 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-xs flex items-center gap-2">
+                <div className="mt-4 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-xs flex items-center gap-2 animate-fade-in">
                   <AlertCircle className="w-4 h-4 flex-shrink-0" />
                   <span>{generalError}</span>
                 </div>
@@ -727,7 +760,7 @@ function CheckoutPage() {
                 disabled={submitting}
                 className="flex items-center justify-center gap-2 w-full bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-black py-3.5 rounded-xl mt-4 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_4px_15px_rgba(255,107,0,0.25)]"
               >
-                {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Lock className="w-4 h-4" />}
+                {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Lock className="w-4 h-4 text-black" />}
                 {submitting ? 'Przetwarzanie...' : 'Złóż zamówienie i zapłać'}
               </button>
 
