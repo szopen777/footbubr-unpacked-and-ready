@@ -18,18 +18,18 @@ export default function Header({ searchValue = '', onSearchChange }: HeaderProps
   return (
     <header className="sticky top-0 z-40 bg-[#0a0a0a]/95 backdrop-blur-xl border-b border-neutral-800/80">
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
-        <div className="flex items-center justify-between h-16 md:h-24 gap-2 sm:gap-4 lg:gap-6">
+        <div className="flex items-center justify-between h-18 sm:h-20 md:h-24 gap-2 sm:gap-4 lg:gap-6 py-1">
           
-          {/* Logo FootBubr — kompaktowe na mobile, duże na desktopie */}
-          <Link to="/" className="flex items-center gap-2 sm:gap-3.5 flex-shrink-0 group py-1">
-            <div className="w-11 h-11 md:w-20 md:h-20 flex items-center justify-center transition-transform group-hover:scale-105 duration-200 flex-shrink-0">
+          {/* Duże, wyraziste Logo FootBubr na telefonie i komputerze */}
+          <Link to="/" className="flex items-center gap-2 sm:gap-3 flex-shrink-0 group py-1">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 flex items-center justify-center transition-transform group-hover:scale-105 duration-200 flex-shrink-0">
               <img 
                 src={logoPng} 
                 alt="FootBubr Logo" 
-                className="w-full h-full object-contain invert brightness-200 scale-110 md:scale-125"
+                className="w-full h-full object-contain invert brightness-200 scale-[1.45] sm:scale-125 md:scale-135"
               />
             </div>
-            <span className="font-black text-xl sm:text-2xl md:text-3xl lg:text-4xl tracking-tight text-white uppercase leading-none">
+            <span className="font-black text-2xl sm:text-2xl md:text-3xl lg:text-4xl tracking-tight text-white uppercase leading-none">
               Foot<span className="text-[#FF6B00]">Bubr</span>
             </span>
           </Link>
