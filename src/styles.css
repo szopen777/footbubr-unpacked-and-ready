@@ -225,10 +225,10 @@ select option:focus {
   will-change: transform;
 }
 
-/* Animacja spadających korków w tle */
+/* Płynna, ciągła animacja spadania korków */
 @keyframes cleat-fall {
   0% {
-    transform: translateY(-120px) rotate(0deg) scale(0.9);
+    transform: translateY(-150px) rotate(-15deg);
     opacity: 0;
   }
   15% {
@@ -238,19 +238,22 @@ select option:focus {
     opacity: 0.7;
   }
   100% {
-    transform: translateY(520px) rotate(25deg) scale(1.05);
+    transform: translateY(650px) rotate(25deg);
     opacity: 0;
   }
 }
 
 @utility animate-cleat-fall-1 {
-  animation: cleat-fall 9s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  animation: cleat-fall 7s linear infinite;
+  animation-delay: 0s;
 }
 @utility animate-cleat-fall-2 {
-  animation: cleat-fall 12s cubic-bezier(0.4, 0, 0.6, 1) infinite 3.5s;
+  animation: cleat-fall 10s linear infinite;
+  animation-delay: -3.5s;
 }
 @utility animate-cleat-fall-3 {
-  animation: cleat-fall 8s cubic-bezier(0.4, 0, 0.6, 1) infinite 6s;
+  animation: cleat-fall 8s linear infinite;
+  animation-delay: -5.5s;
 }
 
 .animate-fade-in-up {
