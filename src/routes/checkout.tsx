@@ -112,8 +112,23 @@ function CheckoutPage() {
     const e: Record<string, string> = {};
     if (!form.firstName.trim()) e.firstName = 'Imię jest wymagane';
     if (!form.lastName.trim()) e.lastName = 'Nazwisko jest wymagane';
-    if (!form.email.trim() || !form.email.includes('@')) e.email = 'Podaj prawidłowy email';
-    if (!form.phone.trim()) e.phone = 'Numer telefonu jest wymagany';
+    
+    // Walidacja Email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+    if (!form.email.trim()) {
+      e.email = 'Adres email jest wymagany';
+    } else if (!emailRegex.test(form.email.trim())) {
+      e.email = 'Podaj poprawny adres email (np. jan@domena.pl)';
+    }
+
+    // Walidacja Telefonu (wymagane 9 cyfr po usunięciu spacji i ew. +48)
+    const cleanPhone = form.phone.replace(/\D/g, '').replace(/^48/, '');
+    if (!form.phone.trim()) {
+      e.phone = 'Numer telefonu jest wymagany';
+    } else if (cleanPhone.length !== 9) {
+      e.phone = 'Numer telefonu musi składać się z dokładnie 9 cyfr';
+    }
+
     if (form.shippingMethod === 'paczkomat' && !form.paczkomatCode.trim()) e.paczkomatCode = 'Podaj kod paczkomatu';
     if (form.shippingMethod === 'kurier') {
       if (!form.address.trim()) e.address = 'Podaj ulicę i numer';
@@ -164,6 +179,7 @@ function CheckoutPage() {
     try {
       const placedOrderIds: string[] = [];
       let firstRecord: Order | null = null;
+      const cleanPhone = form.phone.replace(/\D/g, '').replace(/^48/, '');
 
       for (const { product, quantity } of items) {
         const pName = (product.name || '').toLowerCase();
@@ -195,8 +211,8 @@ function CheckoutPage() {
         const orderPayload = {
           product_id: product.id,
           customer_name: `${form.firstName.trim()} ${form.lastName.trim()}`,
-          customer_email: form.email.trim(),
-          customer_phone: form.phone.trim() || null,
+          customer_email: form.email.trim().toLowerCase(),
+          customer_phone: cleanPhone || null,
           shipping_method: form.shippingMethod,
           paczkomat_code: form.shippingMethod === 'paczkomat' ? form.paczkomatCode.trim().toUpperCase() : null,
           shipping_address:
@@ -381,7 +397,17 @@ function CheckoutPage() {
                   {errors.email && <p className="text-red-400 text-xs mt-1">{errors.email}</p>}
                 </div>
                 <div>
-                  <input className={inp} placeholder="Numer telefonu *" type="tel" value={form.phone} onChange={(e) => { setForm({ ...form, phone: e.target.value }); if (errors.phone) setErrors({ ...errors, phone: '' }); }} />
+                  <input
+                    className={inp}
+                    placeholder="Numer telefonu (9 cyfr) *"
+                    type="tel"
+                    maxLength={15}
+                    value={form.phone}
+                    onChange={(e) => {
+                      setForm({ ...form, phone: e.target.value });
+                      if (errors.phone) setErrors({ ...errors, phone: '' });
+                    }}
+                  />
                   {errors.phone && <p className="text-red-400 text-xs mt-1">{errors.phone}</p>}
                 </div>
               </div>
@@ -681,7 +707,7 @@ function CheckoutPage() {
                 </div>
               )}
 
-              {/* Przycisk zamówienia zgodny z prawem konsumenckim */}
+              {/* Przycisk zamówienia */}
               <button
                 onClick={handleSubmit}
                 disabled={submitting}
