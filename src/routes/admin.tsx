@@ -128,7 +128,6 @@ function AdminPage() {
   });
   const [savingSettings, setSavingSettings] = useState(false);
 
-  // Formularz nowego kodu rabatowego
   const [newCodeName, setNewCodeName] = useState('');
   const [newCodeType, setNewCodeType] = useState<'percentage' | 'fixed'>('percentage');
   const [newCodeValue, setNewCodeValue] = useState('');
@@ -251,7 +250,6 @@ function AdminPage() {
     if (productId) {
       const restore = confirm('Czy chcesz przywrócić ten produkt jako "Dostępny" w sklepie?');
       if (restore) {
-        // Sprawdź czy to korki, aby ustawić stock_quantity: 1
         const prod = products.find((p) => p.id === productId);
         const pName = (prod?.name || '').toLowerCase();
         const pBrand = (prod?.brand || '').toLowerCase();
@@ -488,7 +486,6 @@ function AdminPage() {
       }
     }
 
-    // Dla korków: 1 szt. jeśli dostępny/szkic/drop, 0 szt. jeśli sold
     const bootStock = dbStatus === 'sold' ? 0 : 1;
 
     const payload: ProductInsert = {
@@ -591,11 +588,9 @@ function AdminPage() {
     showToast('Produkt usunięty');
   };
 
-  // ZMIANA STATUSU Z AUTOMATYCZNYM ZARZĄDZANIEM STANEM MAGAZYNOWYM TYLKO DLA KORKÓW
   const handleQuickStatusChange = async (id: string, newStatus: CustomProductStatus) => {
     const targetProduct = products.find((p) => p.id === id);
     
-    // Sprawdzamy czy to akcesorium czy korki 1 of 1
     const pName = (targetProduct?.name || '').toLowerCase();
     const pBrand = (targetProduct?.brand || '').toLowerCase();
     const isAccessory =
@@ -612,29 +607,19 @@ function AdminPage() {
     if (newStatus === 'available') {
       updates.status = 'available';
       updates.drop_scheduled_at = null;
-      // TYLKO DLA KORKÓW: przywracamy 1 sztukę
-      if (!isAccessory) {
-        updates.stock_quantity = 1;
-      }
+      if (!isAccessory) updates.stock_quantity = 1;
     } else if (newStatus === 'draft') {
       updates.status = 'draft';
       updates.drop_scheduled_at = null;
-      if (!isAccessory) {
-        updates.stock_quantity = 1;
-      }
+      if (!isAccessory) updates.stock_quantity = 1;
     } else if (newStatus === 'drop') {
       updates.status = 'draft';
       updates.drop_scheduled_at = dropSettings?.drop_date && !dropSettings.is_tbd ? dropSettings.drop_date : new Date().toISOString();
-      if (!isAccessory) {
-        updates.stock_quantity = 1;
-      }
+      if (!isAccessory) updates.stock_quantity = 1;
     } else if (newStatus === 'sold') {
       updates.status = 'sold';
       updates.drop_scheduled_at = null;
-      // TYLKO DLA KORKÓW: zerujemy magazyn
-      if (!isAccessory) {
-        updates.stock_quantity = 0;
-      }
+      if (!isAccessory) updates.stock_quantity = 0;
     }
 
     const { error } = await supabase.from('products').update(updates).eq('id', id);
@@ -797,7 +782,7 @@ function AdminPage() {
           />
         </aside>
 
-        <main className="lg:ml-56 flex-1 p-4 sm:p-6 lg:p-8 min-w-0">
+        <main className="lg:ml-56 flex-1 p-3 sm:p-6 lg:p-8 min-w-0">
           {view === 'products' && (
             <div className="animate-fade-in">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
@@ -810,14 +795,14 @@ function AdminPage() {
                 <div className="flex gap-2 flex-wrap">
                   <button
                     onClick={() => { setForm(EMPTY_BOOT_FORM); setEditingId(null); setShowProductModal(true); }}
-                    className="flex items-center gap-2 bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-bold px-3 sm:px-4 py-2.5 rounded-xl transition-all hover:scale-[1.02] active:scale-95 shadow-[0_4px_15px_rgba(255,107,0,0.25)] text-sm"
+                    className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-bold px-3 sm:px-4 py-2.5 rounded-xl transition-all hover:scale-[1.02] active:scale-95 shadow-[0_4px_15px_rgba(255,107,0,0.25)] text-sm"
                   >
                     + Dodaj produkt
                   </button>
                   <button
                     onClick={() => setShowPublishModal(true)}
                     disabled={dropProducts.length === 0}
-                    className="flex items-center gap-2 bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/25 font-bold px-3 sm:px-4 py-2.5 rounded-xl transition-all hover:scale-[1.02] active:scale-95 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/25 font-bold px-3 sm:px-4 py-2.5 rounded-xl transition-all hover:scale-[1.02] active:scale-95 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <Zap className="w-4 h-4" />
                     Opublikuj drop ({dropProducts.length})
@@ -841,49 +826,63 @@ function AdminPage() {
                     else if (isDrop) currentCustomStatus = 'drop';
 
                     return (
-                      <div key={p.id} className="flex items-center gap-3 sm:gap-4 bg-[#141414] border border-neutral-800/80 rounded-2xl p-3 sm:p-4 hover:border-neutral-700 transition-all">
-                        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden bg-white/5 border border-neutral-800 flex-shrink-0">
-                          {p.images[0] ? <img src={p.images[0]} alt={p.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-neutral-600 text-xs">Brak</div>}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                            <span className="text-xs font-bold text-[#FF6B00] uppercase tracking-wider">{p.brand}</span>
-                            <span className="text-xs text-neutral-500">EU {p.size_eu}</span>
-                            {p.accessory_type && (
-                              <span className="text-xs text-neutral-400 bg-white/5 border border-neutral-800 px-2 py-0.5 rounded-full">
-                                {p.accessory_type}
-                              </span>
-                            )}
-                            <span className="text-xs font-bold text-neutral-300 bg-white/5 border border-neutral-700 px-2 py-0.5 rounded-full">
-                              Magazyn: {p.stock_quantity ?? 1} szt.
-                            </span>
-                            
-                            {isDraft && (
-                              <span className="text-xs text-neutral-400 bg-neutral-800 px-2 py-0.5 rounded-full flex items-center gap-1 font-medium">
-                                <FileText className="w-3 h-3" /> Szkic
-                              </span>
-                            )}
-
-                            {isDrop && (
-                              <span className="text-xs text-blue-400 bg-blue-400/10 border border-blue-400/20 px-2 py-0.5 rounded-full flex items-center gap-1 font-medium">
-                                <Clock className="w-3 h-3" /> W dropie: {new Date(p.drop_scheduled_at!).toLocaleString('pl-PL', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                              </span>
+                      <div 
+                        key={p.id} 
+                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#141414] border border-neutral-800/80 rounded-2xl p-3.5 sm:p-4 hover:border-neutral-700 transition-all"
+                      >
+                        {/* Górna część na mobile / Lewa strona na desktopie */}
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div className="w-16 h-16 sm:w-16 sm:h-16 rounded-xl overflow-hidden bg-white/5 border border-neutral-800 flex-shrink-0">
+                            {p.images[0] ? (
+                              <img src={p.images[0]} alt={p.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-neutral-600 text-xs">Brak</div>
                             )}
                           </div>
-                          <p className="font-semibold text-white text-sm truncate">{p.name}</p>
-                          <p className="text-sm font-bold text-white mt-0.5">{formatPrice(p.price)}</p>
+
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                              <span className="text-xs font-black text-[#FF6B00] uppercase tracking-wider">{p.brand}</span>
+                              <span className="text-xs text-neutral-400 font-medium">EU {p.size_eu}</span>
+                              {p.accessory_type && (
+                                <span className="text-[11px] text-neutral-400 bg-white/5 border border-neutral-800 px-2 py-0.5 rounded-full">
+                                  {p.accessory_type}
+                                </span>
+                              )}
+                              <span className="text-[11px] font-bold text-neutral-300 bg-white/5 border border-neutral-700 px-2 py-0.5 rounded-full">
+                                Magazyn: {p.stock_quantity ?? 1} szt.
+                              </span>
+                              
+                              {isDraft && (
+                                <span className="text-[11px] text-neutral-400 bg-neutral-800 px-2 py-0.5 rounded-full flex items-center gap-1 font-medium">
+                                  <FileText className="w-3 h-3" /> Szkic
+                                </span>
+                              )}
+
+                              {isDrop && (
+                                <span className="text-[11px] text-blue-400 bg-blue-400/10 border border-blue-400/20 px-2 py-0.5 rounded-full flex items-center gap-1 font-medium">
+                                  <Clock className="w-3 h-3" /> W dropie
+                                </span>
+                              )}
+                            </div>
+
+                            <p className="font-semibold text-white text-sm truncate leading-snug">{p.name}</p>
+                            <p className="text-sm font-bold text-white mt-0.5">{formatPrice(p.price)}</p>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
-                          <div className="relative">
+
+                        {/* Dolna belka akcji na mobile / Prawa strona na desktopie */}
+                        <div className="flex items-center justify-between sm:justify-end gap-2 pt-2.5 sm:pt-0 border-t sm:border-t-0 border-neutral-800/80 flex-shrink-0">
+                          <div className="relative flex-1 sm:flex-initial">
                             <select
                               value={currentCustomStatus}
                               onChange={(e) => handleQuickStatusChange(p.id, e.target.value as CustomProductStatus)}
                               className={cn(
-                                'appearance-none text-xs font-bold px-2 sm:px-3 py-2 pr-7 rounded-lg border cursor-pointer focus:outline-none transition-all [&>option]:bg-[#1a1a1a] [&>option]:text-neutral-100',
-                                currentCustomStatus === 'available' && 'text-emerald-400 border-emerald-400/30 bg-[#1a1a1a]',
-                                currentCustomStatus === 'draft' && 'text-neutral-300 border-neutral-700 bg-[#1a1a1a]',
-                                currentCustomStatus === 'drop' && 'text-blue-400 border-blue-400/30 bg-[#1a1a1a]',
-                                currentCustomStatus === 'sold' && 'text-red-400 border-red-400/30 bg-[#1a1a1a]',
+                                'w-full sm:w-auto appearance-none text-xs font-bold px-3 py-2 pr-8 rounded-xl border cursor-pointer focus:outline-none transition-all [&>option]:bg-[#1a1a1a] [&>option]:text-neutral-100',
+                                currentCustomStatus === 'available' && 'text-emerald-400 border-emerald-400/30 bg-emerald-500/10',
+                                currentCustomStatus === 'draft' && 'text-neutral-300 border-neutral-700 bg-neutral-800/50',
+                                currentCustomStatus === 'drop' && 'text-blue-400 border-blue-400/30 bg-blue-500/10',
+                                currentCustomStatus === 'sold' && 'text-red-400 border-red-400/30 bg-red-500/10',
                               )}
                             >
                               <option value="available">Dostępny</option>
@@ -891,14 +890,25 @@ function AdminPage() {
                               <option value="drop">W dropie</option>
                               <option value="sold">Wyprzedany (archiwum)</option>
                             </select>
-                            <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 pointer-events-none opacity-50" />
+                            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none opacity-60" />
                           </div>
-                          <button onClick={() => handleEdit(p)} className="p-2 text-neutral-500 hover:text-white bg-white/5 rounded-xl transition-all hover:bg-white/10 active:scale-90">
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => handleDelete(p.id)} className="p-2 text-neutral-500 hover:text-red-400 bg-white/5 rounded-xl transition-all hover:bg-red-400/10 active:scale-90">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            <button 
+                              onClick={() => handleEdit(p)} 
+                              className="p-2.5 text-neutral-400 hover:text-white bg-white/5 border border-neutral-800 rounded-xl transition-all active:scale-90"
+                              title="Edytuj"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={() => handleDelete(p.id)} 
+                              className="p-2.5 text-neutral-400 hover:text-red-400 bg-white/5 border border-neutral-800 rounded-xl transition-all hover:bg-red-400/10 active:scale-90"
+                              title="Usuń"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     );
@@ -961,7 +971,7 @@ function AdminPage() {
                                 : 'bg-white/5 text-neutral-400 hover:text-white'
                             )}
                           >
-                            <Package className="w-4 h-4" /> Akcesoria / Ochraniacze
+                            <Package className="w-4 h-4" /> Akcesoria
                           </button>
                         </div>
                       </div>
@@ -1012,7 +1022,6 @@ function AdminPage() {
                         <input className={inp} placeholder="np. Nike Mercurial Elite 1 of 1" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
                       </div>
                       
-                      {/* ROZDZIELONY WYBÓR ROZMIARU */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                           <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">
@@ -1517,7 +1526,6 @@ function AdminPage() {
                   </div>
                 )}
 
-                {/* Wybór wyróżnionego produktu do baneru */}
                 <div>
                   <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5 block">Wyróżniony produkt (do licznika na stronie głównej)</label>
                   <div className="relative">
