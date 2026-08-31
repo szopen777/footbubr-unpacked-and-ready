@@ -6,13 +6,9 @@ import { supabase, formatOrderNumber, Order, Product } from '@/lib/supabase';
 import { formatPrice } from '@/lib/utils';
 import { 
   Search, 
-  Package, 
   Truck, 
-  CheckCircle2, 
-  Clock, 
   AlertCircle, 
   ExternalLink,
-  MapPin,
   ArrowLeft
 } from 'lucide-react';
 
@@ -28,14 +24,14 @@ export const Route = createFileRoute('/track-order')({
 
 const STATUS_MAP: Record<string, { label: string; color: string; step: number; desc: string }> = {
   nowe: { label: 'Nowe', color: 'text-neutral-400 bg-neutral-800', step: 1, desc: 'Zamówienie zarejestrowane w systemie.' },
-  oplacone: { label: 'Opłacone', color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30', step: 2, desc: 'Płatność zaksięgowana. Przygotowujemy paczkę.' },
-  paid: { label: 'Opłacone', color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30', step: 2, desc: 'Płatność zaksięgowana. Przygotowujemy paczkę.' },
-  'w realizacji': { label: 'W realizacji', color: 'text-amber-400 bg-amber-500/10 border-amber-500/30', step: 3, desc: 'Paczka jest właśnie kompletowana i pakowana.' },
-  processing: { label: 'W realizacji', color: 'text-amber-400 bg-amber-500/10 border-amber-500/30', step: 3, desc: 'Paczka jest właśnie kompletowana i pakowana.' },
-  wyslane: { label: 'Wysłane', color: 'text-[#FF6B00] bg-[#FF6B00]/10 border-[#FF6B00]/30', step: 4, desc: 'Przesyłka przekazana kurierowi InPost.' },
-  shipped: { label: 'Wysłane', color: 'text-[#FF6B00] bg-[#FF6B00]/10 border-[#FF6B00]/30', step: 4, desc: 'Przesyłka przekazana kurierowi InPost.' },
-  zakonczone: { label: 'Dostarczone', color: 'text-emerald-400 bg-emerald-500/20 border-emerald-500/40', step: 5, desc: 'Paczka doręczona do odbiorcy.' },
-  delivered: { label: 'Dostarczone', color: 'text-emerald-400 bg-emerald-500/20 border-emerald-500/40', step: 5, desc: 'Paczka doręczona do odbiorcy.' },
+  oplacone: { label: 'Opłacone', color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30', step: 1, desc: 'Płatność zaksięgowana. Przygotowujemy paczkę.' },
+  paid: { label: 'Opłacone', color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30', step: 1, desc: 'Płatność zaksięgowana. Przygotowujemy paczkę.' },
+  'w realizacji': { label: 'W realizacji', color: 'text-amber-400 bg-amber-500/10 border-amber-500/30', step: 2, desc: 'Paczka jest właśnie kompletowana i pakowana.' },
+  processing: { label: 'W realizacji', color: 'text-amber-400 bg-amber-500/10 border-amber-500/30', step: 2, desc: 'Paczka jest właśnie kompletowana i pakowana.' },
+  wyslane: { label: 'Wysłane', color: 'text-[#FF6B00] bg-[#FF6B00]/10 border-[#FF6B00]/30', step: 3, desc: 'Przesyłka przekazana kurierowi InPost.' },
+  shipped: { label: 'Wysłane', color: 'text-[#FF6B00] bg-[#FF6B00]/10 border-[#FF6B00]/30', step: 3, desc: 'Przesyłka przekazana kurierowi InPost.' },
+  zakonczone: { label: 'Dostarczone', color: 'text-emerald-400 bg-emerald-500/20 border-emerald-500/40', step: 4, desc: 'Paczka doręczona do odbiorcy.' },
+  delivered: { label: 'Dostarczone', color: 'text-emerald-400 bg-emerald-500/20 border-emerald-500/40', step: 4, desc: 'Paczka doręczona do odbiorcy.' },
   anulowane: { label: 'Anulowane', color: 'text-rose-400 bg-rose-500/10 border-rose-500/30', step: 0, desc: 'Zamówienie zostało anulowane.' },
 };
 
@@ -166,22 +162,52 @@ function TrackOrderPage() {
               </div>
             </div>
 
-            {/* Wizualny pasek postępu */}
+            {/* Wizualny pasek postępu z precyzyjnym stepperem */}
             {statusInfo.step > 0 && (
-              <div className="py-2">
-                <div className="grid grid-cols-4 gap-2 mb-2 text-center text-[10px] sm:text-xs font-bold uppercase">
-                  <span className={statusInfo.step >= 2 ? 'text-white' : 'text-neutral-600'}>1. Opłacone</span>
-                  <span className={statusInfo.step >= 3 ? 'text-white' : 'text-neutral-600'}>2. Pakowanie</span>
-                  <span className={statusInfo.step >= 4 ? 'text-white' : 'text-neutral-600'}>3. Wysłane</span>
-                  <span className={statusInfo.step >= 5 ? 'text-emerald-400' : 'text-neutral-600'}>4. Doręczone</span>
+              <div className="py-4">
+                {/* Etykiety kroków */}
+                <div className="grid grid-cols-4 text-center text-[10px] sm:text-xs font-bold uppercase mb-3">
+                  <span className={statusInfo.step >= 1 ? 'text-white' : 'text-neutral-600'}>
+                    1. Opłacone
+                  </span>
+                  <span className={statusInfo.step >= 2 ? 'text-white' : 'text-neutral-600'}>
+                    2. Pakowanie
+                  </span>
+                  <span className={statusInfo.step >= 3 ? 'text-white' : 'text-neutral-600'}>
+                    3. Wysłane
+                  </span>
+                  <span className={statusInfo.step >= 4 ? 'text-emerald-400' : 'text-neutral-600'}>
+                    4. Doręczone
+                  </span>
                 </div>
-                <div className="w-full bg-neutral-800 h-2 rounded-full overflow-hidden flex">
-                  <div
-                    className="bg-[#FF6B00] h-full transition-all duration-500"
-                    style={{ width: `${Math.min(100, Math.max(10, ((statusInfo.step - 1) / 3) * 100))}%` }}
-                  />
+
+                {/* Pasek postępu (margines 12.5% wyrównuje do środków kolumn) */}
+                <div className="relative mx-[12.5%] my-2">
+                  <div className="w-full bg-neutral-800 h-1.5 rounded-full overflow-hidden">
+                    <div
+                      className="bg-[#FF6B00] h-full transition-all duration-500"
+                      style={{
+                        width: `${((Math.min(statusInfo.step, 4) - 1) / 3) * 100}%`,
+                      }}
+                    />
+                  </div>
+
+                  {/* Kropki na osi */}
+                  <div className="absolute top-1/2 -translate-y-1/2 left-0 w-full flex justify-between pointer-events-none">
+                    {[1, 2, 3, 4].map((stepNum) => (
+                      <div
+                        key={stepNum}
+                        className={`w-3.5 h-3.5 rounded-full border-2 transition-all duration-300 ${
+                          statusInfo.step >= stepNum
+                            ? 'bg-[#FF6B00] border-[#141414] scale-110 shadow-[0_0_8px_rgba(255,107,0,0.6)]'
+                            : 'bg-neutral-800 border-neutral-700'
+                        }`}
+                      />
+                    ))}
+                  </div>
                 </div>
-                <p className="text-xs text-neutral-400 text-center mt-3">{statusInfo.desc}</p>
+
+                <p className="text-xs text-neutral-400 text-center mt-4">{statusInfo.desc}</p>
               </div>
             )}
 
