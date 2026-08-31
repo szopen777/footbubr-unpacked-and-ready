@@ -3,7 +3,11 @@ import { supabase, Product } from '@/lib/supabase';
 import Header from '@/components/Header';
 import CartDrawer from '@/components/CartDrawer';
 import { cn, formatPrice, SURFACE_LABELS, CONDITION_COLORS } from '@/lib/utils';
-import { ShoppingBag, ArrowLeft, CircleAlert as AlertCircle, Package, CircleCheck as CheckCircle2, Circle as XCircle, ChevronLeft, ChevronRight, Loader as Loader2, ZoomIn, Zap, Ruler, ShieldCheck, Truck, Lock, Plus, Minus } from 'lucide-react';
+import { 
+  ShoppingBag, ArrowLeft, CircleAlert as AlertCircle, Package, 
+  CircleCheck as CheckCircle2, Circle as XCircle, ChevronLeft, ChevronRight, 
+  Loader as Loader2, ZoomIn, Zap, Ruler, ShieldCheck, Truck, Lock, Plus, Minus 
+} from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
 import { Link, useNavigate, createFileRoute } from '@tanstack/react-router';
 import { toast } from 'sonner';
@@ -86,6 +90,13 @@ function ProductPage() {
     <div className="min-h-screen">
       <Header />
       <CartDrawer />
+
+      {/* Modal z tabelą rozmiarów */}
+      <SizeChartModal 
+        isOpen={showSizeChart} 
+        onClose={() => setShowSizeChart(false)} 
+        initialBrand={product.brand}
+      />
 
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-6 sm:py-8">
         <div className="flex items-center gap-2 mb-6 text-sm text-neutral-500 animate-fade-in overflow-hidden">
@@ -196,8 +207,18 @@ function ProductPage() {
 
             {/* Tabela specyfikacji */}
             <div className="bg-[#141414] rounded-2xl border border-neutral-800/80 overflow-hidden">
-              <div className="px-4 py-3 border-b border-neutral-800">
+              <div className="px-4 py-3 border-b border-neutral-800 flex items-center justify-between">
                 <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider">Specyfikacja</h3>
+                {!isAccessory && (
+                  <button
+                    type="button"
+                    onClick={() => setShowSizeChart(true)}
+                    className="flex items-center gap-1.5 text-xs font-bold text-[#FF6B00] hover:text-[#FF7A00] transition-colors active:scale-95"
+                  >
+                    <Ruler className="w-3.5 h-3.5" />
+                    Tabela rozmiarów
+                  </button>
+                )}
               </div>
               <div className="divide-y divide-neutral-800/60">
                 {[
