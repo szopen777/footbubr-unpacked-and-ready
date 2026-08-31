@@ -7,7 +7,7 @@ import {
   Package, ShoppingCart, LogOut, Eye, EyeOff, Loader as Loader2, Trash2, 
   CreditCard as Edit2, X, Check, CircleAlert as AlertCircle, ArrowLeft, 
   ChevronDown, Zap, Calendar, Menu, Sparkles, Copy, Truck, MapPin, 
-  Plus, Minus, FileText, Clock, Layers, Upload, Footprints 
+  Plus, Minus, FileText, Clock, Layers, Upload, Footprints, Tag 
 } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 import type { Database } from '@/integrations/supabase/types';
@@ -15,10 +15,19 @@ import type { Database } from '@/integrations/supabase/types';
 type ProductInsert = Database['public']['Tables']['products']['Insert'];
 type ProductUpdate = Database['public']['Tables']['products']['Update'];
 
-type View = 'products' | 'orders' | 'drop-settings';
+type View = 'products' | 'orders' | 'drop-settings' | 'discounts';
 type CustomProductStatus = 'available' | 'draft' | 'drop' | 'sold';
 type DropTypeChoice = 'global' | 'custom';
 type ProductTypeChoice = 'boot' | 'accessory';
+
+interface DiscountCode {
+  id: string;
+  code: string;
+  discount_type: 'percentage' | 'fixed';
+  discount_value: number;
+  uses_left: number;
+  created_at: string;
+}
 
 const ADMIN_PASSWORD = '123';
 
@@ -80,6 +89,7 @@ function AdminPage() {
   const [view, setView] = useState<View>('products');
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<(Order & { product?: Product })[]>([]);
+  const [discounts, setDiscounts] = useState<DiscountCode[]>([]);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState<ProductForm>(EMPTY_BOOT_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -105,6 +115,13 @@ function AdminPage() {
   });
   const [savingSettings, setSavingSettings] = useState(false);
 
+  // Kody rabatowe - formularz
+  const [newCodeName, setNewCodeName] = useState('');
+  const [newCodeType, setNewCodeType] = useState<'percentage' | 'fixed'>('percentage');
+  const [newCodeValue, setNewCodeValue] = useState('');
+  const [newCodeUses, setNewCodeUses] = useState('10');
+  const [creatingDiscount, setCreatingDiscount] = useState(false);
+
   const availableProducts = products.filter((p) => p.status === 'available');
   const draftProducts = products.filter((p) => p.status === 'draft' && !p.drop_scheduled_at);
   const dropProducts = products.filter((p) => p.status === 'draft' && p.drop_scheduled_at !== null);
@@ -128,6 +145,52 @@ function AdminPage() {
     const { data } = await supabase.from('products').select('*').order('created_at', { ascending: false });
     if (data) setProducts(data as Product[]);
     setLoading(false);
+  };
+
+  const loadDiscounts = async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from('discount_codes')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (data) setDiscounts(data as DiscountCode[]);
+    setLoading(false);
+  };
+
+  const handleCreateDiscount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCodeName.trim() || !newCodeValue) return;
+
+    setCreatingDiscount(true);
+    const { error } = await supabase.from('discount_codes').insert({
+      code: newCodeName.trim().toUpperCase(),
+      discount_type: newCodeType,
+      discount_value: parseFloat(newCodeValue),
+      uses_left: parseInt(newCodeUses, 10) || 1,
+    });
+
+    setCreatingDiscount(false);
+    if (error) {
+      showToast(`Błąd: ${error.message}`);
+      return;
+    }
+
+    showToast('Kod rabatowy dodany!');
+    setNewCodeName('');
+    setNewCodeValue('');
+    setNewCodeUses('10');
+    await loadDiscounts();
+  };
+
+  const handleDeleteDiscount = async (id: string) => {
+    if (!confirm('Na pewno chcesz usunąć ten kod?')) return;
+    const { error } = await supabase.from('discount_codes').delete().eq('id', id);
+    if (error) {
+      showToast(`Błąd: ${error.message}`);
+      return;
+    }
+    showToast('Kod został usunięty');
+    await loadDiscounts();
   };
 
   const handleOrderStatusChange = async (orderId: string, status: string) => {
@@ -189,12 +252,6 @@ function AdminPage() {
   const openOrderDetail = (order: Order & { product?: Product }) => {
     setSelectedOrder(order);
     setOrderTrackingInput(order.tracking_number || '');
-  };
-
-  const copyToClipboard = (text: string, label: string) => {
-    navigator.clipboard.writeText(text).then(() => {
-      showToast(`Skopiowano: ${label}`);
-    });
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -344,7 +401,7 @@ function AdminPage() {
   useEffect(() => {
     if (!authed) return;
     const boot = async () => {
-      await Promise.all([loadProducts(), loadOrders(), loadDropSettings()]);
+      await Promise.all([loadProducts(), loadOrders(), loadDropSettings(), loadDiscounts()]);
     };
     boot();
   }, [authed]);
@@ -633,7 +690,16 @@ function AdminPage() {
               <Link to="/" className="font-black text-lg text-white uppercase">Foot<span className="text-[#FF6B00]">Bubr</span></Link>
               <button onClick={() => setSidebarOpen(false)} className="p-1 text-neutral-500 hover:text-white"><X className="w-5 h-5" /></button>
             </div>
-            <AdminNav view={view} setView={(v) => { setView(v); setSidebarOpen(false); }} setForm={setForm} setEditingId={setEditingId} productsCount={products.length} ordersCount={orders.length} onLogout={() => setAuthed(false)} />
+            <AdminNav 
+              view={view} 
+              setView={(v) => { setView(v); setSidebarOpen(false); }} 
+              setForm={setForm} 
+              setEditingId={setEditingId} 
+              productsCount={products.length} 
+              ordersCount={orders.length}
+              discountsCount={discounts.length}
+              onLogout={() => setAuthed(false)} 
+            />
           </aside>
         </>
       )}
@@ -646,7 +712,16 @@ function AdminPage() {
             </Link>
             <p className="text-xs text-neutral-600 mt-0.5">Panel admina</p>
           </div>
-          <AdminNav view={view} setView={setView} setForm={setForm} setEditingId={setEditingId} productsCount={products.length} ordersCount={orders.length} onLogout={() => setAuthed(false)} />
+          <AdminNav 
+            view={view} 
+            setView={setView} 
+            setForm={setForm} 
+            setEditingId={setEditingId} 
+            productsCount={products.length} 
+            ordersCount={orders.length}
+            discountsCount={discounts.length}
+            onLogout={() => setAuthed(false)} 
+          />
         </aside>
 
         <main className="lg:ml-56 flex-1 p-4 sm:p-6 lg:p-8 min-w-0">
@@ -1445,6 +1520,123 @@ function AdminPage() {
               </div>
             </div>
           )}
+
+          {/* ZAKŁADKA KODY RABATOWE */}
+          {view === 'discounts' && (
+            <div className="animate-fade-in max-w-4xl space-y-6">
+              <div>
+                <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">Kody rabatowe</h2>
+                <p className="text-neutral-500 text-sm">{discounts.length} aktywnych kodów</p>
+              </div>
+
+              {/* Formularz tworzenia kodu */}
+              <form onSubmit={handleCreateDiscount} className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-5 sm:p-6 space-y-4">
+                <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider">Stwórz nowy kod</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+                  <div>
+                    <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Nazwa kodu *</label>
+                    <input
+                      className={cn(inp, 'uppercase font-mono')}
+                      placeholder="np. TIKTOK10"
+                      value={newCodeName}
+                      onChange={(e) => setNewCodeName(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Typ rabatu</label>
+                    <div className="relative">
+                      <select
+                        className={sel}
+                        value={newCodeType}
+                        onChange={(e) => setNewCodeType(e.target.value as any)}
+                      >
+                        <option value="percentage">Procentowy (%)</option>
+                        <option value="fixed">Kwotowy (PLN)</option>
+                      </select>
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">
+                      Wartość ({newCodeType === 'percentage' ? '%' : 'PLN'}) *
+                    </label>
+                    <input
+                      className={inp}
+                      type="number"
+                      placeholder={newCodeType === 'percentage' ? '15' : '20'}
+                      value={newCodeValue}
+                      onChange={(e) => setNewCodeValue(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Limit użyć (szt.) *</label>
+                    <input
+                      className={inp}
+                      type="number"
+                      min="1"
+                      placeholder="10"
+                      value={newCodeUses}
+                      onChange={(e) => setNewCodeUses(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+                <button
+                  type="submit"
+                  disabled={creatingDiscount || !newCodeName || !newCodeValue}
+                  className="flex items-center gap-2 bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-black px-5 py-2.5 rounded-xl transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-40 text-sm shadow-[0_4px_15px_rgba(255,107,0,0.25)]"
+                >
+                  {creatingDiscount ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                  Dodaj kod
+                </button>
+              </form>
+
+              {/* Lista kodów */}
+              {loading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-6 h-6 text-[#FF6B00] animate-spin" />
+                </div>
+              ) : discounts.length === 0 ? (
+                <div className="text-center py-12 text-neutral-600">
+                  <Tag className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                  <p>Brak aktywnych kodów rabatowych</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {discounts.map((d) => (
+                    <div key={d.id} className="flex items-center justify-between p-4 bg-[#141414] border border-neutral-800/80 rounded-2xl hover:border-neutral-700 transition-all">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-[#FF6B00]/10 border border-[#FF6B00]/20 rounded-xl flex items-center justify-center text-[#FF6B00]">
+                          <Tag className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="font-mono font-bold text-white tracking-wider">{d.code}</p>
+                          <p className="text-xs text-neutral-400">
+                            Zniżka: <span className="text-[#FF6B00] font-bold">{d.discount_type === 'percentage' ? `-${d.discount_value}%` : `-${d.discount_value} PLN`}</span>
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-bold text-neutral-300 bg-white/5 border border-neutral-800 px-3 py-1 rounded-full">
+                          Zostało: {d.uses_left} użyć
+                        </span>
+                        <button
+                          onClick={() => handleDeleteDiscount(d.id)}
+                          className="p-2 text-neutral-500 hover:text-red-400 bg-white/5 hover:bg-red-400/10 rounded-xl transition-all active:scale-90"
+                          title="Usuń kod"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </main>
       </div>
     </div>
@@ -1452,7 +1644,7 @@ function AdminPage() {
 }
 
 function AdminNav({
-  view, setView, setForm, setEditingId, productsCount, ordersCount, onLogout,
+  view, setView, setForm, setEditingId, productsCount, ordersCount, discountsCount, onLogout,
 }: {
   view: View;
   setView: (v: View) => void;
@@ -1460,6 +1652,7 @@ function AdminNav({
   setEditingId: (id: string | null) => void;
   productsCount: number;
   ordersCount: number;
+  discountsCount: number;
   onLogout: () => void;
 }) {
   return (
@@ -1484,6 +1677,13 @@ function AdminNav({
           className={cn('flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-medium transition-all active:scale-95', view === 'drop-settings' ? 'bg-[#FF6B00]/15 text-[#FF6B00]' : 'text-neutral-400 hover:text-white hover:bg-white/5')}
         >
           <Sparkles className="w-4 h-4" /> Ustawienia dropu
+        </button>
+        <button
+          onClick={() => setView('discounts')}
+          className={cn('flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-medium transition-all active:scale-95', view === 'discounts' ? 'bg-[#FF6B00]/15 text-[#FF6B00]' : 'text-neutral-400 hover:text-white hover:bg-white/5')}
+        >
+          <Tag className="w-4 h-4" /> Kody rabatowe
+          <span className="ml-auto text-xs bg-white/10 text-neutral-400 px-1.5 py-0.5 rounded-full">{discountsCount}</span>
         </button>
       </nav>
       <div className="p-3 border-t border-neutral-800/80">
