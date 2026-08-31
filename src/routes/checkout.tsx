@@ -9,7 +9,6 @@ import CartDrawer from '@/components/CartDrawer';
 import { ArrowLeft, Package, Truck, CreditCard, CircleCheck as CheckCircle2, Loader as Loader2, MapPin, Tag, X, Check, CircleAlert as AlertCircle } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 
-// Deklaracja dla niestandardowego elementu HTML InPost
 declare global {
   namespace JSX {
     interface IntrinsicElements {
@@ -50,7 +49,6 @@ function CheckoutPage() {
   const shippingCost = shippingCostFor(form.shippingMethod, discountedTotal);
   const orderTotal = discountedTotal + shippingCost;
 
-  // Inicjalizacja oficjalnego skryptu mapy InPost Geowidget v5
   useEffect(() => {
     if (!document.getElementById('inpost-geowidget-css')) {
       const link = document.createElement('link');
@@ -185,7 +183,6 @@ function CheckoutPage() {
           if (appliedPromo.discount_type === 'percentage') {
             itemPrice = Math.round(product.price * (1 - appliedPromo.discount_value / 100));
           } else {
-            // proporcjonalny podział rabatu kwotowego
             const ratio = (product.price * quantity) / (total || 1);
             itemPrice = Math.max(0, product.price - Math.round((appliedPromo.discount_value * ratio) / quantity));
           }
@@ -239,7 +236,6 @@ function CheckoutPage() {
         }
       }
 
-      // Zmniejszenie limitu użyć wykorzystanego kodu rabatowego
       if (appliedPromo && appliedPromo.id) {
         const newUses = Math.max(0, appliedPromo.uses_left - 1);
         await supabase
@@ -308,7 +304,6 @@ function CheckoutPage() {
       <Header />
       <CartDrawer />
 
-      {/* Oficjalny modal z interaktywną mapą InPost Geowidget v5 */}
       {showInpostMap && (
         <div className="fixed inset-0 z-[200] bg-black/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-6 animate-fade-in">
           <div className="bg-[#141414] border border-neutral-800 rounded-2xl w-full max-w-4xl h-[85vh] flex flex-col shadow-2xl overflow-hidden relative">
