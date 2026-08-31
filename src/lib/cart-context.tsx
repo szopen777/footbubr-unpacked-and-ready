@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase, Product } from '@/lib/supabase';
 
 export interface CartItem {
@@ -37,11 +37,57 @@ interface CartContextValue {
 
 const CartContext = createContext<CartContextValue | null>(null);
 
+const CART_STORAGE_KEY = 'footbubr_cart';
+const PROMO_STORAGE_KEY = 'footbubr_promo';
+
 export function CartProvider({ children }: { children: React.ReactNode }) {
-  const [items, setItems] = useState<CartItem[]>([]);
+  // Inicjalizacja koszyka z localStorage
+  const [items, setItems] = useState<CartItem[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const saved = localStorage.getItem(CART_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
   const [isOpen, setIsOpen] = useState(false);
-  const [appliedPromo, setAppliedPromo] = useState<AppliedPromo | null>(null);
+
+  // Inicjalizacja kodu rabatowego z localStorage
+  const [appliedPromo, setAppliedPromo] = useState<AppliedPromo | null>(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const saved = localStorage.getItem(PROMO_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
   const [cartPulse, setCartPulse] = useState(false);
+
+  // Automatyczny zapis koszyka
+  useEffect(() => {
+    try {
+      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+    } catch (e) {
+      console.error('Błąd zapisu koszyka do localStorage:', e);
+    }
+  }, [items]);
+
+  // Automatyczny zapis kodu promocyjnego
+  useEffect(() => {
+    try {
+      if (appliedPromo) {
+        localStorage.setItem(PROMO_STORAGE_KEY, JSON.stringify(appliedPromo));
+      } else {
+        localStorage.removeItem(PROMO_STORAGE_KEY);
+      }
+    } catch (e) {
+      console.error('Błąd zapisu promo do localStorage:', e);
+    }
+  }, [appliedPromo]);
 
   const triggerPulse = useCallback(() => {
     setCartPulse(true);
@@ -100,6 +146,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const clearCart = useCallback(() => {
     setItems([]);
     setAppliedPromo(null);
+    try {
+      localStorage.removeItem(CART_STORAGE_KEY);
+      localStorage.removeItem(PROMO_STORAGE_KEY);
+    } catch {}
   }, []);
 
   // Odpytanie Supabase o kod rabatowy
@@ -129,7 +179,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const removePromo = useCallback(() => setAppliedPromo(null), []);
+  const removePromo = useCallback(() => {
+    setAppliedPromo(null);
+    try {
+      localStorage.removeItem(PROMO_STORAGE_KEY);
+    } catch {}
+  }, []);
 
   const total = items.reduce((sum, i) => sum + (i.product.price || 0) * i.quantity, 0);
 
