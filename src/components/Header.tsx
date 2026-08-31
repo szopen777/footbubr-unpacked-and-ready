@@ -17,12 +17,12 @@ export default function Header({ searchValue = '', onSearchChange }: HeaderProps
 
   return (
     <header className="sticky top-0 z-40 bg-[#0a0a0a]/95 backdrop-blur-xl border-b border-neutral-800/80">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-18 sm:h-20 md:h-22 gap-3 sm:gap-6">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-18 sm:h-20 md:h-22 gap-2 sm:gap-6 py-1">
           
-          {/* Logo FootBubr — idealnie wyśrodkowane i dopasowane bez nachodzenia */}
-          <Link to="/" className="flex items-center gap-3 sm:gap-3.5 flex-shrink-0 group py-1">
-            <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 flex items-center justify-center transition-transform group-hover:scale-105 duration-200 flex-shrink-0">
+          {/* Logo FootBubr — duże na telefonie, dopasowane i czytelne na komputerze */}
+          <Link to="/" className="flex items-center gap-2.5 sm:gap-3.5 flex-shrink-0 group py-1">
+            <div className="w-14 h-14 sm:w-14 sm:h-14 md:w-16 md:h-16 flex items-center justify-center transition-transform group-hover:scale-105 duration-200 flex-shrink-0">
               <img 
                 src={logoPng} 
                 alt="FootBubr Logo" 
@@ -49,7 +49,7 @@ export default function Header({ searchValue = '', onSearchChange }: HeaderProps
           </div>
 
           {/* Przyciski akcji */}
-          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
             {/* Przycisk wyszukiwarki na telefonie */}
             <button
               onClick={() => setSearchOpenMobile(!searchOpenMobile)}
@@ -78,7 +78,7 @@ export default function Header({ searchValue = '', onSearchChange }: HeaderProps
             <button
               onClick={openCart}
               className={cn(
-                'relative flex items-center justify-center gap-1.5 bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-black text-xs sm:text-sm px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl transition-all hover:scale-105 active:scale-95 shadow-[0_4px_15px_rgba(255,107,0,0.25)]',
+                'relative flex items-center justify-center gap-1.5 bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-black text-xs sm:text-sm px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl transition-all hover:scale-105 active:scale-95 shadow-[0_4px_15px_rgba(255,107,0,0.25)]',
                 cartPulse && 'animate-cart-pulse'
               )}
               aria-label="Koszyk"
