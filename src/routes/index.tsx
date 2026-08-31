@@ -9,6 +9,10 @@ import FilterSidebar, { FilterState, SortOption } from '@/components/FilterSideb
 import DropCountdownBanner, { Countdown, calculateCountdown } from '@/components/DropCountdownBanner';
 import { Zap, Package2, ShieldCheck, Loader as Loader2, ChevronDown } from 'lucide-react';
 
+// Bezpośrednie importy grafik z folderu public
+import cleatLeft from '/cleat-left.png';
+import cleatRight from '/cleat-right.png';
+
 const DEFAULT_FILTERS: FilterState = {
   category: 'all',
   sizes: [],
@@ -232,25 +236,25 @@ function HomePage() {
         <div className="absolute inset-0 bg-gradient-to-br from-[#FF6B00]/10 via-transparent to-transparent" />
         <div className="absolute inset-0 bg-radial-grid opacity-50" />
 
-        {/* But lewy (Predator) — widoczny od lg w górę */}
+        {/* But lewy (Predator) */}
         <div className="hidden lg:block absolute left-2 xl:left-12 2xl:left-24 top-1/2 -translate-y-1/2 w-64 xl:w-80 pointer-events-none select-none z-10">
           <div className="relative animate-float-left">
             <div className="absolute inset-0 bg-[#FF6B00]/20 blur-3xl rounded-full scale-75" />
             <img
-              src="/hero-cleat-left.png"
-              alt="Adidas Predator"
+              src={cleatLeft}
+              alt="Predator Cleat"
               className="relative w-full h-auto object-contain drop-shadow-[0_25px_40px_rgba(0,0,0,0.95)]"
             />
           </div>
         </div>
 
-        {/* But prawy (Podeszwa Nike Air Zoom) — widoczny od lg w górę */}
+        {/* But prawy (Podeszwa) */}
         <div className="hidden lg:block absolute right-2 xl:right-12 2xl:right-24 top-1/2 -translate-y-1/2 w-72 xl:w-96 pointer-events-none select-none z-10">
           <div className="relative animate-float-right">
             <div className="absolute inset-0 bg-[#FF6B00]/20 blur-3xl rounded-full scale-75" />
             <img
-              src="/hero-cleat-right.png"
-              alt="Nike Air Zoom Cleat Sole"
+              src={cleatRight}
+              alt="Cleat Sole"
               className="relative w-full h-auto object-contain drop-shadow-[0_25px_40px_rgba(0,0,0,0.95)]"
             />
           </div>
