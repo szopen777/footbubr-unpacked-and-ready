@@ -248,7 +248,7 @@ function HomePage() {
               <span className="text-[#FF6B00]">dropach 1 of 1</span>
             </h1>
             <p className="text-neutral-400 text-base sm:text-lg leading-relaxed mb-6 sm:mb-8 max-w-xl mx-auto animate-fade-in-up delay-200">
-              Każda para to unikat. Gdy sprzedana — znika na zawsze. Nie przegap swojego rozmiaru.
+              Każda para to unikat. Nie przegap swojego rozmiaru.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 text-xs sm:text-sm text-neutral-500 animate-fade-in-up delay-300">
               <div className="flex items-center gap-1.5">
@@ -257,7 +257,7 @@ function HomePage() {
               </div>
               <div className="flex items-center gap-1.5">
                 <ShieldCheck className="w-4 h-4 text-[#FF6B00]" />
-                Weryfikacja autentyczności
+                Oryginalne pary
               </div>
               <div className="flex items-center gap-1.5">
                 <Zap className="w-4 h-4 text-[#FF6B00]" />
