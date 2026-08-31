@@ -17,6 +17,13 @@ declare global {
   }
 }
 
+function formatPhoneNumber(val: string): string {
+  const digits = val.replace(/\D/g, '').slice(0, 9);
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6) return `${digits.slice(0, 3)} ${digits.slice(3)}`;
+  return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
+}
+
 function CheckoutPage() {
   const { items, total, discountedTotal, discountAmount, promoCode, appliedPromo, applyPromo, removePromo, clearCart } = useCart();
   const [step, setStep] = useState<'summary' | 'success'>('summary');
@@ -30,7 +37,7 @@ function CheckoutPage() {
     firstName: '',
     lastName: '',
     email: '',
-    phone: '', // Przechowuje czyste 9 cyfr
+    phone: '',
     shippingMethod: 'paczkomat' as 'paczkomat' | 'kurier',
     paczkomatCode: '',
     address: '',
@@ -397,21 +404,20 @@ function CheckoutPage() {
                   {errors.email && <p className="text-red-400 text-xs mt-1">{errors.email}</p>}
                 </div>
                 <div>
-                  {/* Zablokowany prefiks +48 i pole na 9 cyfr */}
-                  <div className="relative flex rounded-xl overflow-hidden border border-neutral-800 bg-white/5 focus-within:border-[#FF6B00]/60 transition-all">
-                    <span className="inline-flex items-center px-3.5 bg-neutral-900 border-r border-neutral-800 text-xs font-bold text-neutral-400 select-none">
-                      🇵🇱 +48
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-medium text-neutral-500 pointer-events-none select-none">
+                      +48
                     </span>
                     <input
-                      className="w-full bg-transparent px-3 py-2.5 text-sm text-neutral-100 placeholder:text-neutral-500 focus:outline-none font-mono"
+                      className={`${inp} pl-12 font-mono tracking-wide`}
                       placeholder="123 456 789 *"
                       type="tel"
                       inputMode="numeric"
-                      maxLength={9}
-                      value={form.phone}
+                      maxLength={11}
+                      value={formatPhoneNumber(form.phone)}
                       onChange={(e) => {
-                        const val = e.target.value.replace(/\D/g, '').slice(0, 9);
-                        setForm({ ...form, phone: val });
+                        const rawDigits = e.target.value.replace(/\D/g, '').slice(0, 9);
+                        setForm({ ...form, phone: rawDigits });
                         if (errors.phone) setErrors({ ...errors, phone: '' });
                       }}
                     />
