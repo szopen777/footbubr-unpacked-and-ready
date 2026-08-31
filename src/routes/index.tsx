@@ -8,6 +8,7 @@ import ProductCard from '@/components/ProductCard';
 import FilterSidebar, { FilterState, SortOption } from '@/components/FilterSidebar';
 import DropCountdownBanner, { Countdown, calculateCountdown } from '@/components/DropCountdownBanner';
 import { Zap, Package2, ShieldCheck, Loader as Loader2, ChevronDown } from 'lucide-react';
+import logoPng from '/logoPNG.png';
 
 const DEFAULT_FILTERS: FilterState = {
   category: 'all',
@@ -176,12 +177,9 @@ function HomePage() {
 
       // 3. Jeśli to akcesorium:
       if (isAccessory) {
-        // Jeśli zaznaczono markę butów (np. Nike), a to akcesorium FOOTBUBR -> ukryj
         if (filters.brands?.length > 0) return false;
-        // Jeśli zaznaczono rozmiar, poziom, nawierzchnię lub stan -> ukryj akcesoria (bo ich nie dotyczą)
         if (filters.sizes?.length || filters.levels?.length || filters.surfaces?.length || filters.conditions?.length) return false;
 
-        // Filtrowanie po konkretnym typie akcesorium
         if (filters.accessoryTypes?.length) {
           const matchesType = filters.accessoryTypes.some((type) => {
             const target = type.toLowerCase();
@@ -196,7 +194,6 @@ function HomePage() {
       } 
       // 4. Jeśli to but (korki):
       else {
-        // Jeśli wybrano jakikolwiek filtr akcesoriów, schowaj buty
         if (filters.accessoryTypes?.length > 0) return false;
 
         if (filters.sizes?.length && !filters.sizes.includes(p.size_eu)) return false;
@@ -236,6 +233,32 @@ function HomePage() {
         <div className="absolute inset-0 bg-gradient-to-br from-[#FF6B00]/8 via-transparent to-transparent" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-[#FF6B00]/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
         <div className="absolute inset-0 bg-radial-grid opacity-50" />
+        
+        {/* Pływające / spadające elementy po prawej stronie na ekranach komputera */}
+        <div className="hidden lg:block absolute right-4 xl:right-16 top-0 bottom-0 w-80 pointer-events-none overflow-hidden select-none">
+          <div className="absolute right-8 -top-24 w-44 animate-cleat-fall-1">
+            <img
+              src={logoPng}
+              alt=""
+              className="w-full h-auto object-contain invert opacity-60 drop-shadow-[0_15px_30px_rgba(255,107,0,0.25)]"
+            />
+          </div>
+          <div className="absolute right-28 -top-32 w-32 animate-cleat-fall-2">
+            <img
+              src={logoPng}
+              alt=""
+              className="w-full h-auto object-contain invert opacity-30 blur-[1px] -rotate-12"
+            />
+          </div>
+          <div className="absolute right-4 -top-20 w-36 animate-cleat-fall-3">
+            <img
+              src={logoPng}
+              alt=""
+              className="w-full h-auto object-contain invert opacity-50 drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)] rotate-45"
+            />
+          </div>
+        </div>
+
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-24 relative">
           <div className="max-w-2xl mx-auto text-center">
             <div className="inline-flex items-center gap-2 bg-[#FF6B00]/10 border border-[#FF6B00]/20 backdrop-blur-md rounded-full px-4 py-1.5 mb-4 sm:mb-6 animate-fade-in-up">
@@ -352,7 +375,6 @@ export const Route = createFileRoute('/')({
       { name: 'description', content: 'Resale korków piłkarskich 1 of 1 oraz akcesoria piłkarskie FOOTBUBR.' },
       { property: 'og:title', content: 'FootBubr' },
       { property: 'og:description', content: 'Dropy korków 1 of 1 oraz akcesoria piłkarskie.' },
-      
     ],
   }),
 });
