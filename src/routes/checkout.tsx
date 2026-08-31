@@ -175,36 +175,7 @@ function CheckoutPage() {
     setSubmitting(true);
 
     try {
-      // 1. PANCERNA WERYFIKACJA STANU MAGAZYNOWEGO NA ŻYWO W SUPABASE PRZED PŁATNOŚCIĄ
-      for (const { product, quantity } of items) {
-        const { data: currentProd, error: checkError } = await supabase
-          .from('products')
-          .select('id, name, status, stock_quantity')
-          .eq('id', product.id)
-          .single();
-
-        if (checkError || !currentProd) {
-          setGeneralError('Nie udało się zweryfikować dostępności produktów. Spróbuj ponownie.');
-          setSubmitting(false);
-          return;
-        }
-
-        // Sprawdzenie czy ktoś nie wykupił pary 1 of 1
-        if (currentProd.status === 'sold') {
-          setGeneralError(`Niestety! Produkt "${currentProd.name}" został właśnie wykupiony przez kogoś innego.`);
-          setSubmitting(false);
-          return;
-        }
-
-        // Sprawdzenie ilości dla akcesoriów
-        if (currentProd.stock_quantity !== null && currentProd.stock_quantity < quantity) {
-          setGeneralError(`Brak wystarczającej ilości dla produktu "${currentProd.name}". Dostępne: ${currentProd.stock_quantity} szt.`);
-          setSubmitting(false);
-          return;
-        }
-      }
-
-      // 2. Symulacja płatności BLIK (po pomyślnej weryfikacji dostępności)
+      // 1. Symulacja płatności BLIK
       if (form.paymentMethod === 'blik') {
         setBlikStep('waiting');
         await new Promise((r) => setTimeout(r, 1800));
@@ -216,7 +187,6 @@ function CheckoutPage() {
       let firstRecord: Order | null = null;
       const cleanPhone = `+48${form.phone.replace(/\D/g, '')}`;
 
-      // 3. Składanie zamówienia i aktualizacja stanów
       for (const { product, quantity } of items) {
         const pName = (product.name || '').toLowerCase();
         const pBrand = (product.brand || '').toLowerCase();
@@ -232,6 +202,50 @@ function CheckoutPage() {
           pModel.includes('ochraniacze') ||
           Boolean(product.accessory_type);
 
+        // 2. ATOMOWA BLOKADA W BAZIE DANYCH
+        if (!isAccessory) {
+          // Próbujemy natychmiast przestawić produkt na 'sold', ale TYLKO gdy jego status to 'available'
+          const { data: updatedProduct, error: updateError } = await supabase
+            .from('products')
+            .update({ status: 'sold', stock_quantity: 0 })
+            .eq('id', product.id)
+            .eq('status', 'available')
+            .select('id')
+            .maybeSingle();
+
+          // Jeśli inny użytkownik kupił to ułamek sekundy wcześniej, zaktualizuje się 0 wierszy
+          if (updateError || !updatedProduct) {
+            setGeneralError(`Niestety! Produkt "${product.name}" został wykupiony przed chwilą.`);
+            setSubmitting(false);
+            setBlikStep('idle');
+            return;
+          }
+        } else {
+          // Sprawdzanie dostępności akcesoriów
+          const { data: currentProd, error: checkError } = await supabase
+            .from('products')
+            .select('stock_quantity, status')
+            .eq('id', product.id)
+            .single();
+
+          if (checkError || !currentProd || (currentProd.stock_quantity ?? 0) < quantity) {
+            setGeneralError(`Niestety! Brak wystarczającej ilości produktu "${product.name}".`);
+            setSubmitting(false);
+            setBlikStep('idle');
+            return;
+          }
+
+          const newStock = Math.max(0, (currentProd.stock_quantity ?? 100) - quantity);
+          await supabase
+            .from('products')
+            .update({ 
+              stock_quantity: newStock, 
+              status: newStock === 0 ? 'sold' : 'available' 
+            })
+            .eq('id', product.id);
+        }
+
+        // 3. Obliczenie ceny z uwzględnieniem rabatu
         let itemPrice = product.price;
         if (appliedPromo) {
           if (appliedPromo.discount_type === 'percentage') {
@@ -244,6 +258,7 @@ function CheckoutPage() {
 
         const itemTotal = itemPrice * quantity + shippingCost;
 
+        // 4. Utworzenie rekordu zamówienia
         const orderPayload = {
           product_id: product.id,
           customer_name: `${form.firstName.trim()} ${form.lastName.trim()}`,
@@ -268,29 +283,9 @@ function CheckoutPage() {
 
         if (orderError) {
           console.error('Supabase order insert error:', orderError);
-          const tempId = 'ORD-' + Math.random().toString(36).substring(2, 9).toUpperCase();
-          placedOrderIds.push(tempId);
         } else if (order) {
           placedOrderIds.push(order.id);
           if (!firstRecord) firstRecord = order as Order;
-        }
-
-        if (isAccessory) {
-          const currentStock = product.stock_quantity ?? 100;
-          const newStock = Math.max(0, currentStock - quantity);
-          await supabase
-            .from('products')
-            .update({ 
-              stock_quantity: newStock,
-              status: newStock === 0 ? 'sold' : 'available'
-            })
-            .eq('id', product.id);
-        } else {
-          // Zablokowanie produktu 1 of 1 jako sprzedany
-          await supabase
-            .from('products')
-            .update({ status: 'sold', stock_quantity: 0 })
-            .eq('id', product.id);
         }
       }
 
@@ -302,7 +297,7 @@ function CheckoutPage() {
           .eq('id', appliedPromo.id);
       }
 
-      if (placedOrderIds.length > 0 || !firstRecord) {
+      if (placedOrderIds.length > 0 || firstRecord) {
         setOrderId(placedOrderIds[0] || 'ORD-' + Date.now().toString().slice(-6));
         if (firstRecord) setOrderRecord(firstRecord);
         clearCart();
