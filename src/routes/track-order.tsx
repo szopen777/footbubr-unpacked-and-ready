@@ -23,17 +23,62 @@ export const Route = createFileRoute('/track-order')({
 });
 
 const STATUS_MAP: Record<string, { label: string; color: string; step: number; desc: string }> = {
-  nowe: { label: 'Nowe', color: 'text-neutral-400 bg-neutral-800', step: 1, desc: 'Zamówienie zarejestrowane w systemie.' },
-  oplacone: { label: 'Opłacone', color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30', step: 1, desc: 'Płatność zaksięgowana. Przygotowujemy paczkę.' },
-  paid: { label: 'Opłacone', color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30', step: 1, desc: 'Płatność zaksięgowana. Przygotowujemy paczkę.' },
-  'w realizacji': { label: 'W realizacji', color: 'text-amber-400 bg-amber-500/10 border-amber-500/30', step: 2, desc: 'Paczka jest właśnie kompletowana i pakowana.' },
-  processing: { label: 'W realizacji', color: 'text-amber-400 bg-amber-500/10 border-amber-500/30', step: 2, desc: 'Paczka jest właśnie kompletowana i pakowana.' },
-  wyslane: { label: 'Wysłane', color: 'text-[#FF6B00] bg-[#FF6B00]/10 border-[#FF6B00]/30', step: 3, desc: 'Przesyłka przekazana kurierowi InPost.' },
-  shipped: { label: 'Wysłane', color: 'text-[#FF6B00] bg-[#FF6B00]/10 border-[#FF6B00]/30', step: 3, desc: 'Przesyłka przekazana kurierowi InPost.' },
-  zakonczone: { label: 'Dostarczone', color: 'text-emerald-400 bg-emerald-500/20 border-emerald-500/40', step: 4, desc: 'Paczka doręczona do odbiorcy.' },
-  delivered: { label: 'Dostarczone', color: 'text-emerald-400 bg-emerald-500/20 border-emerald-500/40', step: 4, desc: 'Paczka doręczona do odbiorcy.' },
-  anulowane: { label: 'Anulowane', color: 'text-rose-400 bg-rose-500/10 border-rose-500/30', step: 0, desc: 'Zamówienie zostało anulowane.' },
+  nowe: { 
+    label: 'Nowe', 
+    color: 'text-neutral-400 bg-neutral-800 border-neutral-700', 
+    step: 1, 
+    desc: 'Oczekiwanie na zaksięgowanie wpłaty.' 
+  },
+  oplacone: { 
+    label: 'Opłacone', 
+    color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30', 
+    step: 1, 
+    desc: 'Płatność zaksięgowana. Zamówienie oczekuje na spakowanie.' 
+  },
+  wrealizacji: { 
+    label: 'W realizacji', 
+    color: 'text-amber-400 bg-amber-500/10 border-amber-500/30', 
+    step: 2, 
+    desc: 'Paczka jest właśnie kompletowana i pakowana.' 
+  },
+  wyslane: { 
+    label: 'Wysłane', 
+    color: 'text-[#FF6B00] bg-[#FF6B00]/10 border-[#FF6B00]/30', 
+    step: 3, 
+    desc: 'Przesyłka została nadana i jest w drodze z InPost.' 
+  },
+  zakonczone: { 
+    label: 'Doręczone', 
+    color: 'text-emerald-400 bg-emerald-500/20 border-emerald-500/40', 
+    step: 4, 
+    desc: 'Paczka została odebrana. Dziękujemy za zakupy!' 
+  },
+  anulowane: { 
+    label: 'Anulowane', 
+    color: 'text-rose-400 bg-rose-500/10 border-rose-500/30', 
+    step: 0, 
+    desc: 'Zamówienie zostało anulowane.' 
+  },
 };
+
+function getNormalizedStatus(rawStatus?: string) {
+  if (!rawStatus) return STATUS_MAP.nowe;
+  
+  // Usunięcie znaków diakrytycznych, spacji i myślników
+  const clean = rawStatus
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z]/g, '');
+
+  if (clean.includes('oplac') || clean === 'paid') return STATUS_MAP.oplacone;
+  if (clean.includes('realizacj') || clean === 'processing') return STATUS_MAP.wrealizacji;
+  if (clean.includes('wyslan') || clean === 'shipped') return STATUS_MAP.wyslane;
+  if (clean.includes('zakoncz') || clean.includes('dorecz') || clean === 'delivered') return STATUS_MAP.zakonczone;
+  if (clean.includes('anulow') || clean === 'cancelled') return STATUS_MAP.anulowane;
+  
+  return STATUS_MAP[clean] || STATUS_MAP.nowe;
+}
 
 function TrackOrderPage() {
   const [orderQuery, setOrderQuery] = useState('');
@@ -84,7 +129,7 @@ function TrackOrderPage() {
     }
   };
 
-  const statusInfo = orderData ? STATUS_MAP[orderData.status?.toLowerCase()] || STATUS_MAP.nowe : null;
+  const statusInfo = orderData ? getNormalizedStatus(orderData.status) : null;
 
   return (
     <div className="min-h-screen bg-[#0c0c0c] text-neutral-200 flex flex-col justify-between">
@@ -162,10 +207,9 @@ function TrackOrderPage() {
               </div>
             </div>
 
-            {/* Wizualny pasek postępu z precyzyjnym stepperem */}
-            {statusInfo.step > 0 && (
+            {/* Wizualny pasek postępu */}
+            {statusInfo.step > 0 ? (
               <div className="py-4">
-                {/* Etykiety kroków */}
                 <div className="grid grid-cols-4 text-center text-[10px] sm:text-xs font-bold uppercase mb-3">
                   <span className={statusInfo.step >= 1 ? 'text-white' : 'text-neutral-600'}>
                     1. Opłacone
@@ -181,33 +225,41 @@ function TrackOrderPage() {
                   </span>
                 </div>
 
-                {/* Pasek postępu (margines 12.5% wyrównuje do środków kolumn) */}
                 <div className="relative mx-[12.5%] my-2">
                   <div className="w-full bg-neutral-800 h-1.5 rounded-full overflow-hidden">
                     <div
-                      className="bg-[#FF6B00] h-full transition-all duration-500"
+                      className={`h-full transition-all duration-500 ${statusInfo.step === 4 ? 'bg-emerald-500' : 'bg-[#FF6B00]'}`}
                       style={{
                         width: `${((Math.min(statusInfo.step, 4) - 1) / 3) * 100}%`,
                       }}
                     />
                   </div>
 
-                  {/* Kropki na osi */}
                   <div className="absolute top-1/2 -translate-y-1/2 left-0 w-full flex justify-between pointer-events-none">
-                    {[1, 2, 3, 4].map((stepNum) => (
-                      <div
-                        key={stepNum}
-                        className={`w-3.5 h-3.5 rounded-full border-2 transition-all duration-300 ${
-                          statusInfo.step >= stepNum
-                            ? 'bg-[#FF6B00] border-[#141414] scale-110 shadow-[0_0_8px_rgba(255,107,0,0.6)]'
-                            : 'bg-neutral-800 border-neutral-700'
-                        }`}
-                      />
-                    ))}
+                    {[1, 2, 3, 4].map((stepNum) => {
+                      const isActive = statusInfo.step >= stepNum;
+                      const isCompletedFinal = statusInfo.step === 4 && stepNum === 4;
+                      return (
+                        <div
+                          key={stepNum}
+                          className={`w-3.5 h-3.5 rounded-full border-2 transition-all duration-300 ${
+                            isCompletedFinal
+                              ? 'bg-emerald-400 border-[#141414] scale-110 shadow-[0_0_8px_rgba(52,211,153,0.6)]'
+                              : isActive
+                              ? 'bg-[#FF6B00] border-[#141414] scale-110 shadow-[0_0_8px_rgba(255,107,0,0.6)]'
+                              : 'bg-neutral-800 border-neutral-700'
+                          }`}
+                        />
+                      );
+                    })}
                   </div>
                 </div>
 
                 <p className="text-xs text-neutral-400 text-center mt-4">{statusInfo.desc}</p>
+              </div>
+            ) : (
+              <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-center">
+                <p className="text-sm font-bold text-rose-400">{statusInfo.desc}</p>
               </div>
             )}
 
