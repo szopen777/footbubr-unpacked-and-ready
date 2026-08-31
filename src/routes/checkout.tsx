@@ -19,7 +19,7 @@ declare global {
 }
 
 function CheckoutPage() {
-  const { items, total, discountedTotal, discountAmount, promoCode, applyPromo, removePromo, clearCart } = useCart();
+  const { items, total, discountedTotal, discountAmount, promoCode, appliedPromo, applyPromo, removePromo, clearCart } = useCart();
   const [step, setStep] = useState<'summary' | 'success'>('summary');
   const [submitting, setSubmitting] = useState(false);
   const [orderId, setOrderId] = useState('');
@@ -44,14 +44,14 @@ function CheckoutPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [generalError, setGeneralError] = useState('');
   const [promoInput, setPromoInput] = useState('');
-  const [promoStatus, setPromoStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [promoLoading, setPromoLoading] = useState(false);
+  const [promoErrorMsg, setPromoErrorMsg] = useState('');
 
   const shippingCost = shippingCostFor(form.shippingMethod, discountedTotal);
   const orderTotal = discountedTotal + shippingCost;
 
   // Inicjalizacja oficjalnego skryptu mapy InPost Geowidget v5
   useEffect(() => {
-    // Dodanie stylów InPost
     if (!document.getElementById('inpost-geowidget-css')) {
       const link = document.createElement('link');
       link.id = 'inpost-geowidget-css';
@@ -61,7 +61,6 @@ function CheckoutPage() {
       document.head.appendChild(link);
     }
 
-    // Dodanie skryptu InPost
     if (!document.getElementById('inpost-geowidget-js')) {
       const script = document.createElement('script');
       script.id = 'inpost-geowidget-js';
@@ -70,7 +69,6 @@ function CheckoutPage() {
       document.head.appendChild(script);
     }
 
-    // Globalna funkcja callback po wybraniu punktu na mapie
     (window as any).onInpostPointSelected = (point: any) => {
       const code = point?.name || point?.id || point?.address_details?.name;
       if (code) {
@@ -96,7 +94,6 @@ function CheckoutPage() {
     };
   }, []);
 
-  // Wstawianie elementu mapy po otwarciu modalu
   useEffect(() => {
     if (showInpostMap && mapContainerRef.current) {
       mapContainerRef.current.innerHTML = `
@@ -129,16 +126,24 @@ function CheckoutPage() {
     return Object.keys(e).length === 0;
   };
 
-  const handleApplyPromo = () => {
+  const handleApplyPromo = async () => {
     if (!promoInput.trim()) return;
-    const ok = applyPromo(promoInput);
-    setPromoStatus(ok ? 'success' : 'error');
-    if (ok) setPromoInput('');
+    setPromoLoading(true);
+    setPromoErrorMsg('');
+
+    const res = await applyPromo(promoInput);
+    setPromoLoading(false);
+
+    if (res.success) {
+      setPromoInput('');
+    } else {
+      setPromoErrorMsg(res.error || 'Nieprawidłowy kod rabatowy');
+    }
   };
 
   const handleRemovePromo = () => {
     removePromo();
-    setPromoStatus('idle');
+    setPromoErrorMsg('');
     setPromoInput('');
   };
 
@@ -175,9 +180,18 @@ function CheckoutPage() {
           pModel.includes('ochraniacze') ||
           Boolean(product.accessory_type);
 
-        const itemTotal = promoCode
-          ? Math.round(product.price * 0.9) * quantity + shippingCost
-          : product.price * quantity + shippingCost;
+        let itemPrice = product.price;
+        if (appliedPromo) {
+          if (appliedPromo.discount_type === 'percentage') {
+            itemPrice = Math.round(product.price * (1 - appliedPromo.discount_value / 100));
+          } else {
+            // proporcjonalny podział rabatu kwotowego
+            const ratio = (product.price * quantity) / (total || 1);
+            itemPrice = Math.max(0, product.price - Math.round((appliedPromo.discount_value * ratio) / quantity));
+          }
+        }
+
+        const itemTotal = itemPrice * quantity + shippingCost;
 
         const orderPayload = {
           product_id: product.id,
@@ -223,6 +237,15 @@ function CheckoutPage() {
         } else {
           await supabase.from('products').update({ status: 'sold' }).eq('id', product.id);
         }
+      }
+
+      // Zmniejszenie limitu użyć wykorzystanego kodu rabatowego
+      if (appliedPromo && appliedPromo.id) {
+        const newUses = Math.max(0, appliedPromo.uses_left - 1);
+        await supabase
+          .from('discount_codes')
+          .update({ uses_left: newUses })
+          .eq('id', appliedPromo.id);
       }
 
       if (placedOrderIds.length > 0 || !firstRecord) {
@@ -532,11 +555,15 @@ function CheckoutPage() {
               </div>
 
               <div className="border-t border-neutral-800 pt-4 space-y-3">
-                {promoCode ? (
+                {appliedPromo ? (
                   <div className="flex items-center justify-between bg-emerald-500/10 border border-emerald-500/30 rounded-xl px-3 py-2.5">
                     <div className="flex items-center gap-2 min-w-0">
                       <Tag className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
-                      <span className="text-sm font-semibold text-emerald-400 truncate">-10% (BUBR10)</span>
+                      <span className="text-sm font-semibold text-emerald-400 truncate">
+                        {appliedPromo.discount_type === 'percentage' 
+                          ? `-${appliedPromo.discount_value}% (${appliedPromo.code})` 
+                          : `-${appliedPromo.discount_value} PLN (${appliedPromo.code})`}
+                      </span>
                     </div>
                     <button onClick={handleRemovePromo} className="text-neutral-500 hover:text-white transition-colors flex-shrink-0 active:scale-90">
                       <X className="w-4 h-4" />
@@ -551,25 +578,25 @@ function CheckoutPage() {
                           type="text"
                           placeholder="Kod rabatowy"
                           value={promoInput}
-                          onChange={(e) => { setPromoInput(e.target.value); setPromoStatus('idle'); }}
+                          onChange={(e) => { setPromoInput(e.target.value.toUpperCase()); setPromoErrorMsg(''); }}
                           onKeyDown={(e) => e.key === 'Enter' && handleApplyPromo()}
-                          className="w-full bg-white/5 border border-neutral-800 rounded-xl pl-9 pr-3 py-2.5 text-sm text-neutral-100 placeholder:text-neutral-500 focus:outline-none focus:border-[#FF6B00]/60 transition-all"
+                          className="w-full bg-white/5 border border-neutral-800 rounded-xl pl-9 pr-3 py-2.5 text-sm text-neutral-100 placeholder:text-neutral-500 focus:outline-none focus:border-[#FF6B00]/60 uppercase font-mono transition-all"
                         />
                       </div>
                       <button
                         onClick={handleApplyPromo}
-                        className="px-4 py-2.5 bg-white/10 hover:bg-white/15 text-white text-sm font-semibold rounded-xl transition-all active:scale-95 flex-shrink-0"
+                        disabled={promoLoading || !promoInput.trim()}
+                        className="px-4 py-2.5 bg-white/10 hover:bg-white/15 text-white text-sm font-semibold rounded-xl transition-all active:scale-95 flex-shrink-0 disabled:opacity-40"
                       >
-                        Zastosuj
+                        {promoLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Zastosuj'}
                       </button>
                     </div>
-                    {promoStatus === 'error' && (
+                    {promoErrorMsg && (
                       <p className="text-red-400 text-xs flex items-center gap-1.5 animate-fade-in">
-                        <AlertCircle className="w-3.5 h-3.5" />
-                        Nieprawidłowy kod rabatowy
+                        <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                        {promoErrorMsg}
                       </p>
                     )}
-                    <p className="text-neutral-600 text-xs">Podpowiedź: kod <span className="text-neutral-400 font-mono">BUBR10</span></p>
                   </div>
                 )}
               </div>
@@ -579,11 +606,11 @@ function CheckoutPage() {
                   <span className="text-neutral-500">Produkty</span>
                   <span className="text-white">{formatPrice(total)}</span>
                 </div>
-                {discountAmount > 0 && promoCode && (
+                {discountAmount > 0 && appliedPromo && (
                   <div className="flex justify-between text-sm">
                     <span className="text-emerald-400 flex items-center gap-1.5">
                       <Check className="w-3 h-3" />
-                      Rabat -10%
+                      Rabat {appliedPromo.discount_type === 'percentage' ? `-${appliedPromo.discount_value}%` : `-${appliedPromo.discount_value} PLN`}
                     </span>
                     <span className="text-emerald-400 font-medium">-{formatPrice(discountAmount)}</span>
                   </div>
