@@ -8,7 +8,6 @@ import ProductCard from '@/components/ProductCard';
 import FilterSidebar, { FilterState, SortOption } from '@/components/FilterSidebar';
 import DropCountdownBanner, { Countdown, calculateCountdown } from '@/components/DropCountdownBanner';
 import { Zap, Package2, ShieldCheck, Loader as Loader2, ChevronDown } from 'lucide-react';
-import logoPng from '/logoPNG.png';
 
 const DEFAULT_FILTERS: FilterState = {
   category: 'all',
@@ -233,29 +232,57 @@ function HomePage() {
         <div className="absolute inset-0 bg-gradient-to-br from-[#FF6B00]/8 via-transparent to-transparent" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-[#FF6B00]/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
         <div className="absolute inset-0 bg-radial-grid opacity-50" />
-        
-        {/* Pływające / spadające elementy po prawej stronie na ekranach komputera */}
+
+        {/* Prawdziwe spadające korki piłkarskie (SVG) */}
         <div className="hidden lg:block absolute right-4 xl:right-16 top-0 bottom-0 w-80 pointer-events-none overflow-hidden select-none">
-          <div className="absolute right-8 -top-24 w-44 animate-cleat-fall-1">
-            <img
-              src={logoPng}
-              alt=""
-              className="w-full h-auto object-contain invert opacity-60 drop-shadow-[0_15px_30px_rgba(255,107,0,0.25)]"
-            />
+          {/* But 1 - Duży, z przodu, lekko pomarańczowa poświata */}
+          <div className="absolute right-6 top-0 w-44 animate-cleat-fall-1">
+            <svg viewBox="0 0 200 100" fill="none" className="w-full h-auto drop-shadow-[0_15px_30px_rgba(255,107,0,0.35)]">
+              <path
+                d="M20 70 C40 70, 70 65, 110 50 C140 38, 165 20, 185 25 C195 28, 190 50, 175 62 C150 75, 110 75, 30 75 Z"
+                fill="#FF6B00"
+                fillOpacity="0.85"
+              />
+              <path d="M25 75 L175 75 L170 80 L30 80 Z" fill="#ffffff" />
+              <polygon points="35,80 40,92 45,80" fill="#ffffff" />
+              <polygon points="55,80 60,92 65,80" fill="#ffffff" />
+              <polygon points="135,80 140,94 145,80" fill="#ffffff" />
+              <polygon points="155,80 160,94 165,80" fill="#ffffff" />
+              <path d="M70 62 Q110 45 150 38" stroke="#ffffff" strokeWidth="3" strokeLinecap="round" opacity="0.6" />
+              <path d="M80 68 Q120 52 160 45" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" opacity="0.4" />
+            </svg>
           </div>
-          <div className="absolute right-28 -top-32 w-32 animate-cleat-fall-2">
-            <img
-              src={logoPng}
-              alt=""
-              className="w-full h-auto object-contain invert opacity-30 blur-[1px] -rotate-12"
-            />
+
+          {/* But 2 - Mniejszy, głębiej w tle, biały */}
+          <div className="absolute right-32 top-0 w-32 animate-cleat-fall-2">
+            <svg viewBox="0 0 200 100" fill="none" className="w-full h-auto opacity-35 blur-[0.5px] -scale-x-100">
+              <path
+                d="M20 70 C40 70, 70 65, 110 50 C140 38, 165 20, 185 25 C195 28, 190 50, 175 62 C150 75, 110 75, 30 75 Z"
+                fill="#ffffff"
+              />
+              <path d="M25 75 L175 75 L170 80 L30 80 Z" fill="#999999" />
+              <polygon points="35,80 40,90 45,80" fill="#FF6B00" />
+              <polygon points="55,80 60,90 65,80" fill="#FF6B00" />
+              <polygon points="135,80 140,92 145,80" fill="#FF6B00" />
+              <polygon points="155,80 160,92 165,80" fill="#FF6B00" />
+            </svg>
           </div>
-          <div className="absolute right-4 -top-20 w-36 animate-cleat-fall-3">
-            <img
-              src={logoPng}
-              alt=""
-              className="w-full h-auto object-contain invert opacity-50 drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)] rotate-45"
-            />
+
+          {/* But 3 - Średni, obrócony */}
+          <div className="absolute right-4 top-0 w-36 animate-cleat-fall-3">
+            <svg viewBox="0 0 200 100" fill="none" className="w-full h-auto drop-shadow-[0_10px_20px_rgba(0,0,0,0.8)] opacity-60">
+              <path
+                d="M20 70 C40 70, 70 65, 110 50 C140 38, 165 20, 185 25 C195 28, 190 50, 175 62 C150 75, 110 75, 30 75 Z"
+                fill="#1c1c1c"
+                stroke="#FF6B00"
+                strokeWidth="2"
+              />
+              <path d="M25 75 L175 75 L170 80 L30 80 Z" fill="#FF6B00" />
+              <polygon points="35,80 40,92 45,80" fill="#ffffff" />
+              <polygon points="55,80 60,92 65,80" fill="#ffffff" />
+              <polygon points="135,80 140,94 145,80" fill="#ffffff" />
+              <polygon points="155,80 160,94 165,80" fill="#ffffff" />
+            </svg>
           </div>
         </div>
 
