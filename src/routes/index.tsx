@@ -227,66 +227,37 @@ function HomePage() {
       <Header searchValue={search} onSearchChange={setSearch} />
       <CartDrawer />
 
-      {/* Hero */}
+      {/* Hero Showcase z dwoma lewitującymi butami */}
       <section className="relative overflow-hidden border-b border-neutral-800/80">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#FF6B00]/8 via-transparent to-transparent" />
-        <div className="absolute top-0 right-0 w-96 h-96 bg-[#FF6B00]/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute inset-0 bg-gradient-to-br from-[#FF6B00]/10 via-transparent to-transparent" />
         <div className="absolute inset-0 bg-radial-grid opacity-50" />
 
-        {/* Prawdziwe spadające korki piłkarskie (SVG) */}
-        <div className="hidden lg:block absolute right-4 xl:right-16 top-0 bottom-0 w-80 pointer-events-none overflow-hidden select-none">
-          {/* But 1 - Duży, z przodu, lekko pomarańczowa poświata */}
-          <div className="absolute right-6 top-0 w-44 animate-cleat-fall-1">
-            <svg viewBox="0 0 200 100" fill="none" className="w-full h-auto drop-shadow-[0_15px_30px_rgba(255,107,0,0.35)]">
-              <path
-                d="M20 70 C40 70, 70 65, 110 50 C140 38, 165 20, 185 25 C195 28, 190 50, 175 62 C150 75, 110 75, 30 75 Z"
-                fill="#FF6B00"
-                fillOpacity="0.85"
-              />
-              <path d="M25 75 L175 75 L170 80 L30 80 Z" fill="#ffffff" />
-              <polygon points="35,80 40,92 45,80" fill="#ffffff" />
-              <polygon points="55,80 60,92 65,80" fill="#ffffff" />
-              <polygon points="135,80 140,94 145,80" fill="#ffffff" />
-              <polygon points="155,80 160,94 165,80" fill="#ffffff" />
-              <path d="M70 62 Q110 45 150 38" stroke="#ffffff" strokeWidth="3" strokeLinecap="round" opacity="0.6" />
-              <path d="M80 68 Q120 52 160 45" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" opacity="0.4" />
-            </svg>
-          </div>
-
-          {/* But 2 - Mniejszy, głębiej w tle, biały */}
-          <div className="absolute right-32 top-0 w-32 animate-cleat-fall-2">
-            <svg viewBox="0 0 200 100" fill="none" className="w-full h-auto opacity-35 blur-[0.5px] -scale-x-100">
-              <path
-                d="M20 70 C40 70, 70 65, 110 50 C140 38, 165 20, 185 25 C195 28, 190 50, 175 62 C150 75, 110 75, 30 75 Z"
-                fill="#ffffff"
-              />
-              <path d="M25 75 L175 75 L170 80 L30 80 Z" fill="#999999" />
-              <polygon points="35,80 40,90 45,80" fill="#FF6B00" />
-              <polygon points="55,80 60,90 65,80" fill="#FF6B00" />
-              <polygon points="135,80 140,92 145,80" fill="#FF6B00" />
-              <polygon points="155,80 160,92 165,80" fill="#FF6B00" />
-            </svg>
-          </div>
-
-          {/* But 3 - Średni, obrócony */}
-          <div className="absolute right-4 top-0 w-36 animate-cleat-fall-3">
-            <svg viewBox="0 0 200 100" fill="none" className="w-full h-auto drop-shadow-[0_10px_20px_rgba(0,0,0,0.8)] opacity-60">
-              <path
-                d="M20 70 C40 70, 70 65, 110 50 C140 38, 165 20, 185 25 C195 28, 190 50, 175 62 C150 75, 110 75, 30 75 Z"
-                fill="#1c1c1c"
-                stroke="#FF6B00"
-                strokeWidth="2"
-              />
-              <path d="M25 75 L175 75 L170 80 L30 80 Z" fill="#FF6B00" />
-              <polygon points="35,80 40,92 45,80" fill="#ffffff" />
-              <polygon points="55,80 60,92 65,80" fill="#ffffff" />
-              <polygon points="135,80 140,94 145,80" fill="#ffffff" />
-              <polygon points="155,80 160,94 165,80" fill="#ffffff" />
-            </svg>
+        {/* But lewy (Predator) — widoczny od lg w górę */}
+        <div className="hidden lg:block absolute left-2 xl:left-12 2xl:left-24 top-1/2 -translate-y-1/2 w-64 xl:w-80 pointer-events-none select-none z-10">
+          <div className="relative animate-float-left">
+            <div className="absolute inset-0 bg-[#FF6B00]/20 blur-3xl rounded-full scale-75" />
+            <img
+              src="/hero-cleat-left.png"
+              alt="Adidas Predator"
+              className="relative w-full h-auto object-contain drop-shadow-[0_25px_40px_rgba(0,0,0,0.95)]"
+            />
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-24 relative">
+        {/* But prawy (Podeszwa Nike Air Zoom) — widoczny od lg w górę */}
+        <div className="hidden lg:block absolute right-2 xl:right-12 2xl:right-24 top-1/2 -translate-y-1/2 w-72 xl:w-96 pointer-events-none select-none z-10">
+          <div className="relative animate-float-right">
+            <div className="absolute inset-0 bg-[#FF6B00]/20 blur-3xl rounded-full scale-75" />
+            <img
+              src="/hero-cleat-right.png"
+              alt="Nike Air Zoom Cleat Sole"
+              className="relative w-full h-auto object-contain drop-shadow-[0_25px_40px_rgba(0,0,0,0.95)]"
+            />
+          </div>
+        </div>
+
+        {/* Tekst centralny */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-20 md:py-28 relative z-20">
           <div className="max-w-2xl mx-auto text-center">
             <div className="inline-flex items-center gap-2 bg-[#FF6B00]/10 border border-[#FF6B00]/20 backdrop-blur-md rounded-full px-4 py-1.5 mb-4 sm:mb-6 animate-fade-in-up">
               <Zap className="w-3.5 h-3.5 text-[#FF6B00]" />
