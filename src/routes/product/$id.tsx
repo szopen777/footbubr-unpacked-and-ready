@@ -12,6 +12,7 @@ import { useCart } from '@/lib/cart-context';
 import { Link, useNavigate, createFileRoute } from '@tanstack/react-router';
 import { toast } from 'sonner';
 import SizeChartModal from '@/components/SizeChartModal';
+import { ImageLightboxModal } from '@/components/ImageLightboxModal';
 
 function ProductPage() {
   const { id } = Route.useParams();
@@ -19,7 +20,7 @@ function ProductPage() {
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeImage, setActiveImage] = useState(0);
-  const [zoomed, setZoomed] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const [showSizeChart, setShowSizeChart] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const { addItem, addItemSilent, items } = useCart();
@@ -59,6 +60,7 @@ function ProductPage() {
 
   const isSold = product.status === 'sold';
   const images = product.images.length > 0 ? product.images : [null];
+  const validImages = product.images.filter(Boolean);
 
   const pName = (product.name || '').toLowerCase();
   const pBrand = (product.brand || '').toLowerCase();
@@ -98,6 +100,14 @@ function ProductPage() {
         initialBrand={product.brand}
       />
 
+      {/* Modal pełnoekranowego zoomu (Lightbox) */}
+      <ImageLightboxModal
+        images={validImages}
+        initialIndex={activeImage}
+        isOpen={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+      />
+
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-6 sm:py-8">
         <div className="flex items-center gap-2 mb-6 text-sm text-neutral-500 animate-fade-in overflow-hidden">
           <Link to="/" className="hover:text-white transition-colors flex items-center gap-1 flex-shrink-0">
@@ -114,22 +124,28 @@ function ProductPage() {
           <div className="space-y-3 animate-fade-in-up">
             <div
               className="relative aspect-square rounded-xl sm:rounded-2xl overflow-hidden bg-[#141414] border border-neutral-800 cursor-zoom-in group"
-              onClick={() => setZoomed(!zoomed)}
+              onClick={() => {
+                if (images[activeImage]) {
+                  setLightboxOpen(true);
+                }
+              }}
             >
               {images[activeImage] ? (
-                <img
-                  src={images[activeImage]!}
-                  alt={product.name}
-                  className={cn(
-                    'w-full h-full object-cover transition-transform duration-500',
-                    zoomed ? 'scale-150' : 'group-hover:scale-105'
-                  )}
-                />
+                <>
+                  <img
+                    src={images[activeImage]!}
+                    alt={product.name}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
+                  <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-md p-2 rounded-xl border border-white/10 text-white/80 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    <ZoomIn className="w-4 h-4" />
+                  </div>
+                </>
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-neutral-700">Brak zdjęcia</div>
               )}
               {isSold && (
-                <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
+                <div className="absolute inset-0 bg-black/70 flex items-center justify-center pointer-events-none">
                   <span className="text-white font-black text-xl sm:text-2xl tracking-widest rotate-[-12deg] border-2 sm:border-4 border-white/80 px-4 sm:px-6 py-1.5 sm:py-2 rounded backdrop-blur-md bg-black/30">
                     WYPRZEDANE
                   </span>
