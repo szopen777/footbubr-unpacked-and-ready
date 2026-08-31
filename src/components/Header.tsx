@@ -17,17 +17,17 @@ export default function Header({ searchValue = '', onSearchChange }: HeaderProps
   return (
     <header className="sticky top-0 z-50 bg-[#0a0a0a]/95 backdrop-blur-xl border-b border-neutral-800/80">
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
-        <div className="flex items-center justify-between h-20 sm:h-24 gap-3 sm:gap-6">
-          {/* Duże Logo FootBubr */}
-          <Link to="/" className="flex items-center gap-3.5 flex-shrink-0 group">
-            <div className="w-20 h-20 sm:w-24 sm:h-24 flex items-center justify-center transition-transform group-hover:scale-105 duration-300 flex-shrink-0">
+        <div className="flex items-center justify-between h-16 sm:h-20 md:h-24 gap-2 sm:gap-4 lg:gap-6">
+          {/* Logo FootBubr */}
+          <Link to="/" className="flex items-center gap-2 sm:gap-3 flex-shrink-0 group">
+            <div className="w-11 h-11 sm:w-16 sm:h-16 md:w-20 md:h-20 flex items-center justify-center transition-transform group-hover:scale-105 duration-300 flex-shrink-0">
               <img 
                 src={logoPng} 
                 alt="FootBubr Logo" 
-                className="w-full h-full object-contain invert brightness-200 scale-125"
+                className="w-full h-full object-contain invert brightness-200 scale-110 sm:scale-125"
               />
             </div>
-            <span className="font-black text-2xl sm:text-3xl lg:text-4xl tracking-tight text-white uppercase leading-none">
+            <span className="font-black text-xl sm:text-2xl md:text-3xl lg:text-4xl tracking-tight text-white uppercase leading-none">
               Foot<span className="text-[#FF6B00]">Bubr</span>
             </span>
           </Link>
@@ -47,10 +47,10 @@ export default function Header({ searchValue = '', onSearchChange }: HeaderProps
           </div>
 
           {/* Nav actions */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
             <Link
               to="/archive"
-              className="flex items-center gap-1.5 text-neutral-300 hover:text-[#FF6B00] transition-colors px-3 py-2 font-bold tracking-wide uppercase text-xs sm:text-sm"
+              className="hidden sm:flex items-center gap-1.5 text-neutral-300 hover:text-[#FF6B00] transition-colors px-3 py-2 font-bold tracking-wide uppercase text-xs sm:text-sm"
             >
               <Archive className="w-4 h-4 text-[#FF6B00]" />
               Archiwum
@@ -63,25 +63,29 @@ export default function Header({ searchValue = '', onSearchChange }: HeaderProps
               Panel
             </Link>
 
+            {/* Przycisk koszyka */}
             <button
               onClick={openCart}
               className={cn(
-                'relative flex items-center gap-2 bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-black text-sm px-4 sm:px-5 py-2.5 rounded-xl transition-all hover:scale-105 active:scale-95 shadow-[0_4px_15px_rgba(255,107,0,0.25)]',
+                'relative flex items-center justify-center gap-1.5 bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-black text-xs sm:text-sm p-2 sm:px-4 sm:py-2.5 rounded-xl transition-all hover:scale-105 active:scale-95 shadow-[0_4px_15px_rgba(255,107,0,0.25)]',
                 cartPulse && 'animate-cart-pulse'
               )}
+              aria-label="Otwórz koszyk"
             >
-              <ShoppingBag className="w-4 h-4" />
-              <span className="hidden sm:block">Koszyk</span>
+              <ShoppingBag className="w-4 h-4 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Koszyk</span>
               {items.length > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-black text-[#FF6B00] text-xs font-black rounded-full flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 sm:-top-1.5 sm:-right-1.5 w-4 h-4 sm:w-5 sm:h-5 bg-black text-[#FF6B00] text-[10px] sm:text-xs font-black rounded-full flex items-center justify-center">
                   {items.length}
                 </span>
               )}
             </button>
 
+            {/* Przycisk menu mobilnego */}
             <button
-              className="md:hidden p-2 text-neutral-400 hover:text-white transition-colors"
+              className="md:hidden p-2 text-neutral-400 hover:text-white transition-colors rounded-xl bg-white/5 border border-neutral-800"
               onClick={() => setMenuOpen(!menuOpen)}
+              aria-label="Menu"
             >
               {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
