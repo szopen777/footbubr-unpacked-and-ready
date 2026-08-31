@@ -100,7 +100,7 @@ function FilterSection({
       <div
         className={cn(
           'transition-all duration-300 ease-in-out overflow-hidden',
-          open ? 'max-h-[500px] opacity-100 mt-3' : 'max-h-0 opacity-0'
+          open ? 'max-h-[1000px] opacity-100 mt-3' : 'max-h-0 opacity-0'
         )}
       >
         {children}
@@ -224,14 +224,15 @@ export default function FilterSidebar({ filters, onChange, sortBy, onSortChange 
       {(currentCategory === 'all' || currentCategory === 'boots') && (
         <div className="animate-fade-in">
           <FilterSection title="Rozmiar (EU)" defaultOpen={true}>
-            <div className="grid grid-cols-3 gap-1.5 max-h-64 overflow-y-auto pr-1">
+            {/* Siatka 4 kolumny bez przewijania */}
+            <div className="grid grid-cols-4 gap-1.5">
               {SIZES.map((size) => (
                 <button
                   key={size}
                   type="button"
                   onClick={() => onChange({ ...filters, sizes: toggle(currentSizes, size) })}
                   className={cn(
-                    'text-[11px] py-2 px-1 rounded-lg font-medium transition-all active:scale-90 duration-200 truncate',
+                    'text-[10px] sm:text-[11px] py-2 px-0.5 rounded-lg font-medium transition-all active:scale-90 duration-200 text-center leading-tight flex items-center justify-center',
                     currentSizes.includes(size)
                       ? 'bg-[#FF6B00] text-black font-bold shadow-[0_2px_8px_rgba(255,107,0,0.3)]'
                       : 'bg-white/5 text-neutral-400 hover:bg-white/10 hover:text-white'
@@ -375,7 +376,7 @@ export default function FilterSidebar({ filters, onChange, sortBy, onSortChange 
 
   return (
     <>
-      {/* Mobile button */}
+      {/* Przycisk mobilny */}
       <div className="lg:hidden mb-4">
         <button
           onClick={() => setSheetOpen(true)}
@@ -391,7 +392,7 @@ export default function FilterSidebar({ filters, onChange, sortBy, onSortChange 
         </button>
       </div>
 
-      {/* Mobile sheet */}
+      {/* Panel mobilny */}
       {sheetOpen && (
         <>
           <div
@@ -440,7 +441,7 @@ export default function FilterSidebar({ filters, onChange, sortBy, onSortChange 
         </>
       )}
 
-      {/* Desktop sidebar */}
+      {/* Boczny panel na desktopie */}
       <div className="hidden lg:block bg-[#141414] border border-neutral-800/80 rounded-2xl p-5 sticky top-24">
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm font-bold text-white flex items-center gap-2 uppercase tracking-wider">
