@@ -6,7 +6,7 @@ import { formatPrice, INPUT_CLASS } from '@/lib/utils';
 import { shippingCostFor, FREE_SHIPPING_THRESHOLD } from '@/lib/shipping';
 import Header from '@/components/Header';
 import CartDrawer from '@/components/CartDrawer';
-import { ArrowLeft, Package, Truck, CreditCard, CircleCheck as CheckCircle2, Loader as Loader2, MapPin, Tag, X, Check, CircleAlert as AlertCircle } from 'lucide-react';
+import { ArrowLeft, Package, Truck, CreditCard, CircleCheck as CheckCircle2, Loader as Loader2, MapPin, Tag, X, Check, CircleAlert as AlertCircle, Lock, ShieldCheck } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 
 declare global {
@@ -39,6 +39,7 @@ function CheckoutPage() {
     paymentMethod: 'blik' as 'blik' | 'card' | 'transfer',
     blikCode: '',
   });
+  const [acceptTerms, setAcceptTerms] = useState(false);
   const [blikStep, setBlikStep] = useState<'idle' | 'waiting' | 'confirmed'>('idle');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [generalError, setGeneralError] = useState('');
@@ -120,6 +121,7 @@ function CheckoutPage() {
       if (!form.city.trim()) e.city = 'Podaj miasto';
     }
     if (form.paymentMethod === 'blik' && form.blikCode.length !== 6) e.blikCode = 'Kod BLIK musi mieć 6 cyfr';
+    if (!acceptTerms) e.acceptTerms = 'Musisz zaakceptować regulamin i politykę prywatności';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -366,20 +368,20 @@ function CheckoutPage() {
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <input className={inp} placeholder="Imię *" value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} />
+                    <input className={inp} placeholder="Imię *" value={form.firstName} onChange={(e) => { setForm({ ...form, firstName: e.target.value }); if (errors.firstName) setErrors({ ...errors, firstName: '' }); }} />
                     {errors.firstName && <p className="text-red-400 text-xs mt-1">{errors.firstName}</p>}
                   </div>
                   <div>
-                    <input className={inp} placeholder="Nazwisko *" value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} />
+                    <input className={inp} placeholder="Nazwisko *" value={form.lastName} onChange={(e) => { setForm({ ...form, lastName: e.target.value }); if (errors.lastName) setErrors({ ...errors, lastName: '' }); }} />
                     {errors.lastName && <p className="text-red-400 text-xs mt-1">{errors.lastName}</p>}
                   </div>
                 </div>
                 <div>
-                  <input className={inp} placeholder="Adres email *" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+                  <input className={inp} placeholder="Adres email *" type="email" value={form.email} onChange={(e) => { setForm({ ...form, email: e.target.value }); if (errors.email) setErrors({ ...errors, email: '' }); }} />
                   {errors.email && <p className="text-red-400 text-xs mt-1">{errors.email}</p>}
                 </div>
                 <div>
-                  <input className={inp} placeholder="Numer telefonu *" type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+                  <input className={inp} placeholder="Numer telefonu *" type="tel" value={form.phone} onChange={(e) => { setForm({ ...form, phone: e.target.value }); if (errors.phone) setErrors({ ...errors, phone: '' }); }} />
                   {errors.phone && <p className="text-red-400 text-xs mt-1">{errors.phone}</p>}
                 </div>
               </div>
@@ -430,7 +432,10 @@ function CheckoutPage() {
                           className={`${inp} pl-9 uppercase`}
                           placeholder="Kod paczkomatu (np. WAW123M) *"
                           value={form.paczkomatCode}
-                          onChange={(e) => setForm({ ...form, paczkomatCode: e.target.value.toUpperCase() })}
+                          onChange={(e) => {
+                            setForm({ ...form, paczkomatCode: e.target.value.toUpperCase() });
+                            if (errors.paczkomatCode) setErrors({ ...errors, paczkomatCode: '' });
+                          }}
                         />
                       </div>
                       <button
@@ -452,7 +457,10 @@ function CheckoutPage() {
                         className={inp}
                         placeholder="Ulica i numer domu / lokalu *"
                         value={form.address}
-                        onChange={(e) => setForm({ ...form, address: e.target.value })}
+                        onChange={(e) => {
+                          setForm({ ...form, address: e.target.value });
+                          if (errors.address) setErrors({ ...errors, address: '' });
+                        }}
                       />
                       {errors.address && <p className="text-red-400 text-xs mt-1">{errors.address}</p>}
                     </div>
@@ -462,7 +470,10 @@ function CheckoutPage() {
                           className={inp}
                           placeholder="Kod pocztowy *"
                           value={form.postalCode}
-                          onChange={(e) => setForm({ ...form, postalCode: e.target.value })}
+                          onChange={(e) => {
+                            setForm({ ...form, postalCode: e.target.value });
+                            if (errors.postalCode) setErrors({ ...errors, postalCode: '' });
+                          }}
                         />
                         {errors.postalCode && <p className="text-red-400 text-xs mt-1">{errors.postalCode}</p>}
                       </div>
@@ -471,7 +482,10 @@ function CheckoutPage() {
                           className={inp}
                           placeholder="Miasto *"
                           value={form.city}
-                          onChange={(e) => setForm({ ...form, city: e.target.value })}
+                          onChange={(e) => {
+                            setForm({ ...form, city: e.target.value });
+                            if (errors.city) setErrors({ ...errors, city: '' });
+                          }}
                         />
                         {errors.city && <p className="text-red-400 text-xs mt-1">{errors.city}</p>}
                       </div>
@@ -512,7 +526,10 @@ function CheckoutPage() {
                     maxLength={6}
                     placeholder="000000"
                     value={form.blikCode}
-                    onChange={(e) => setForm({ ...form, blikCode: e.target.value.replace(/\D/g, '').slice(0, 6) })}
+                    onChange={(e) => {
+                      setForm({ ...form, blikCode: e.target.value.replace(/\D/g, '').slice(0, 6) });
+                      if (errors.blikCode) setErrors({ ...errors, blikCode: '' });
+                    }}
                     className="w-full bg-black/60 border-2 border-neutral-800 rounded-xl px-4 py-3 text-center font-mono text-2xl tracking-[0.5em] text-white placeholder:text-neutral-700 focus:outline-none focus:border-[#FF6B00]/70 transition-all"
                   />
                   {errors.blikCode && <p className="text-red-400 text-xs mt-2">{errors.blikCode}</p>}
@@ -630,6 +647,33 @@ function CheckoutPage() {
                 </div>
               </div>
 
+              {/* Checkbox zgód prawnych */}
+              <div className="pt-4 mt-4 border-t border-neutral-800">
+                <label className="flex items-start gap-3 cursor-pointer group select-none">
+                  <input
+                    type="checkbox"
+                    checked={acceptTerms}
+                    onChange={(e) => {
+                      setAcceptTerms(e.target.checked);
+                      if (errors.acceptTerms) setErrors({ ...errors, acceptTerms: '' });
+                    }}
+                    className="mt-0.5 w-4 h-4 rounded border-neutral-700 bg-black/40 text-[#FF6B00] focus:ring-[#FF6B00] focus:ring-offset-0 cursor-pointer accent-[#FF6B00]"
+                  />
+                  <span className="text-xs text-neutral-400 leading-snug group-hover:text-neutral-300">
+                    Oświadczam, że znam i akceptuję postanowienia{' '}
+                    <Link to="/terms" target="_blank" className="text-[#FF6B00] underline hover:text-[#FF7A00]">
+                      Regulaminu
+                    </Link>{' '}
+                    oraz{' '}
+                    <Link to="/privacy" target="_blank" className="text-[#FF6B00] underline hover:text-[#FF7A00]">
+                      Polityki Prywatności
+                    </Link>
+                    . *
+                  </span>
+                </label>
+                {errors.acceptTerms && <p className="text-red-400 text-xs mt-1.5">{errors.acceptTerms}</p>}
+              </div>
+
               {generalError && (
                 <div className="mt-4 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-xs flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 flex-shrink-0" />
@@ -637,14 +681,23 @@ function CheckoutPage() {
                 </div>
               )}
 
+              {/* Przycisk zamówienia zgodny z prawem konsumenckim */}
               <button
                 onClick={handleSubmit}
                 disabled={submitting}
                 className="flex items-center justify-center gap-2 w-full bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-black py-3.5 rounded-xl mt-4 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_4px_15px_rgba(255,107,0,0.25)]"
               >
-                {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
-                {submitting ? 'Przetwarzanie...' : 'Złóż zamówienie'}
+                {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Lock className="w-4 h-4" />}
+                {submitting ? 'Przetwarzanie...' : 'Złóż zamówienie i zapłać'}
               </button>
+
+              <div className="mt-3 flex items-center justify-center gap-3 text-[11px] text-neutral-500">
+                <span className="flex items-center gap-1">
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#FF6B00]" /> 100% Oryginalne
+                </span>
+                <span>•</span>
+                <span>14 dni na zwrot</span>
+              </div>
             </div>
           </div>
         </div>
