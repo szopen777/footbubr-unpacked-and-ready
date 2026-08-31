@@ -17,17 +17,17 @@ export default function Header({ searchValue = '', onSearchChange }: HeaderProps
   return (
     <header className="sticky top-0 z-50 bg-[#0a0a0a]/95 backdrop-blur-xl border-b border-neutral-800/80">
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
-        <div className="flex items-center justify-between h-16 sm:h-20 gap-2 sm:gap-4">
-          {/* Logo z odwróconym kolorem linii (czarny -> biały) */}
-          <Link to="/" className="flex items-center gap-3 flex-shrink-0 group">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center transition-transform group-hover:scale-110 duration-300 flex-shrink-0">
+        <div className="flex items-center justify-between h-20 sm:h-24 gap-3 sm:gap-6">
+          {/* Logo z dużym, wyraźnym bobrem */}
+          <Link to="/" className="flex items-center gap-3.5 flex-shrink-0 group">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center transition-transform group-hover:scale-105 duration-300 flex-shrink-0 overflow-hidden">
               <img 
                 src={logoPng} 
                 alt="FootBubr Logo" 
-                className="w-full h-full object-contain invert brightness-200 drop-shadow-[0_0_12px_rgba(255,107,0,0.5)]"
+                className="w-full h-full object-contain scale-[1.75] sm:scale-[1.9] invert brightness-200 drop-shadow-[0_0_16px_rgba(255,107,0,0.6)]"
               />
             </div>
-            <span className="font-black text-2xl sm:text-3xl tracking-tight text-white uppercase leading-none">
+            <span className="font-black text-2xl sm:text-3xl lg:text-4xl tracking-tight text-white uppercase leading-none">
               Foot<span className="text-[#FF6B00]">Bubr</span>
             </span>
           </Link>
@@ -66,7 +66,7 @@ export default function Header({ searchValue = '', onSearchChange }: HeaderProps
             <button
               onClick={openCart}
               className={cn(
-                'relative flex items-center gap-2 bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-black text-sm px-3.5 sm:px-5 py-2.5 rounded-xl transition-all hover:scale-105 active:scale-95 shadow-[0_4px_15px_rgba(255,107,0,0.25)]',
+                'relative flex items-center gap-2 bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-black text-sm px-4 sm:px-5 py-2.5 rounded-xl transition-all hover:scale-105 active:scale-95 shadow-[0_4px_15px_rgba(255,107,0,0.25)]',
                 cartPulse && 'animate-cart-pulse'
               )}
             >
