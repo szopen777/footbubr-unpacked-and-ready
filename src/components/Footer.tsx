@@ -35,8 +35,9 @@ export default function Footer() {
   return (
     <footer className="mt-16 border-t border-neutral-800/80 bg-[#0a0a0a]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="flex flex-col gap-8 md:flex-row md:items-start md:justify-between">
-          <div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-8 items-start">
+          {/* O marce */}
+          <div className="sm:col-span-2 md:col-span-2">
             <Link to="/" className="flex items-center gap-2 mb-3">
               <div className="w-8 h-8 bg-[#FF6B00] rounded-xl flex items-center justify-center">
                 <Footprints className="w-4 h-4 text-black" />
@@ -45,11 +46,34 @@ export default function Footer() {
                 Foot<span className="text-[#FF6B00]">Bubr</span>
               </span>
             </Link>
-            <p className="text-neutral-500 text-sm max-w-xs">
+            <p className="text-neutral-500 text-sm max-w-xs leading-relaxed">
               Unikatowe korki piłkarskie w dropach 1 of 1. Każda para sprawdzona i w 100% oryginalna.
             </p>
           </div>
 
+          {/* Informacje i Prawo */}
+          <div className="flex flex-col gap-3">
+            <h3 className="text-xs font-black uppercase tracking-[0.18em] text-neutral-400">Informacje</h3>
+            <ul className="space-y-2 text-sm text-neutral-400">
+              <li>
+                <Link to="/terms" className="hover:text-[#FF6B00] transition-colors">
+                  Regulamin
+                </Link>
+              </li>
+              <li>
+                <Link to="/returns" className="hover:text-[#FF6B00] transition-colors">
+                  Zwroty (14 dni)
+                </Link>
+              </li>
+              <li>
+                <Link to="/privacy" className="hover:text-[#FF6B00] transition-colors">
+                  Polityka prywatności
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* Kontakt & Social */}
           <div className="flex flex-col gap-3">
             <h3 className="text-xs font-black uppercase tracking-[0.18em] text-neutral-400">Kontakt</h3>
             <a
@@ -59,17 +83,13 @@ export default function Footer() {
               <Mail className="w-4 h-4 text-[#FF6B00]" />
               kontakt@footbubr.pl
             </a>
-          </div>
-
-          <div className="flex flex-col gap-3">
-            <h3 className="text-xs font-black uppercase tracking-[0.18em] text-neutral-400">Social</h3>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 mt-2">
               <a
                 href="https://instagram.com/footbubr"
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Instagram FootBubr"
-                className="w-10 h-10 rounded-xl border border-neutral-800 flex items-center justify-center text-neutral-300 hover:text-black hover:bg-[#FF6B00] hover:border-[#FF6B00] transition-all"
+                className="w-9 h-9 rounded-xl border border-neutral-800 flex items-center justify-center text-neutral-300 hover:text-black hover:bg-[#FF6B00] hover:border-[#FF6B00] transition-all"
               >
                 <InstagramIcon className="w-4 h-4" />
               </a>
@@ -78,27 +98,28 @@ export default function Footer() {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="TikTok FootBubr"
-                className="w-10 h-10 rounded-xl border border-neutral-800 flex items-center justify-center text-neutral-300 hover:text-black hover:bg-[#FF6B00] hover:border-[#FF6B00] transition-all"
+                className="w-9 h-9 rounded-xl border border-neutral-800 flex items-center justify-center text-neutral-300 hover:text-black hover:bg-[#FF6B00] hover:border-[#FF6B00] transition-all"
               >
                 <TikTokIcon className="w-4 h-4" />
               </a>
             </div>
           </div>
 
-          <div className="flex flex-col gap-3 w-full md:w-64">
+          {/* Newsletter */}
+          <div className="flex flex-col gap-3 w-full">
             <h3 className="text-xs font-black uppercase tracking-[0.18em] text-neutral-400">Newsletter</h3>
-            <p className="text-neutral-500 text-xs">Bądź pierwszy na liście dropów. Zero spamu.</p>
+            <p className="text-neutral-500 text-xs">Bądź pierwszy na liście dropów.</p>
             <form onSubmit={handleSubscribe} className="flex gap-2">
               <input
                 type="email"
                 placeholder="Twój e-mail"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="flex-1 bg-white/5 border border-neutral-800 rounded-xl px-3 py-2.5 text-sm text-neutral-100 placeholder:text-neutral-500 focus:outline-none focus:border-[#FF6B00]/60 transition-all"
+                className="flex-1 min-w-0 bg-white/5 border border-neutral-800 rounded-xl px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-500 focus:outline-none focus:border-[#FF6B00]/60 transition-all"
               />
               <button
                 type="submit"
-                className="flex items-center justify-center bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-bold px-4 py-2.5 rounded-xl transition-all hover:scale-105 active:scale-95 flex-shrink-0"
+                className="flex items-center justify-center bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-bold px-3.5 py-2 rounded-xl transition-all hover:scale-105 active:scale-95 flex-shrink-0"
                 aria-label="Zapisz się"
               >
                 {subscribed ? <Check className="w-4 h-4" /> : <Send className="w-4 h-4" />}
@@ -113,8 +134,9 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="mt-10 pt-6 border-t border-neutral-800/80">
+        <div className="mt-10 pt-6 border-t border-neutral-800/80 flex flex-col sm:flex-row items-center justify-between gap-2">
           <p className="text-xs text-neutral-600">© 2026 FootBubr. Wszelkie prawa zastrzeżone.</p>
+          <p className="text-xs text-neutral-600">Działalność nierejestrowana</p>
         </div>
       </div>
     </footer>
