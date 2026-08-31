@@ -174,8 +174,11 @@ function CheckoutPage() {
 
     setSubmitting(true);
 
+    // Lista ID zarezerwowanych produktów (do ewentualnego cofnięcia rezerwacji)
+    const reservedProductIds: string[] = [];
+
     try {
-      // 1. KROK PIERWSZY: NAJPIERW ATOMOWO REZERWUJEMY PRODUKTY W BAZIE
+      // 1. KROK 1: ATOMOWA REZERWACJA PRODUKTÓW W SUPABASE
       for (const { product, quantity } of items) {
         const pName = (product.name || '').toLowerCase();
         const pBrand = (product.brand || '').toLowerCase();
@@ -192,7 +195,6 @@ function CheckoutPage() {
           Boolean(product.accessory_type);
 
         if (!isAccessory) {
-          // Próbujemy zablokować produkt 1 of 1
           const { data: updatedProduct, error: updateError } = await supabase
             .from('products')
             .update({ status: 'sold', stock_quantity: 0 })
@@ -201,14 +203,13 @@ function CheckoutPage() {
             .select('id')
             .maybeSingle();
 
-          // Jeśli produkt został już wykupiony przez kogoś innego
           if (updateError || !updatedProduct) {
             setGeneralError(`Niestety! Produkt "${product.name}" został wykupiony przed chwilą.`);
             setSubmitting(false);
-            return; // Kończymy od razu – zero okienek BLIK!
+            return;
           }
+          reservedProductIds.push(product.id);
         } else {
-          // Sprawdzanie akcesoriów
           const { data: currentProd, error: checkError } = await supabase
             .from('products')
             .select('stock_quantity, status')
@@ -229,18 +230,38 @@ function CheckoutPage() {
               status: newStock === 0 ? 'sold' : 'available' 
             })
             .eq('id', product.id);
+            
+          reservedProductIds.push(product.id);
         }
       }
 
-      // 2. KROK DRUGI: DOPIERO GDY REZERWACJA JEST W 100% PEWNA, ODPALAMY PŁATNOŚĆ
+      // 2. KROK 2: WERYFIKACJA PŁATNOŚCI BLIK (Z KODAMI TESTOWYMI 111111 / 222222)
       if (form.paymentMethod === 'blik') {
         setBlikStep('waiting');
         await new Promise((r) => setTimeout(r, 1800));
+
+        // SYMULACJA ODRZUCENIA PŁATNOŚCI DLA KODU 222222
+        if (form.blikCode === '222222') {
+          // COFNIĘCIE REZERWACJI (ROLLBACK) - zwracamy produkty do bazy
+          for (const prodId of reservedProductIds) {
+            await supabase
+              .from('products')
+              .update({ status: 'available', stock_quantity: 1 })
+              .eq('id', prodId);
+          }
+
+          setBlikStep('idle');
+          setSubmitting(false);
+          setGeneralError('Płatność BLIK została odrzucona przez bank (błędny kod lub brak potwierdzenia w aplikacji). Przedmiot wrócił do oferty — możesz spróbować ponownie.');
+          return;
+        }
+
+        // DLA KODU 111111 ORAZ KAŻDEGO INNEGO: Płatność potwierdzona
         setBlikStep('confirmed');
         await new Promise((r) => setTimeout(r, 600));
       }
 
-      // 3. KROK TRZECI: ZAPISUJEMY ZAMÓWIENIE W BAZIE
+      // 3. KROK 3: ZAPISANIE ZAMÓWIENIA W BAZIE
       const placedOrderIds: string[] = [];
       let firstRecord: Order | null = null;
       const cleanPhone = `+48${form.phone.replace(/\D/g, '')}`;
@@ -306,6 +327,13 @@ function CheckoutPage() {
       }
     } catch (err: any) {
       console.error('Unexpected order error:', err);
+      // W razie błędu sieciowego również cofamy rezerwację
+      for (const prodId of reservedProductIds) {
+        await supabase
+          .from('products')
+          .update({ status: 'available', stock_quantity: 1 })
+          .eq('id', prodId);
+      }
       setGeneralError(err?.message || 'Błąd połączenia. Spróbuj ponownie.');
     } finally {
       setSubmitting(false);
@@ -586,7 +614,7 @@ function CheckoutPage() {
               {form.paymentMethod === 'blik' && (
                 <div className="mt-4 border border-[#FF6B00]/30 bg-[#FF6B00]/5 rounded-xl p-4 animate-fade-in">
                   <p className="text-xs font-black uppercase tracking-widest text-[#FF6B00] mb-2">
-                    Kod BLIK
+                    Kod BLIK (Test: 111111 = Sukces, 222222 = Błąd)
                   </p>
                   <input
                     inputMode="numeric"
