@@ -1,6 +1,5 @@
-
 import { Link } from '@tanstack/react-router';
-import { ShoppingBag, Search, Menu, X, Footprints, Archive } from 'lucide-react';
+import { ShoppingBag, Search, Menu, X, Archive } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -19,9 +18,20 @@ export default function Header({ searchValue = '', onSearchChange }: HeaderProps
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
         <div className="flex items-center justify-between h-16 gap-2 sm:gap-4">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 flex-shrink-0 group">
-            <div className="w-9 h-9 bg-[#FF6B00] rounded-xl flex items-center justify-center transition-transform group-hover:scale-110 group-hover:rotate-3 duration-300 shadow-[0_4px_15px_rgba(255,107,0,0.3)]">
-              <Footprints className="w-4 h-4 text-black" />
+          <Link to="/" className="flex items-center gap-2.5 flex-shrink-0 group">
+            <div className="w-10 h-10 rounded-full overflow-hidden border border-[#FF6B00]/40 bg-white p-0.5 flex items-center justify-center transition-transform group-hover:scale-110 duration-300 shadow-[0_0_15px_rgba(255,107,0,0.25)] flex-shrink-0">
+              <img 
+                src="/logo.png" 
+                alt="FootBubr Logo" 
+                className="w-full h-full object-contain"
+                onError={(e) => {
+                  // Fallback na logo.jpg w razie innej nazwy pliku
+                  const target = e.currentTarget;
+                  if (!target.src.endsWith('logo.jpg')) {
+                    target.src = '/logo.jpg';
+                  }
+                }}
+              />
             </div>
             <span className="font-black text-lg sm:text-xl tracking-tight text-white uppercase">
               Foot<span className="text-[#FF6B00]">Bubr</span>
