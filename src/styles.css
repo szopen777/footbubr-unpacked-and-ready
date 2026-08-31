@@ -225,32 +225,6 @@ select option:focus {
   will-change: transform;
 }
 
-/* Płynne lewitowanie butów w sekcji Hero */
-@keyframes float-left {
-  0%, 100% {
-    transform: translateY(0) rotate(-6deg) scale(1);
-  }
-  50% {
-    transform: translateY(-16px) rotate(-2deg) scale(1.02);
-  }
-}
-
-@keyframes float-right {
-  0%, 100% {
-    transform: translateY(0) rotate(14deg) scale(1);
-  }
-  50% {
-    transform: translateY(-18px) rotate(18deg) scale(1.03);
-  }
-}
-
-@utility animate-float-left {
-  animation: float-left 6s ease-in-out infinite;
-}
-@utility animate-float-right {
-  animation: float-right 7s ease-in-out infinite;
-}
-
 .animate-fade-in-up {
   animation: fade-in-up 0.6s ease-out forwards;
   opacity: 0;
