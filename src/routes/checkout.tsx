@@ -175,18 +175,7 @@ function CheckoutPage() {
     setSubmitting(true);
 
     try {
-      // 1. Symulacja płatności BLIK
-      if (form.paymentMethod === 'blik') {
-        setBlikStep('waiting');
-        await new Promise((r) => setTimeout(r, 1800));
-        setBlikStep('confirmed');
-        await new Promise((r) => setTimeout(r, 600));
-      }
-
-      const placedOrderIds: string[] = [];
-      let firstRecord: Order | null = null;
-      const cleanPhone = `+48${form.phone.replace(/\D/g, '')}`;
-
+      // 1. KROK PIERWSZY: NAJPIERW ATOMOWO REZERWUJEMY PRODUKTY W BAZIE
       for (const { product, quantity } of items) {
         const pName = (product.name || '').toLowerCase();
         const pBrand = (product.brand || '').toLowerCase();
@@ -202,9 +191,8 @@ function CheckoutPage() {
           pModel.includes('ochraniacze') ||
           Boolean(product.accessory_type);
 
-        // 2. ATOMOWA BLOKADA W BAZIE DANYCH
         if (!isAccessory) {
-          // Próbujemy natychmiast przestawić produkt na 'sold', ale TYLKO gdy jego status to 'available'
+          // Próbujemy zablokować produkt 1 of 1
           const { data: updatedProduct, error: updateError } = await supabase
             .from('products')
             .update({ status: 'sold', stock_quantity: 0 })
@@ -213,15 +201,14 @@ function CheckoutPage() {
             .select('id')
             .maybeSingle();
 
-          // Jeśli inny użytkownik kupił to ułamek sekundy wcześniej, zaktualizuje się 0 wierszy
+          // Jeśli produkt został już wykupiony przez kogoś innego
           if (updateError || !updatedProduct) {
             setGeneralError(`Niestety! Produkt "${product.name}" został wykupiony przed chwilą.`);
             setSubmitting(false);
-            setBlikStep('idle');
-            return;
+            return; // Kończymy od razu – zero okienek BLIK!
           }
         } else {
-          // Sprawdzanie dostępności akcesoriów
+          // Sprawdzanie akcesoriów
           const { data: currentProd, error: checkError } = await supabase
             .from('products')
             .select('stock_quantity, status')
@@ -231,7 +218,6 @@ function CheckoutPage() {
           if (checkError || !currentProd || (currentProd.stock_quantity ?? 0) < quantity) {
             setGeneralError(`Niestety! Brak wystarczającej ilości produktu "${product.name}".`);
             setSubmitting(false);
-            setBlikStep('idle');
             return;
           }
 
@@ -244,8 +230,22 @@ function CheckoutPage() {
             })
             .eq('id', product.id);
         }
+      }
 
-        // 3. Obliczenie ceny z uwzględnieniem rabatu
+      // 2. KROK DRUGI: DOPIERO GDY REZERWACJA JEST W 100% PEWNA, ODPALAMY PŁATNOŚĆ
+      if (form.paymentMethod === 'blik') {
+        setBlikStep('waiting');
+        await new Promise((r) => setTimeout(r, 1800));
+        setBlikStep('confirmed');
+        await new Promise((r) => setTimeout(r, 600));
+      }
+
+      // 3. KROK TRZECI: ZAPISUJEMY ZAMÓWIENIE W BAZIE
+      const placedOrderIds: string[] = [];
+      let firstRecord: Order | null = null;
+      const cleanPhone = `+48${form.phone.replace(/\D/g, '')}`;
+
+      for (const { product, quantity } of items) {
         let itemPrice = product.price;
         if (appliedPromo) {
           if (appliedPromo.discount_type === 'percentage') {
@@ -258,7 +258,6 @@ function CheckoutPage() {
 
         const itemTotal = itemPrice * quantity + shippingCost;
 
-        // 4. Utworzenie rekordu zamówienia
         const orderPayload = {
           product_id: product.id,
           customer_name: `${form.firstName.trim()} ${form.lastName.trim()}`,
