@@ -29,6 +29,11 @@ interface DiscountCode {
   created_at: string;
 }
 
+const BOOT_SIZES = [
+  '39', '39.5', '40', '40.5', '41', '41.5', '42', '42.5',
+  '43', '43.5', '44', '44.5', '45', '45.5', '46', '46.5', '47', '47.5', '48'
+];
+
 const ADMIN_PASSWORD = '123';
 
 function toLocalDatetimeInput(isoStr: string | null | undefined): string {
@@ -65,7 +70,7 @@ interface ProductForm {
 
 const EMPTY_BOOT_FORM: ProductForm = {
   productType: 'boot',
-  name: '', brand: 'Nike', model: '', size_eu: '', accessory_type: 'Skarpety antypoślizgowe', insole_length_cm: '',
+  name: '', brand: 'Nike', model: '', size_eu: '42.5', accessory_type: 'Skarpety antypoślizgowe', insole_length_cm: '',
   price: '', original_price: '', stock_quantity: '1', surface_type: 'FG', level: 'Profesjonalny',
   condition: 'Nowe z metką', condition_detail: '', images: '',
   box_included: false, bag_included: false, extras_description: '',
@@ -74,7 +79,7 @@ const EMPTY_BOOT_FORM: ProductForm = {
 
 const EMPTY_ACCESSORY_FORM: ProductForm = {
   productType: 'accessory',
-  name: 'Skarpety antypoślizgowe FOOTBUBR v1', brand: 'FOOTBUBR', model: 'Skarpety', size_eu: 'One Size (41-45)', accessory_type: 'Skarpety antypoślizgowe', insole_length_cm: '',
+  name: 'Skarpety piłkarskie FOOTBUBR v1 Białe', brand: 'FOOTBUBR', model: 'Skarpety', size_eu: 'One Size (41-45)', accessory_type: 'Skarpety antypoślizgowe', insole_length_cm: '',
   price: '49', original_price: '59', stock_quantity: '100', surface_type: 'FG', level: 'Amatorski',
   condition: 'Nowe z metką', condition_detail: 'Rozmiar uniwersalny', images: '',
   box_included: false, bag_included: false, extras_description: '',
@@ -115,7 +120,7 @@ function AdminPage() {
   });
   const [savingSettings, setSavingSettings] = useState(false);
 
-  // Kody rabatowe - formularz
+  // Formularz nowego kodu rabatowego
   const [newCodeName, setNewCodeName] = useState('');
   const [newCodeType, setNewCodeType] = useState<'percentage' | 'fixed'>('percentage');
   const [newCodeValue, setNewCodeValue] = useState('');
@@ -525,13 +530,22 @@ function AdminPage() {
 
     setForm({
       productType: isAcc ? 'accessory' : 'boot',
-      name: p.name, brand: p.brand, model: p.model,
-      size_eu: String(p.size_eu), accessory_type: p.accessory_type || 'Skarpety antypoślizgowe', insole_length_cm: p.insole_length_cm ? String(p.insole_length_cm) : '',
-      price: String(p.price), original_price: p.original_price ? String(p.original_price) : '',
+      name: p.name, 
+      brand: p.brand, 
+      model: p.model,
+      size_eu: String(p.size_eu), 
+      accessory_type: p.accessory_type || 'Skarpety antypoślizgowe', 
+      insole_length_cm: p.insole_length_cm ? String(p.insole_length_cm) : '',
+      price: String(p.price), 
+      original_price: p.original_price ? String(p.original_price) : '',
       stock_quantity: String(p.stock_quantity ?? (isAcc ? 100 : 1)),
-      surface_type: p.surface_type, level: p.level, condition: p.condition,
-      condition_detail: p.condition_detail || '', images: p.images.join('\n'),
-      box_included: p.box_included, bag_included: p.bag_included,
+      surface_type: p.surface_type, 
+      level: p.level, 
+      condition: p.condition,
+      condition_detail: p.condition_detail || '', 
+      images: p.images.join('\n'),
+      box_included: p.box_included, 
+      bag_included: p.bag_included,
       extras_description: p.extras_description || '',
       status: customStatus,
       drop_type: dType,
@@ -841,7 +855,7 @@ function AdminPage() {
             </div>
           )}
 
-          {/* Add / Edit product modal */}
+          {/* Modal dodawania / edycji produktu */}
           {showProductModal && (
             <>
               <div
@@ -939,13 +953,38 @@ function AdminPage() {
                         <input className={inp} placeholder="np. Nike Mercurial Elite 1 of 1" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
                       </div>
                       
+                      {/* ROZDZIELONY WYBÓR ROZMIARU */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                           <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">
-                            {form.productType === 'boot' ? 'Rozmiar EU *' : 'Rozmiar (np. One Size (41-45), S, M) *'}
+                            {form.productType === 'boot' ? 'Rozmiar EU (Korki) *' : 'Rozmiar akcesorium *'}
                           </label>
-                          <input className={inp} placeholder={form.productType === 'boot' ? '42.5' : 'One Size (41-45)'} type="text" value={form.size_eu} onChange={(e) => setForm({ ...form, size_eu: e.target.value })} />
+
+                          {form.productType === 'boot' ? (
+                            <div className="relative">
+                              <select
+                                className={sel}
+                                value={form.size_eu}
+                                onChange={(e) => setForm({ ...form, size_eu: e.target.value })}
+                              >
+                                <option value="">-- Wybierz rozmiar EU --</option>
+                                {BOOT_SIZES.map((s) => (
+                                  <option key={s} value={s}>EU {s}</option>
+                                ))}
+                              </select>
+                              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none" />
+                            </div>
+                          ) : (
+                            <input
+                              className={inp}
+                              placeholder="np. One Size (41-45)"
+                              type="text"
+                              value={form.size_eu}
+                              onChange={(e) => setForm({ ...form, size_eu: e.target.value })}
+                            />
+                          )}
                         </div>
+
                         {form.productType === 'boot' && (
                           <div>
                             <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Długość wkładki (cm)</label>
@@ -1419,7 +1458,7 @@ function AdminPage() {
                   </div>
                 )}
 
-                {/* WYBÓR WYRÓŻNIONEGO PRODUKTU DO BANNERU */}
+                {/* Wybór wyróżnionego produktu do baneru */}
                 <div>
                   <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5 block">Wyróżniony produkt (do licznika na stronie głównej)</label>
                   <div className="relative">
@@ -1521,7 +1560,7 @@ function AdminPage() {
             </div>
           )}
 
-          {/* ZAKŁADKA KODY RABATOWE */}
+          {/* KODY RABATOWE */}
           {view === 'discounts' && (
             <div className="animate-fade-in max-w-4xl space-y-6">
               <div>
@@ -1529,7 +1568,6 @@ function AdminPage() {
                 <p className="text-neutral-500 text-sm">{discounts.length} aktywnych kodów</p>
               </div>
 
-              {/* Formularz tworzenia kodu */}
               <form onSubmit={handleCreateDiscount} className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-5 sm:p-6 space-y-4">
                 <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider">Stwórz nowy kod</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
@@ -1593,7 +1631,6 @@ function AdminPage() {
                 </button>
               </form>
 
-              {/* Lista kodów */}
               {loading ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="w-6 h-6 text-[#FF6B00] animate-spin" />
