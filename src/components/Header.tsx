@@ -18,13 +18,13 @@ export default function Header({ searchValue = '', onSearchChange }: HeaderProps
     <header className="sticky top-0 z-50 bg-[#0a0a0a]/95 backdrop-blur-xl border-b border-neutral-800/80">
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
         <div className="flex items-center justify-between h-20 sm:h-24 gap-3 sm:gap-6">
-          {/* Logo FootBubr */}
-          <Link to="/" className="flex items-center gap-3 flex-shrink-0 group">
-            <div className="w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center transition-transform group-hover:scale-105 duration-300 flex-shrink-0">
+          {/* Duże Logo FootBubr */}
+          <Link to="/" className="flex items-center gap-3.5 flex-shrink-0 group">
+            <div className="w-20 h-20 sm:w-24 sm:h-24 flex items-center justify-center transition-transform group-hover:scale-105 duration-300 flex-shrink-0">
               <img 
                 src={logoPng} 
                 alt="FootBubr Logo" 
-                className="w-full h-full object-contain invert brightness-200"
+                className="w-full h-full object-contain invert brightness-200 scale-125"
               />
             </div>
             <span className="font-black text-2xl sm:text-3xl lg:text-4xl tracking-tight text-white uppercase leading-none">
