@@ -1,4 +1,3 @@
-import ProductCardSkeleton from '@/components/ProductCardSkeleton';
 import DropCelebrationOverlay from '@/components/DropCelebrationOverlay';
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState, useCallback, useRef } from 'react';
@@ -6,10 +5,11 @@ import { supabase, Product, DropSettings } from '@/lib/supabase';
 import Header from '@/components/Header';
 import CartDrawer from '@/components/CartDrawer';
 import ProductCard from '@/components/ProductCard';
+import ProductCardSkeleton from '@/components/ProductCardSkeleton';
 import FilterSidebar, { FilterState, SortOption } from '@/components/FilterSidebar';
 import DropCountdownBanner, { Countdown, calculateCountdown } from '@/components/DropCountdownBanner';
 import ReviewsBanner from '@/components/ReviewsBanner';
-import { Zap, Package2, ShieldCheck, Loader as Loader2, ChevronDown } from 'lucide-react';
+import { Zap, Package2, ShieldCheck, ChevronDown } from 'lucide-react';
 
 const DEFAULT_FILTERS: FilterState = {
   category: 'all',
@@ -313,8 +313,10 @@ function HomePage() {
             </p>
 
             {loading ? (
-              <div className="flex items-center justify-center py-24">
-                <Loader2 className="w-8 h-8 text-[#FF6B00] animate-spin" />
+              <div className="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-5">
+                {[...Array(6)].map((_, i) => (
+                  <ProductCardSkeleton key={i} />
+                ))}
               </div>
             ) : allShown.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-24 text-center">
