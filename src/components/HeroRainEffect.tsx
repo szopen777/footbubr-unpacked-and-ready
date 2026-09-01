@@ -5,7 +5,7 @@ interface Particle {
   emoji: string;
   left: number;
   duration: number;
-  delay: number;
+  negativeDelay: number;
   size: number;
   opacity: number;
 }
@@ -14,15 +14,19 @@ const ICONS = ['🦫', '⚽', '🦫', '⚡', '🦫', '👟'];
 
 export default function HeroRainEffect() {
   const particles: Particle[] = useMemo(() => {
-    return Array.from({ length: 22 }).map((_, i) => ({
-      id: i,
-      emoji: ICONS[i % ICONS.length],
-      left: Math.random() * 96 + 2, // 2% - 98% szerokości
-      duration: Math.random() * 6 + 6, // 6s - 12s (płynny, spokojny opad)
-      delay: Math.random() * 7,
-      size: Math.random() * 10 + 16, // 16px - 26px
-      opacity: Math.random() * 0.25 + 0.1, // Dyskretna przezroczystość, by nie zasłaniać tekstu
-    }));
+    return Array.from({ length: 24 }).map((_, i) => {
+      const duration = Math.random() * 6 + 6; // 6s - 12s
+      return {
+        id: i,
+        emoji: ICONS[i % ICONS.length],
+        left: Math.random() * 94 + 3, // 3% - 97% szerokości
+        duration,
+        // Ujemny delay sprawia, że animacja jest w toku od razu po załadowaniu
+        negativeDelay: Math.random() * duration,
+        size: Math.random() * 10 + 16, // 16px - 26px
+        opacity: Math.random() * 0.25 + 0.12,
+      };
+    });
   }, []);
 
   return (
@@ -30,13 +34,13 @@ export default function HeroRainEffect() {
       {particles.map((p) => (
         <span
           key={p.id}
-          className="absolute will-change-transform animate-hero-rain"
+          className="absolute top-0 will-change-transform animate-hero-rain"
           style={{
             left: `${p.left}%`,
             fontSize: `${p.size}px`,
             opacity: p.opacity,
             animationDuration: `${p.duration}s`,
-            animationDelay: `${p.delay}s`,
+            animationDelay: `-${p.negativeDelay}s`,
             filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.6))',
           }}
         >
@@ -47,10 +51,10 @@ export default function HeroRainEffect() {
       <style>{`
         @keyframes hero-rain {
           0% {
-            transform: translateY(-60px) rotate(0deg);
+            transform: translateY(-50px) rotate(0deg);
           }
           100% {
-            transform: translateY(650px) rotate(360deg);
+            transform: translateY(700px) rotate(360deg);
           }
         }
         .animate-hero-rain {
