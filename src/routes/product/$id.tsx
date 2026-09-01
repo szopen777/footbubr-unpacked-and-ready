@@ -4,6 +4,7 @@ import Header from '@/components/Header';
 import CartDrawer from '@/components/CartDrawer';
 import ProductCard from '@/components/ProductCard';
 import LiveViewersCounter from '@/components/LiveViewersCounter';
+import ShareButton from '@/components/ShareButton';
 import { cn, formatPrice, SURFACE_LABELS, CONDITION_COLORS } from '@/lib/utils';
 import { 
   ShoppingBag, ArrowLeft, CircleAlert as AlertCircle, Package, 
@@ -142,7 +143,7 @@ function ProductPage() {
                     alt={product.name}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
-                  <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-md p-2 rounded-xl border border-white/10 text-white/80 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                  <div className="absolute bottom-3 right-3 bg-black/60 backdrop-blur-md p-2 rounded-xl border border-white/10 text-white/80 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                     <ZoomIn className="w-4 h-4" />
                   </div>
                 </>
@@ -150,6 +151,7 @@ function ProductPage() {
                 <div className="w-full h-full flex items-center justify-center text-neutral-700">Brak zdjęcia</div>
               )}
 
+              {/* Przycisk polubienia (Lewy górny róg) */}
               <button
                 type="button"
                 onClick={(e) => {
@@ -167,6 +169,11 @@ function ProductPage() {
                   )}
                 />
               </button>
+
+              {/* Przycisk Udostępnij (Prawy górny róg) */}
+              <div className="absolute top-3 right-3 z-10">
+                <ShareButton title={product.name} />
+              </div>
 
               {isSold && (
                 <div className="absolute inset-0 bg-black/70 flex items-center justify-center pointer-events-none">
@@ -205,7 +212,7 @@ function ProductPage() {
               </div>
               <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-white leading-tight uppercase tracking-tight">{product.name}</h1>
 
-              {/* Status magazynowy */}
+              {/* Status magazynowy + Licznik Live */}
               {!isSold && (
                 <div className="flex flex-col sm:flex-row sm:items-center gap-3 mt-4 mb-3">
                   <div className="flex items-center gap-2 bg-[#FF6B00]/10 border border-[#FF6B00]/20 backdrop-blur-md rounded-xl px-4 py-2 flex-1">
@@ -217,7 +224,6 @@ function ProductPage() {
                     </span>
                   </div>
 
-                  {/* Licznik oglądających na żywo */}
                   <LiveViewersCounter productId={product.id} />
                 </div>
               )}
@@ -230,6 +236,7 @@ function ProductPage() {
               </div>
             </div>
 
+            {/* Wybór ilości (Tylko dla akcesoriów) */}
             {isAccessory && !isSold && (
               <div className="flex items-center gap-4 bg-[#141414] border border-neutral-800 rounded-2xl p-4">
                 <span className="text-sm text-neutral-400 font-medium">Wybierz ilość:</span>
@@ -251,6 +258,7 @@ function ProductPage() {
               </div>
             )}
 
+            {/* Specyfikacja */}
             <div className="bg-[#141414] rounded-2xl border border-neutral-800/80 overflow-hidden">
               <div className="px-4 py-3 border-b border-neutral-800 flex items-center justify-between">
                 <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider">Specyfikacja</h3>
@@ -283,6 +291,7 @@ function ProductPage() {
               </div>
             </div>
 
+            {/* Przyciski zakupu */}
             {isSold ? (
               <div className="flex items-center justify-center gap-2 bg-white/5 border border-neutral-800 text-neutral-500 font-bold py-4 rounded-2xl">
                 <Package className="w-5 h-5" />
@@ -309,6 +318,7 @@ function ProductPage() {
           </div>
         </div>
 
+        {/* Sekcja: Ostatnio oglądane */}
         {recentProducts.length > 0 && (
           <div className="mt-16 sm:mt-24 pt-10 border-t border-neutral-800/80 animate-fade-in">
             <div className="flex items-center gap-2.5 mb-6">
