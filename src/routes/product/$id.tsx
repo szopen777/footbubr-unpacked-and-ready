@@ -6,9 +6,10 @@ import { cn, formatPrice, SURFACE_LABELS, CONDITION_COLORS } from '@/lib/utils';
 import { 
   ShoppingBag, ArrowLeft, CircleAlert as AlertCircle, Package, 
   CircleCheck as CheckCircle2, Circle as XCircle, ChevronLeft, ChevronRight, 
-  Loader as Loader2, ZoomIn, Zap, Ruler, ShieldCheck, Truck, Lock, Plus, Minus 
+  Loader as Loader2, ZoomIn, Zap, Ruler, ShieldCheck, Truck, Lock, Plus, Minus, Heart 
 } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
+import { useFavorites } from '@/lib/favorites-context';
 import { Link, useNavigate, createFileRoute } from '@tanstack/react-router';
 import { toast } from 'sonner';
 import SizeChartModal from '@/components/SizeChartModal';
@@ -24,9 +25,11 @@ function ProductPage() {
   const [showSizeChart, setShowSizeChart] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const { addItem, addItemSilent, items } = useCart();
+  const { isFavorite, toggleFavorite } = useFavorites();
 
   const cartItem = product ? items.find((i) => i.product.id === product.id) : null;
   const inCart = Boolean(cartItem);
+  const favorited = product ? isFavorite(product.id) : false;
 
   useEffect(() => {
     const fetch = async () => {
@@ -144,6 +147,26 @@ function ProductPage() {
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-neutral-700">Brak zdjęcia</div>
               )}
+
+              {/* Serduszko w rogu zdjęcia */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleFavorite(product);
+                }}
+                className="absolute top-3 left-3 z-10 p-3 rounded-2xl bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/10 text-white transition-all active:scale-90"
+                title={favorited ? 'Usuń z ulubionych' : 'Dodaj do ulubionych'}
+                aria-label="Ulubione"
+              >
+                <Heart
+                  className={cn(
+                    'w-5 h-5 transition-colors',
+                    favorited ? 'text-red-500 fill-red-500 scale-110' : 'text-neutral-300 hover:text-white'
+                  )}
+                />
+              </button>
+
               {isSold && (
                 <div className="absolute inset-0 bg-black/70 flex items-center justify-center pointer-events-none">
                   <span className="text-white font-black text-xl sm:text-2xl tracking-widest rotate-[-12deg] border-2 sm:border-4 border-white/80 px-4 sm:px-6 py-1.5 sm:py-2 rounded backdrop-blur-md bg-black/30">
@@ -262,6 +285,14 @@ function ProductPage() {
               </div>
             ) : (
               <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  type="button"
+                  onClick={() => toggleFavorite(product)}
+                  className="p-4 rounded-2xl border border-neutral-800 bg-[#141414] hover:bg-white/5 text-neutral-300 hover:text-white flex items-center justify-center transition-all active:scale-95 flex-shrink-0"
+                  title={favorited ? 'Usuń z ulubionych' : 'Dodaj do ulubionych'}
+                >
+                  <Heart className={cn("w-5 h-5", favorited && "text-red-500 fill-red-500")} />
+                </button>
                 <button
                   onClick={handleAddToCart}
                   className="flex-1 flex items-center justify-center gap-2.5 font-bold text-sm sm:text-base py-4 rounded-2xl border border-[#FF6B00]/40 hover:border-[#FF6B00] hover:bg-[#FF6B00]/10 text-neutral-200 transition-all active:scale-95"
