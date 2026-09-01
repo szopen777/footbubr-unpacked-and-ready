@@ -5,6 +5,7 @@ import CartDrawer from '@/components/CartDrawer';
 import ProductCard from '@/components/ProductCard';
 import LiveViewersCounter from '@/components/LiveViewersCounter';
 import ShareButton from '@/components/ShareButton';
+import ProductReviews from '@/components/ProductReviews';
 import { cn, formatPrice, SURFACE_LABELS, CONDITION_COLORS } from '@/lib/utils';
 import { 
   ShoppingBag, ArrowLeft, CircleAlert as AlertCircle, Package, 
@@ -258,7 +259,7 @@ function ProductPage() {
               </div>
             )}
 
-            {/* Specyfikacja z linkami do Modalu oraz Poradnika */}
+            {/* Specyfikacja z linkami do modalu i przewodnika */}
             <div className="bg-[#141414] rounded-2xl border border-neutral-800/80 overflow-hidden">
               <div className="px-4 py-3 border-b border-neutral-800 flex items-center justify-between flex-wrap gap-2">
                 <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider">Specyfikacja</h3>
@@ -327,9 +328,12 @@ function ProductPage() {
           </div>
         </div>
 
-        {/* Sekcja: Ostatnio oglądane */}
+        {/* 1. Recenzje produktu */}
+        <ProductReviews productId={product.id} productName={product.name} />
+
+        {/* 2. Ostatnio oglądane */}
         {recentProducts.length > 0 && (
-          <div className="mt-16 sm:mt-24 pt-10 border-t border-neutral-800/80 animate-fade-in">
+          <div className="mt-14 sm:mt-18 pt-10 border-t border-neutral-800/80 animate-fade-in">
             <div className="flex items-center gap-2.5 mb-6">
               <Eye className="w-5 h-5 text-[#FF6B00]" />
               <h2 className="text-lg sm:text-xl font-black text-white uppercase tracking-tight">
