@@ -13,6 +13,7 @@ import { Toaster } from "sonner";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { CartProvider } from "../lib/cart-context";
+import { FavoritesProvider } from "../lib/favorites-context";
 import TopAnnouncementBar from "../components/TopAnnouncementBar";
 import Footer from "../components/Footer";
 
@@ -139,7 +140,6 @@ function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="pl" className="dark">
       <head>
-        {/* Wstrzykiwanie tagów Open Graph na sztywno w HTML dla botów */}
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>FootBubr - Unikalne Korki Piłkarskie 1 of 1 & Akcesoria</title>
@@ -173,23 +173,24 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <CartProvider>
-        <TopAnnouncementBar />
-        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-        <Outlet />
-        <Footer />
-        <Toaster
-          position="bottom-center"
-          theme="dark"
-          toastOptions={{
-            style: {
-              background: "#1a1a1a",
-              border: "1px solid #333",
-              color: "#e5e5e5",
-            },
-          }}
-        />
-      </CartProvider>
+      <FavoritesProvider>
+        <CartProvider>
+          <TopAnnouncementBar />
+          <Outlet />
+          <Footer />
+          <Toaster
+            position="bottom-center"
+            theme="dark"
+            toastOptions={{
+              style: {
+                background: "#1a1a1a",
+                border: "1px solid #333",
+                color: "#e5e5e5",
+              },
+            }}
+          />
+        </CartProvider>
+      </FavoritesProvider>
     </QueryClientProvider>
   );
 }
