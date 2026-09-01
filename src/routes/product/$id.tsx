@@ -151,7 +151,7 @@ function ProductPage() {
                 <div className="w-full h-full flex items-center justify-center text-neutral-700">Brak zdjęcia</div>
               )}
 
-              {/* Przycisk polubienia (Lewy górny róg) */}
+              {/* Przycisk polubienia */}
               <button
                 type="button"
                 onClick={(e) => {
@@ -170,7 +170,7 @@ function ProductPage() {
                 />
               </button>
 
-              {/* Przycisk Udostępnij (Prawy górny róg) */}
+              {/* Przycisk Udostępnij */}
               <div className="absolute top-3 right-3 z-10">
                 <ShareButton title={product.name} />
               </div>
@@ -258,19 +258,28 @@ function ProductPage() {
               </div>
             )}
 
-            {/* Specyfikacja */}
+            {/* Specyfikacja z linkami do Modalu oraz Poradnika */}
             <div className="bg-[#141414] rounded-2xl border border-neutral-800/80 overflow-hidden">
-              <div className="px-4 py-3 border-b border-neutral-800 flex items-center justify-between">
+              <div className="px-4 py-3 border-b border-neutral-800 flex items-center justify-between flex-wrap gap-2">
                 <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider">Specyfikacja</h3>
                 {!isAccessory && (
-                  <button
-                    type="button"
-                    onClick={() => setShowSizeChart(true)}
-                    className="flex items-center gap-1.5 text-xs font-bold text-[#FF6B00] hover:text-[#FF7A00] transition-colors active:scale-95"
-                  >
-                    <Ruler className="w-3.5 h-3.5" />
-                    Tabela rozmiarów
-                  </button>
+                  <div className="flex items-center gap-2.5 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setShowSizeChart(true)}
+                      className="flex items-center gap-1.5 font-bold text-[#FF6B00] hover:text-[#FF7A00] transition-colors active:scale-95"
+                    >
+                      <Ruler className="w-3.5 h-3.5" />
+                      Tabela rozmiarów
+                    </button>
+                    <span className="text-neutral-700">|</span>
+                    <Link
+                      to="/size-guide"
+                      className="text-neutral-400 hover:text-white transition-colors"
+                    >
+                      Jak zmierzyć stopę?
+                    </Link>
+                  </div>
                 )}
               </div>
               <div className="divide-y divide-neutral-800/60">
