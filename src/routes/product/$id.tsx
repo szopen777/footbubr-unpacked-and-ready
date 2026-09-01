@@ -3,6 +3,7 @@ import { supabase, Product } from '@/lib/supabase';
 import Header from '@/components/Header';
 import CartDrawer from '@/components/CartDrawer';
 import ProductCard from '@/components/ProductCard';
+import LiveViewersCounter from '@/components/LiveViewersCounter';
 import { cn, formatPrice, SURFACE_LABELS, CONDITION_COLORS } from '@/lib/utils';
 import { 
   ShoppingBag, ArrowLeft, CircleAlert as AlertCircle, Package, 
@@ -204,14 +205,20 @@ function ProductPage() {
               </div>
               <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-white leading-tight uppercase tracking-tight">{product.name}</h1>
 
+              {/* Status magazynowy */}
               {!isSold && (
-                <div className="flex items-center gap-2 bg-[#FF6B00]/10 border border-[#FF6B00]/20 backdrop-blur-md rounded-xl px-4 py-2.5 mt-4 mb-4 animate-fade-in-up delay-200">
-                  <AlertCircle className="w-4 h-4 text-[#FF6B00] flex-shrink-0" />
-                  <span className="text-sm font-semibold text-[#FF6B00]">
-                    {isAccessory
-                      ? `Dostępne w magazynie: ${maxStock} szt.`
-                      : 'Tylko 1 sztuka w magazynie - unikat!'}
-                  </span>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 mt-4 mb-3">
+                  <div className="flex items-center gap-2 bg-[#FF6B00]/10 border border-[#FF6B00]/20 backdrop-blur-md rounded-xl px-4 py-2 flex-1">
+                    <AlertCircle className="w-4 h-4 text-[#FF6B00] flex-shrink-0" />
+                    <span className="text-xs sm:text-sm font-semibold text-[#FF6B00]">
+                      {isAccessory
+                        ? `Dostępne w magazynie: ${maxStock} szt.`
+                        : 'Tylko 1 sztuka w magazynie — unikat!'}
+                    </span>
+                  </div>
+
+                  {/* Licznik oglądających na żywo */}
+                  <LiveViewersCounter productId={product.id} />
                 </div>
               )}
 
@@ -302,7 +309,6 @@ function ProductPage() {
           </div>
         </div>
 
-        {/* Sekcja: Ostatnio oglądane */}
         {recentProducts.length > 0 && (
           <div className="mt-16 sm:mt-24 pt-10 border-t border-neutral-800/80 animate-fade-in">
             <div className="flex items-center gap-2.5 mb-6">
