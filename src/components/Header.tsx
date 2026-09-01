@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router';
-import { ShoppingBag, Search, Menu, X, Archive, Package } from 'lucide-react';
+import { ShoppingBag, Search, Menu, X, Archive, Package, Heart } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
+import { useFavorites } from '@/lib/favorites-context';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import logoPng from '/logoPNG.png';
@@ -12,6 +13,7 @@ interface HeaderProps {
 
 export default function Header({ searchValue = '', onSearchChange }: HeaderProps) {
   const { items, openCart, cartPulse } = useCart();
+  const { favoritesCount } = useFavorites();
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpenMobile, setSearchOpenMobile] = useState(false);
 
@@ -77,6 +79,21 @@ export default function Header({ searchValue = '', onSearchChange }: HeaderProps
               Archiwum
             </Link>
 
+            {/* Ulubione (Serduszko z licznikiem) */}
+            <Link
+              to="/favorites"
+              className="relative p-2 sm:p-2.5 text-neutral-300 hover:text-white transition-colors rounded-xl bg-white/5 border border-neutral-800/80 hover:border-neutral-700 active:scale-95"
+              title="Ulubione"
+              aria-label="Ulubione"
+            >
+              <Heart className={cn("w-4 h-4 sm:w-5 sm:h-5 transition-colors", favoritesCount > 0 && "text-red-500 fill-red-500")} />
+              {favoritesCount > 0 && (
+                <span className="absolute -top-1 -right-1 sm:-top-1.5 sm:-right-1.5 w-4 h-4 sm:w-5 sm:h-5 bg-red-500 text-white font-black text-[10px] sm:text-xs rounded-full flex items-center justify-center animate-scale-in">
+                  {favoritesCount}
+                </span>
+              )}
+            </Link>
+
             <Link
               to="/admin"
               className="hidden md:block text-sm text-neutral-400 hover:text-white transition-colors px-2.5 py-2 font-medium"
@@ -133,6 +150,21 @@ export default function Header({ searchValue = '', onSearchChange }: HeaderProps
         {/* Menu rozwijane na telefonie */}
         {menuOpen && (
           <div className="md:hidden py-3 border-t border-neutral-800 animate-fade-in flex flex-col gap-1">
+            <Link
+              to="/favorites"
+              onClick={() => setMenuOpen(false)}
+              className="flex items-center justify-between text-sm text-neutral-200 hover:text-[#FF6B00] py-2.5 px-2 rounded-lg font-bold uppercase transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                <Heart className={cn("w-4 h-4", favoritesCount > 0 ? "text-red-500 fill-red-500" : "text-[#FF6B00]")} />
+                Ulubione
+              </span>
+              {favoritesCount > 0 && (
+                <span className="text-xs bg-red-500 text-white font-bold px-2 py-0.5 rounded-full">
+                  {favoritesCount}
+                </span>
+              )}
+            </Link>
             <Link
               to="/track-order"
               onClick={() => setMenuOpen(false)}
