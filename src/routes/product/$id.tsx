@@ -210,7 +210,7 @@ function ProductPage() {
                   <span className="text-sm font-semibold text-[#FF6B00]">
                     {isAccessory
                       ? `Dostępne w magazynie: ${maxStock} szt.`
-                      : 'Tylko 1 sztuka w magazynie — unikat!'}
+                      : 'Tylko 1 sztuka w magazynie - unikat!'}
                   </span>
                 </div>
               )}
