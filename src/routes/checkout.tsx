@@ -252,7 +252,7 @@ function CheckoutPage() {
 
           setBlikStep('idle');
           setSubmitting(false);
-          setGeneralError('Płatność BLIK została odrzucona przez bank (błędny kod lub brak potwierdzenia w aplikacji). Przedmiot wrócił do oferty — możesz spróbować ponownie.');
+          setGeneralError('Płatność BLIK została odrzucona przez bank (błędny kod lub brak potwierdzenia w aplikacji). Przedmiot wrócił do oferty - możesz spróbować ponownie.');
           return;
         }
 
@@ -421,7 +421,7 @@ function CheckoutPage() {
               <>
                 <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto mb-4 animate-scale-in" />
                 <h3 className="text-white font-black uppercase tracking-tight text-lg">Płatność potwierdzona</h3>
-                <p className="text-neutral-400 text-sm mt-2">BLIK zaakceptowany — finalizujemy zamówienie.</p>
+                <p className="text-neutral-400 text-sm mt-2">BLIK zaakceptowany - finalizujemy zamówienie.</p>
               </>
             )}
           </div>
@@ -636,7 +636,7 @@ function CheckoutPage() {
 
               <p className="text-xs text-neutral-600 mt-3 flex items-center gap-1.5">
                 <CreditCard className="w-3.5 h-3.5" />
-                Płatność testowa — zamówienie zostanie zapisane w panelu admina
+                Płatność testowa - zamówienie zostanie zapisane w panelu admina
               </p>
             </div>
           </div>
@@ -728,7 +728,7 @@ function CheckoutPage() {
                 </div>
                 {discountedTotal < FREE_SHIPPING_THRESHOLD && (
                   <p className="text-xs text-neutral-600 pt-1">
-                    Darmowa dostawa od {formatPrice(FREE_SHIPPING_THRESHOLD)} — brakuje {formatPrice(FREE_SHIPPING_THRESHOLD - discountedTotal)}
+                    Darmowa dostawa od {formatPrice(FREE_SHIPPING_THRESHOLD)} - brakuje {formatPrice(FREE_SHIPPING_THRESHOLD - discountedTotal)}
                   </p>
                 )}
                 <div className="flex justify-between font-bold mt-3 pt-3 border-t border-neutral-800">
@@ -805,9 +805,9 @@ export const Route = createFileRoute('/checkout')({
   component: CheckoutPage,
   head: () => ({
     meta: [
-      { title: 'Kasa — FootBubr' },
+      { title: 'Kasa - FootBubr' },
       { name: 'description', content: 'Dokończ zamówienie korków i akcesoriów FootBubr: wysyłka InPost lub kurier, BLIK, karta i szybki przelew.' },
-      { property: 'og:title', content: 'Kasa — FootBubr' },
+      { property: 'og:title', content: 'Kasa - FootBubr' },
       { property: 'og:description', content: 'Dokończ zamówienie FootBubr.' },
     ],
   }),
