@@ -7,6 +7,7 @@ import CartDrawer from '@/components/CartDrawer';
 import ProductCard from '@/components/ProductCard';
 import FilterSidebar, { FilterState, SortOption } from '@/components/FilterSidebar';
 import DropCountdownBanner, { Countdown, calculateCountdown } from '@/components/DropCountdownBanner';
+import ReviewsBanner from '@/components/ReviewsBanner';
 import { Zap, Package2, ShieldCheck, Loader as Loader2, ChevronDown } from 'lucide-react';
 
 const DEFAULT_FILTERS: FilterState = {
@@ -332,6 +333,9 @@ function HomePage() {
           </div>
         </div>
       </div>
+
+      {/* Sekcja opinii społeczności */}
+      <ReviewsBanner />
 
       {showCelebration && (
         <DropCelebrationOverlay onComplete={handleCloseCelebration} />
