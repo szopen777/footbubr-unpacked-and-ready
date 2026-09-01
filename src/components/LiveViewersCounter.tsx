@@ -6,16 +6,30 @@ interface LiveViewersCounterProps {
   productId: string;
 }
 
+function formatPolishViewers(count: number): string {
+  if (count === 1) return '1 osoba';
+  const lastDigit = count % 10;
+  const lastTwoDigits = count % 100;
+
+  if (lastTwoDigits >= 12 && lastTwoDigits <= 14) {
+    return `${count} osób`;
+  }
+
+  if (lastDigit >= 2 && lastDigit <= 4) {
+    return `${count} osoby`;
+  }
+
+  return `${count} osób`;
+}
+
 export default function LiveViewersCounter({ productId }: LiveViewersCounterProps) {
   const [viewersCount, setViewersCount] = useState<number>(1);
 
   useEffect(() => {
     if (!productId) return;
 
-    // Tworzymy unikalny identyfikator obecnej sesji użytkownika
     const userSessionId = `visitor_${Math.random().toString(36).substring(2, 9)}`;
 
-    // Dołączamy do kanału Presence dedykowanego tylko dla tego produktu
     const channel = supabase.channel(`product_presence_${productId}`, {
       config: {
         presence: {
@@ -40,7 +54,6 @@ export default function LiveViewersCounter({ productId }: LiveViewersCounterProp
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
-          // Rejestrujemy obecność użytkownika w pokoju
           await channel.track({
             online_at: new Date().toISOString(),
           });
@@ -61,10 +74,7 @@ export default function LiveViewersCounter({ productId }: LiveViewersCounterProp
       </span>
       <Eye className="w-3.5 h-3.5" />
       <span>
-        <strong className="font-bold text-white">
-          {viewersCount} {viewersCount === 1 ? 'osoba' : viewersCount < 5 ? 'osoby' : 'osób'}
-        </strong>{' '}
-        ogląda teraz na żywo
+        <strong className="font-bold text-white">{formatPolishViewers(viewersCount)}</strong> ogląda teraz na żywo
       </span>
     </div>
   );
