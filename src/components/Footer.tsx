@@ -268,7 +268,7 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link to="/privacy-policy" className="hover:text-[#FF6B00] transition-colors">
+                <Link to="/privacy" className="hover:text-[#FF6B00] transition-colors">
                   Polityka prywatności
                 </Link>
               </li>
