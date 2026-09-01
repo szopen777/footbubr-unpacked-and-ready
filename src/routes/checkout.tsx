@@ -6,7 +6,12 @@ import { formatPrice, INPUT_CLASS } from '@/lib/utils';
 import { shippingCostFor, FREE_SHIPPING_THRESHOLD } from '@/lib/shipping';
 import Header from '@/components/Header';
 import CartDrawer from '@/components/CartDrawer';
-import { ArrowLeft, Package, Truck, CreditCard, CircleCheck as CheckCircle2, Loader as Loader2, MapPin, Tag, X, Check, CircleAlert as AlertCircle, Lock, ShieldCheck } from 'lucide-react';
+import { 
+  ArrowLeft, Package, Truck, CreditCard, 
+  Loader as Loader2, MapPin, Tag, X, Check, 
+  CircleAlert as AlertCircle, Lock, ShieldCheck, 
+  PackageOpen, ArrowRight 
+} from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 
 declare global {
@@ -173,12 +178,10 @@ function CheckoutPage() {
     if (items.length === 0) return;
 
     setSubmitting(true);
-
-    // Lista ID zarezerwowanych produktów (do ewentualnego cofnięcia rezerwacji)
     const reservedProductIds: string[] = [];
 
     try {
-      // 1. KROK 1: ATOMOWA REZERWACJA PRODUKTÓW W SUPABASE
+      // 1. Rezerwacja produktów
       for (const { product, quantity } of items) {
         const pName = (product.name || '').toLowerCase();
         const pBrand = (product.brand || '').toLowerCase();
@@ -235,14 +238,12 @@ function CheckoutPage() {
         }
       }
 
-      // 2. KROK 2: WERYFIKACJA PŁATNOŚCI BLIK (Z KODAMI TESTOWYMI 111111 / 222222)
+      // 2. Weryfikacja BLIK
       if (form.paymentMethod === 'blik') {
         setBlikStep('waiting');
         await new Promise((r) => setTimeout(r, 1800));
 
-        // SYMULACJA ODRZUCENIA PŁATNOŚCI DLA KODU 222222
         if (form.blikCode === '222222') {
-          // COFNIĘCIE REZERWACJI (ROLLBACK) - zwracamy produkty do bazy
           for (const prodId of reservedProductIds) {
             await supabase
               .from('products')
@@ -256,12 +257,11 @@ function CheckoutPage() {
           return;
         }
 
-        // DLA KODU 111111 ORAZ KAŻDEGO INNEGO: Płatność potwierdzona
         setBlikStep('confirmed');
         await new Promise((r) => setTimeout(r, 600));
       }
 
-      // 3. KROK 3: ZAPISANIE ZAMÓWIENIA W BAZIE
+      // 3. Zapis zamówienia
       const placedOrderIds: string[] = [];
       let firstRecord: Order | null = null;
       const cleanPhone = `+48${form.phone.replace(/\D/g, '')}`;
@@ -327,7 +327,6 @@ function CheckoutPage() {
       }
     } catch (err: any) {
       console.error('Unexpected order error:', err);
-      // W razie błędu sieciowego również cofamy rezerwację
       for (const prodId of reservedProductIds) {
         await supabase
           .from('products')
@@ -354,25 +353,95 @@ function CheckoutPage() {
     );
   }
 
+  // WIDOK SUKCESU Z ANIMACJĄ I KONFETTI
   if (step === 'success') {
     return (
-      <div className="min-h-screen">
+      <div className="min-h-screen flex flex-col bg-[#090909] overflow-hidden relative">
         <Header />
-        <div className="max-w-lg mx-auto px-4 py-24 text-center">
-          <div className="w-20 h-20 bg-emerald-400/10 border border-emerald-400/20 rounded-full flex items-center justify-center mx-auto mb-6 animate-scale-in">
-            <CheckCircle2 className="w-10 h-10 text-emerald-400" />
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-white mb-3 uppercase tracking-tight">Zamówienie złożone!</h1>
-          <p className="text-neutral-400 mb-2">Dziękujemy za zakup w FootBubr.</p>
-          <p className="text-neutral-600 text-sm mb-8">Nr zamówienia: <span className="text-neutral-300 font-mono">{orderRecord ? formatOrderNumber(orderRecord) : orderId.slice(0, 8).toUpperCase()}</span></p>
-          <p className="text-neutral-500 text-sm mb-8">Szczegóły wysłaliśmy na Twój adres email. Zamówienie trafiło do realizacji!</p>
-          <Link
-            to="/"
-            className="inline-flex items-center gap-2 bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-bold px-6 py-3 rounded-xl transition-all hover:scale-105 active:scale-95 shadow-[0_4px_15px_rgba(255,107,0,0.25)]"
-          >
-            Wróć do sklepu
-          </Link>
+        
+        {/* CSS-owe konfetti */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden z-20">
+          {[...Array(40)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute animate-confetti-fall rounded-sm"
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: `-5%`,
+                width: `${Math.random() * 8 + 4}px`,
+                height: `${Math.random() * 16 + 8}px`,
+                backgroundColor: ['#FF6B00', '#FFFFFF', '#4ADE80'][Math.floor(Math.random() * 3)],
+                animationDuration: `${Math.random() * 3 + 2}s`,
+                animationDelay: `${Math.random() * 1.5}s`,
+                opacity: Math.random() * 0.5 + 0.5,
+                transform: `rotate(${Math.random() * 360}deg)`
+              }}
+            />
+          ))}
         </div>
+
+        <main className="flex-1 flex items-center justify-center relative px-4 py-12">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-[#FF6B00]/10 blur-[100px] rounded-full pointer-events-none" />
+
+          <div className="max-w-md w-full bg-[#141414] border border-neutral-800 rounded-3xl p-8 sm:p-10 text-center relative z-10 animate-scale-in shadow-2xl">
+            {/* Animowana ikona sukcesu */}
+            <div className="relative w-20 h-20 mx-auto mb-6">
+              <div 
+                className="absolute inset-0 bg-[#FF6B00]/20 rounded-full animate-ping" 
+                style={{ animationDuration: '2s' }} 
+              />
+              <div className="relative w-full h-full bg-[#FF6B00] rounded-full flex items-center justify-center shadow-[0_0_30px_rgba(255,107,0,0.4)]">
+                <Check className="w-10 h-10 text-black stroke-[3]" />
+              </div>
+            </div>
+
+            <h1 className="text-2xl sm:text-3xl font-black text-white uppercase tracking-tight mb-2">
+              Zamówienie złożone!
+            </h1>
+
+            <p className="text-neutral-400 text-xs sm:text-sm mb-3">
+              Dziękujemy za zakupy w FootBubr.
+            </p>
+
+            <div className="inline-block bg-white/5 border border-neutral-800 rounded-xl px-4 py-1.5 mb-6">
+              <span className="text-xs text-neutral-500 font-medium">Nr zamówienia: </span>
+              <span className="text-sm font-black text-[#FF6B00] font-mono">
+                {orderRecord ? formatOrderNumber(orderRecord) : `#${orderId.slice(0, 8).toUpperCase()}`}
+              </span>
+            </div>
+
+            <p className="text-xs text-neutral-400 leading-relaxed mb-6">
+              Szczegóły wysłaliśmy na Twój adres e-mail. Zamówienie trafiło do realizacji!
+            </p>
+
+            <div className="bg-black/40 border border-neutral-800 rounded-2xl p-4 mb-6 flex items-center gap-3.5 text-left">
+              <PackageOpen className="w-8 h-8 text-[#FF6B00] flex-shrink-0" />
+              <div>
+                <p className="text-xs font-bold text-white uppercase">Szykujemy paczkę</p>
+                <p className="text-[11px] text-neutral-500">Wkrótce otrzymasz powiadomienie z numerem nadania.</p>
+              </div>
+            </div>
+
+            <Link
+              to="/"
+              className="w-full bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-black uppercase text-xs sm:text-sm tracking-wider py-3.5 rounded-xl transition-all flex items-center justify-center gap-2 active:scale-95 shadow-[0_4px_15px_rgba(255,107,0,0.25)]"
+            >
+              Wróć do sklepu <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        </main>
+
+        <style>{`
+          @keyframes confetti-fall {
+            0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+          }
+          .animate-confetti-fall {
+            animation-name: confetti-fall;
+            animation-timing-function: linear;
+            animation-fill-mode: forwards;
+          }
+        `}</style>
       </div>
     );
   }
@@ -419,7 +488,7 @@ function CheckoutPage() {
               </>
             ) : (
               <>
-                <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto mb-4 animate-scale-in" />
+                <Check className="w-10 h-10 text-emerald-400 mx-auto mb-4 animate-scale-in stroke-[3]" />
                 <h3 className="text-white font-black uppercase tracking-tight text-lg">Płatność potwierdzona</h3>
                 <p className="text-neutral-400 text-sm mt-2">BLIK zaakceptowany - finalizujemy zamówienie.</p>
               </>
@@ -716,7 +785,7 @@ function CheckoutPage() {
                 {discountAmount > 0 && appliedPromo && (
                   <div className="flex justify-between text-sm">
                     <span className="text-emerald-400 flex items-center gap-1.5">
-                      <Check className="w-3 h-3" />
+                      <Check className="w-3 h-3 stroke-[3]" />
                       Rabat {appliedPromo.discount_type === 'percentage' ? `-${appliedPromo.discount_value}%` : `-${appliedPromo.discount_value} PLN`}
                     </span>
                     <span className="text-emerald-400 font-medium">-{formatPrice(discountAmount)}</span>
@@ -742,7 +811,6 @@ function CheckoutPage() {
                 </div>
               </div>
 
-              {/* Checkbox zgód prawnych */}
               <div className="pt-4 mt-4 border-t border-neutral-800">
                 <label className="flex items-start gap-3 cursor-pointer group select-none">
                   <input
@@ -776,7 +844,6 @@ function CheckoutPage() {
                 </div>
               )}
 
-              {/* Przycisk zamówienia */}
               <button
                 onClick={handleSubmit}
                 disabled={submitting}
