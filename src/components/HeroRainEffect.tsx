@@ -10,7 +10,7 @@ interface Particle {
   opacity: number;
 }
 
-const ICONS = ['🦫', '⚽', '🦫', '⚡', '🦫', '👟'];
+const ICONS = ['🦫', '⚽', '🦫', '⚡', '🦫'];
 
 export default function HeroRainEffect() {
   const particles: Particle[] = useMemo(() => {
