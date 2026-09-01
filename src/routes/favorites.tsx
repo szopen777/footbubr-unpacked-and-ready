@@ -70,7 +70,7 @@ export const Route = createFileRoute('/favorites')({
   component: FavoritesPage,
   head: () => ({
     meta: [
-      { title: 'Ulubione — FootBubr' },
+      { title: 'Ulubione - FootBubr' },
       { name: 'description', content: 'Twoja lista zapisanych par korków i akcesoriów w sklepie FootBubr.' },
     ],
   }),
