@@ -148,14 +148,14 @@ function ProductPage() {
                 <div className="w-full h-full flex items-center justify-center text-neutral-700">Brak zdjęcia</div>
               )}
 
-              {/* Serduszko w rogu zdjęcia */}
+              {/* Przycisk polubienia (Serduszko na zdjęciu) */}
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   toggleFavorite(product);
                 }}
-                className="absolute top-3 left-3 z-10 p-3 rounded-2xl bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/10 text-white transition-all active:scale-90"
+                className="absolute top-3 left-3 z-10 p-3 rounded-2xl bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/10 text-white transition-all active:scale-90 shadow-lg"
                 title={favorited ? 'Usuń z ulubionych' : 'Dodaj do ulubionych'}
                 aria-label="Ulubione"
               >
@@ -285,14 +285,6 @@ function ProductPage() {
               </div>
             ) : (
               <div className="flex flex-col sm:flex-row gap-3">
-                <button
-                  type="button"
-                  onClick={() => toggleFavorite(product)}
-                  className="p-4 rounded-2xl border border-neutral-800 bg-[#141414] hover:bg-white/5 text-neutral-300 hover:text-white flex items-center justify-center transition-all active:scale-95 flex-shrink-0"
-                  title={favorited ? 'Usuń z ulubionych' : 'Dodaj do ulubionych'}
-                >
-                  <Heart className={cn("w-5 h-5", favorited && "text-red-500 fill-red-500")} />
-                </button>
                 <button
                   onClick={handleAddToCart}
                   className="flex-1 flex items-center justify-center gap-2.5 font-bold text-sm sm:text-base py-4 rounded-2xl border border-[#FF6B00]/40 hover:border-[#FF6B00] hover:bg-[#FF6B00]/10 text-neutral-200 transition-all active:scale-95"
