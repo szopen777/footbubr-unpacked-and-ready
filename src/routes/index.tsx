@@ -9,6 +9,7 @@ import ProductCardSkeleton from '@/components/ProductCardSkeleton';
 import FilterSidebar, { FilterState, SortOption } from '@/components/FilterSidebar';
 import DropCountdownBanner, { Countdown, calculateCountdown } from '@/components/DropCountdownBanner';
 import ReviewsBanner from '@/components/ReviewsBanner';
+import HeroRainEffect from '@/components/HeroRainEffect';
 import { Zap, Package2, ShieldCheck, ChevronDown } from 'lucide-react';
 
 const DEFAULT_FILTERS: FilterState = {
@@ -234,7 +235,11 @@ function HomePage() {
         <div className="absolute inset-0 bg-gradient-to-br from-[#FF6B00]/8 via-transparent to-transparent" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-[#FF6B00]/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
         <div className="absolute inset-0 bg-radial-grid opacity-50" />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-24 relative">
+        
+        {/* DESZCZ BOBRÓW I PIŁEK */}
+        <HeroRainEffect />
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-24 relative z-10">
           <div className="max-w-2xl mx-auto text-center">
             <div className="inline-flex items-center gap-2 bg-[#FF6B00]/10 border border-[#FF6B00]/20 backdrop-blur-md rounded-full px-4 py-1.5 mb-4 sm:mb-6 animate-fade-in-up">
               <Zap className="w-3.5 h-3.5 text-[#FF6B00]" />
