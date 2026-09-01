@@ -15,7 +15,7 @@ export const Route = createFileRoute('/track-order')({
   component: TrackOrderPage,
   head: () => ({
     meta: [
-      { title: 'Śledź Zamówienie - FootBubr' },
+      { title: 'Śledzenie zamówienia — FootBubr' },
       { name: 'description', content: 'Sprawdź status swojego zamówienia i przesyłki w FootBubr.' }
     ],
   }),
@@ -70,12 +70,10 @@ function getNormalizedStatus(rawStatus?: string) {
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]/g, '');
 
-  // 1. Anulowane
   if (clean.includes('anulow') || clean.includes('cancel')) {
     return STATUS_MAP.anulowane;
   }
   
-  // 2. Zakończone / Doręczone
   if (
     clean.includes('zakoncz') || 
     clean.includes('dorecz') || 
@@ -86,7 +84,6 @@ function getNormalizedStatus(rawStatus?: string) {
     return STATUS_MAP.zakonczone;
   }
   
-  // 3. Wysłane
   if (
     clean.includes('wyslan') || 
     clean.includes('ship') || 
@@ -95,7 +92,6 @@ function getNormalizedStatus(rawStatus?: string) {
     return STATUS_MAP.wyslane;
   }
   
-  // 4. W realizacji / Pakowanie
   if (
     clean.includes('realizacj') || 
     clean.includes('process') || 
@@ -105,7 +101,6 @@ function getNormalizedStatus(rawStatus?: string) {
     return STATUS_MAP.wrealizacji;
   }
   
-  // 5. Opłacone
   if (
     clean.includes('oplac') || 
     clean.includes('paid')
@@ -113,7 +108,6 @@ function getNormalizedStatus(rawStatus?: string) {
     return STATUS_MAP.oplacone;
   }
 
-  // 6. Nowe
   if (clean.includes('nowe') || clean.includes('new') || clean.includes('pend')) {
     return STATUS_MAP.nowe;
   }
@@ -173,11 +167,14 @@ function TrackOrderPage() {
   const statusInfo = orderData ? getNormalizedStatus(orderData.status) : null;
 
   return (
-    <div className="min-h-screen bg-[#0c0c0c] text-neutral-200 flex flex-col justify-between">
+    <div className="w-full text-neutral-200">
       <Header />
 
-      <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12 w-full">
-        <Link to="/" className="inline-flex items-center gap-2 text-xs font-bold uppercase text-neutral-400 hover:text-[#FF6B00] mb-8 transition-colors">
+      <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 w-full animate-fade-in">
+        <Link 
+          to="/" 
+          className="inline-flex items-center gap-2 text-xs font-bold uppercase text-neutral-400 hover:text-[#FF6B00] mb-8 transition-colors"
+        >
           <ArrowLeft className="w-4 h-4" /> Wróć do sklepu
         </Link>
 
@@ -191,7 +188,7 @@ function TrackOrderPage() {
         </div>
 
         {/* Formularz wyszukiwania */}
-        <div className="bg-[#141414] border border-neutral-800 rounded-2xl p-5 sm:p-6 mb-8">
+        <div className="bg-[#141414] border border-neutral-800 rounded-2xl p-5 sm:p-6 mb-8 shadow-xl">
           <form onSubmit={handleSearch} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
@@ -201,7 +198,7 @@ function TrackOrderPage() {
                   placeholder="#FB-0008"
                   value={orderQuery}
                   onChange={(e) => setOrderQuery(e.target.value)}
-                  className="w-full bg-white/5 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white font-mono uppercase focus:outline-none focus:border-[#FF6B00]/70"
+                  className="w-full bg-black/40 border border-neutral-800 focus:border-[#FF6B00] rounded-xl px-3.5 py-2.5 text-sm text-white font-mono uppercase focus:outline-none transition-all"
                 />
               </div>
               <div>
@@ -211,7 +208,7 @@ function TrackOrderPage() {
                   placeholder="twoj@email.pl"
                   value={emailQuery}
                   onChange={(e) => setEmailQuery(e.target.value)}
-                  className="w-full bg-white/5 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-[#FF6B00]/70"
+                  className="w-full bg-black/40 border border-neutral-800 focus:border-[#FF6B00] rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none transition-all"
                 />
               </div>
             </div>
@@ -226,7 +223,7 @@ function TrackOrderPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-[#FF6B00] hover:bg-[#FF7A00] disabled:opacity-50 text-black font-black uppercase text-xs tracking-wider py-3 rounded-xl transition-all flex items-center justify-center gap-2 shadow-[0_2px_15px_rgba(255,107,0,0.2)] active:scale-[0.99]"
+              className="w-full bg-[#FF6B00] hover:bg-[#FF7A00] disabled:opacity-50 text-black font-black uppercase text-xs tracking-wider py-3.5 rounded-xl transition-all flex items-center justify-center gap-2 shadow-[0_4px_15px_rgba(255,107,0,0.25)] active:scale-[0.99]"
             >
               <Search className="w-4 h-4" />
               {loading ? 'Wyszukiwanie...' : 'Sprawdź status'}
@@ -236,7 +233,7 @@ function TrackOrderPage() {
 
         {/* Wynik statusu zamówienia */}
         {orderData && statusInfo && (
-          <div className="bg-[#141414] border border-neutral-800 rounded-2xl p-6 space-y-6 animate-fade-in">
+          <div className="bg-[#141414] border border-neutral-800 rounded-2xl p-6 space-y-6 animate-fade-in shadow-xl">
             {/* Header karty statusu */}
             <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-neutral-800">
               <div>
@@ -342,7 +339,6 @@ function TrackOrderPage() {
           </div>
         )}
       </main>
-
     </div>
   );
 }
