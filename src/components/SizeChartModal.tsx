@@ -98,7 +98,7 @@ export const ALL_BRAND_SIZE_TABLES: Record<BrandKey, { label: string; sizes: Siz
   'new balance': {
     label: 'New Balance',
     sizes: [
-      { eu: '39.5', cm: '24.5', us: '6.5', uk: '6' },
+      { eu: '39', cm: '24.5', us: '6.5', uk: '6' },
       { eu: '40', cm: '25.0', us: '7', uk: '6.5' },
       { eu: '40.5', cm: '25.5', us: '7.5', uk: '7' },
       { eu: '41.5', cm: '26.0', us: '8', uk: '7.5' },
@@ -216,7 +216,6 @@ export default function SizeChartModal({ isOpen, onClose, initialBrand }: SizeCh
         className="bg-[#141414] border border-neutral-800 rounded-3xl w-full max-w-xl overflow-hidden shadow-2xl animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="flex items-center justify-between p-4 sm:p-5 border-b border-neutral-800">
           <div className="flex items-center gap-2">
             <Ruler className="w-5 h-5 text-[#FF6B00]" />
@@ -232,7 +231,6 @@ export default function SizeChartModal({ isOpen, onClose, initialBrand }: SizeCh
           </button>
         </div>
 
-        {/* Przełącznik marek */}
         <div className="p-3 bg-black/40 border-b border-neutral-800/80">
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
             {(Object.keys(ALL_BRAND_SIZE_TABLES) as BrandKey[]).map((key) => {
@@ -257,7 +255,6 @@ export default function SizeChartModal({ isOpen, onClose, initialBrand }: SizeCh
           </div>
         </div>
 
-        {/* Tabela rozmiarów */}
         <div className="max-h-80 overflow-y-auto">
           <table className="w-full text-left text-xs sm:text-sm">
             <thead className="bg-white/5 text-neutral-400 uppercase text-[11px] font-bold sticky top-0 backdrop-blur-md border-b border-neutral-800">
@@ -281,7 +278,6 @@ export default function SizeChartModal({ isOpen, onClose, initialBrand }: SizeCh
           </table>
         </div>
 
-        {/* Footer info */}
         <div className="p-3.5 bg-black/40 border-t border-neutral-800 text-[11px] text-neutral-400 text-center">
           Wskazówka: Zawsze sugeruj się długością wkładki <strong className="text-white">CM</strong> podaną przy produkcie.
         </div>
