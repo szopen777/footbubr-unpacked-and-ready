@@ -165,7 +165,7 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 lg:gap-10">
           
-          {/* Kolumna 1: Logo & O marce */}
+          {/* Kolumna 1: Logo & Opis (Szerokość: 2 kolumny) */}
           <div className="lg:col-span-2 space-y-4">
             <Link to="/" className="flex items-center gap-3 group">
               <div className="w-12 h-12 flex items-center justify-center transition-transform group-hover:scale-105 duration-200">
@@ -182,40 +182,32 @@ export default function Footer() {
             <p className="text-sm text-neutral-400 leading-relaxed max-w-sm">
               Selekcjonowany sklep z unikatowymi dropami korków piłkarskich 1 of 1 oraz profesjonalnymi akcesoriami treningowymi marki FOOTBUBR.
             </p>
-            <div className="flex items-center gap-3 pt-2">
+          </div>
+
+          {/* Kolumna 2: Social & Kontakt (w miejscu usuniętej Kolekcji) */}
+          <div className="space-y-3">
+            <h4 className="text-xs font-black text-white uppercase tracking-wider">Social & Kontakt</h4>
+            <div className="flex items-center gap-3 pt-1">
               <a
                 href="https://instagram.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-10 h-10 rounded-xl bg-[#141414] border border-neutral-800 flex items-center justify-center text-neutral-400 hover:text-white hover:border-[#FF6B00]/50 transition-all active:scale-95"
+                className="w-11 h-11 rounded-xl bg-[#141414] border border-neutral-800 flex items-center justify-center text-neutral-400 hover:text-white hover:border-[#FF6B00]/50 hover:bg-[#FF6B00]/10 transition-all active:scale-95"
                 title="Instagram"
               >
-                <InstagramIcon className="w-4 h-4" />
+                <InstagramIcon className="w-5 h-5" />
               </a>
               <a
                 href="mailto:kontakt@footbubr.pl"
-                className="w-10 h-10 rounded-xl bg-[#141414] border border-neutral-800 flex items-center justify-center text-neutral-400 hover:text-white hover:border-[#FF6B00]/50 transition-all active:scale-95"
+                className="w-11 h-11 rounded-xl bg-[#141414] border border-neutral-800 flex items-center justify-center text-neutral-400 hover:text-white hover:border-[#FF6B00]/50 hover:bg-[#FF6B00]/10 transition-all active:scale-95"
                 title="Napisz do nas"
               >
-                <Mail className="w-4 h-4" />
+                <Mail className="w-5 h-5" />
               </a>
             </div>
-          </div>
-
-          {/* Kolumna 2: Kolekcja (Prawdziwe linki) */}
-          <div className="space-y-3">
-            <h4 className="text-xs font-black text-white uppercase tracking-wider">Kolekcja</h4>
-            <ul className="space-y-2.5 text-sm">
-              <li>
-                <Link to="/" className="hover:text-[#FF6B00] transition-colors">Wszystkie produkty</Link>
-              </li>
-              <li>
-                <Link to="/archive" className="hover:text-[#FF6B00] transition-colors">Archiwum dropów</Link>
-              </li>
-              <li>
-                <Link to="/favorites" className="hover:text-[#FF6B00] transition-colors">Ulubione pary</Link>
-              </li>
-            </ul>
+            <p className="text-xs text-neutral-500 pt-1">
+              kontakt@footbubr.pl
+            </p>
           </div>
 
           {/* Kolumna 3: Pomoc i Obsługa */}
@@ -223,7 +215,9 @@ export default function Footer() {
             <h4 className="text-xs font-black text-white uppercase tracking-wider">Pomoc i Obsługa</h4>
             <ul className="space-y-2.5 text-sm">
               <li>
-                <Link to="/track-order" className="hover:text-[#FF6B00] transition-colors">Śledzenie zamówienia</Link>
+                <Link to="/track-order" className="hover:text-[#FF6B00] transition-colors">
+                  Śledzenie zamówienia
+                </Link>
               </li>
               <li>
                 <button
@@ -255,7 +249,7 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Kolumna 4: Informacje */}
+          {/* Kolumna 4: Informacje prawne */}
           <div className="space-y-3">
             <h4 className="text-xs font-black text-white uppercase tracking-wider">Informacje</h4>
             <ul className="space-y-2.5 text-sm">
@@ -269,31 +263,19 @@ export default function Footer() {
                 </button>
               </li>
               <li>
-                <button
-                  type="button"
-                  className="text-left text-neutral-400 hover:text-white transition-colors"
-                  onClick={() => toast.info('Zakupy w FootBubr objęte są pełną ochroną kupującego oraz prawem do odstąpienia od umowy.')}
-                >
+                <Link to="/terms" className="hover:text-[#FF6B00] transition-colors">
                   Regulamin sklepu
-                </button>
+                </Link>
               </li>
               <li>
-                <button
-                  type="button"
-                  className="text-left text-neutral-400 hover:text-white transition-colors"
-                  onClick={() => toast.info('Twoje dane przetwarzamy w pełni bezpiecznie i zgodnie z obowiązującymi przepisami RODO.')}
-                >
+                <Link to="/privacy-policy" className="hover:text-[#FF6B00] transition-colors">
                   Polityka prywatności
-                </button>
+                </Link>
               </li>
               <li>
-                <button
-                  type="button"
-                  className="text-left text-neutral-400 hover:text-white transition-colors"
-                  onClick={() => toast.info('Masz 14 dni na zwrot nieużywanego produktu. Wystarczy do nas napisać na kontakt@footbubr.pl.')}
-                >
+                <Link to="/returns" className="hover:text-[#FF6B00] transition-colors">
                   Zwroty i reklamacje
-                </button>
+                </Link>
               </li>
             </ul>
           </div>
