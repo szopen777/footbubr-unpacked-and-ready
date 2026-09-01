@@ -16,7 +16,7 @@ export const Route = createFileRoute('/track-order')({
   component: TrackOrderPage,
   head: () => ({
     meta: [
-      { title: 'Śledź Zamówienie — FootBubr' },
+      { title: 'Śledź Zamówienie - FootBubr' },
       { name: 'description', content: 'Sprawdź status swojego zamówienia i przesyłki w FootBubr.' }
     ],
   }),
