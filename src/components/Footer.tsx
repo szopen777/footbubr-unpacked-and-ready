@@ -1,12 +1,32 @@
 import { useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { 
-  ShieldCheck, Truck, RotateCcw, Footprints, Instagram, 
+  ShieldCheck, Truck, RotateCcw, Footprints, 
   Mail, ArrowRight, Check, Sparkles, Loader2 
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import logoPng from '/logoPNG.png';
+
+function InstagramIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      width="24"
+      height="24"
+      stroke="currentColor"
+      strokeWidth="2"
+      fill="none"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
+      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+      <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
+    </svg>
+  );
+}
 
 export default function Footer() {
   const [newsletterEmail, setNewsletterEmail] = useState('');
@@ -25,13 +45,11 @@ export default function Footer() {
     setLoading(true);
 
     try {
-      // Opcjonalny zapis do tabeli w Supabase
       await supabase
         .from('newsletter_subscribers')
         .insert([{ email: emailTrimmed }])
         .select();
 
-      // Zapisujemy flagę w localStorage
       localStorage.setItem('footbubr_nl_subscribed', emailTrimmed);
 
       setSubscribed(true);
@@ -41,7 +59,6 @@ export default function Footer() {
       });
       setNewsletterEmail('');
     } catch {
-      // Nawet w przypadku braku tabeli potwierdzamy wysłanie dla UX
       setSubscribed(true);
       toast.success('Sprawdź swoją skrzynkę e-mail!', {
         description: `Wysłaliśmy kod rabatowy -5% na adres ${emailTrimmed}.`,
@@ -172,7 +189,7 @@ export default function Footer() {
                 className="w-10 h-10 rounded-xl bg-[#141414] border border-neutral-800 flex items-center justify-center text-neutral-400 hover:text-white hover:border-[#FF6B00]/50 transition-all active:scale-95"
                 title="Instagram"
               >
-                <Instagram className="w-4 h-4" />
+                <InstagramIcon className="w-4 h-4" />
               </a>
               <a
                 href="mailto:kontakt@footbubr.pl"
