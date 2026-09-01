@@ -38,7 +38,6 @@ export const ALL_BRAND_SIZE_TABLES: Record<BrandKey, { label: string; sizes: Siz
       { eu: '47', cm: '30.5', us: '12.5', uk: '11.5' },
       { eu: '47.5', cm: '31.0', us: '13', uk: '12' },
       { eu: '48', cm: '31.5', us: '13.5', uk: '12.5' },
-      { eu: '48.5', cm: '32.0', us: '14', uk: '13' },
     ],
   },
   adidas: {
@@ -58,8 +57,6 @@ export const ALL_BRAND_SIZE_TABLES: Record<BrandKey, { label: string; sizes: Siz
       { eu: '46 2/3', cm: '30.0', us: '12', uk: '11.5' },
       { eu: '47 1/3', cm: '30.5', us: '12.5', uk: '12' },
       { eu: '48', cm: '31.0', us: '13', uk: '12.5' },
-      { eu: '48 2/3', cm: '31.5', us: '13.5', uk: '13' },
-      { eu: '49 1/3', cm: '32.0', us: '14', uk: '13.5' },
     ],
   },
   puma: {
@@ -78,7 +75,6 @@ export const ALL_BRAND_SIZE_TABLES: Record<BrandKey, { label: string; sizes: Siz
       { eu: '46', cm: '30.0', us: '12', uk: '11' },
       { eu: '47', cm: '31.0', us: '13', uk: '12' },
       { eu: '48', cm: '31.5', us: '13.5', uk: '12.5' },
-      { eu: '48.5', cm: '32.0', us: '14', uk: '13' },
     ],
   },
   mizuno: {
@@ -116,7 +112,7 @@ export const ALL_BRAND_SIZE_TABLES: Record<BrandKey, { label: string; sizes: Siz
       { eu: '46.5', cm: '30.0', us: '12', uk: '11.5' },
       { eu: '47', cm: '30.5', us: '12.5', uk: '12' },
       { eu: '47.5', cm: '31.0', us: '13', uk: '12.5' },
-      { eu: '48.5', cm: '32.0', us: '14', uk: '13.5' },
+      { eu: '48', cm: '31.5', us: '13.5', uk: '13' },
     ],
   },
   'under armour': {
@@ -137,7 +133,6 @@ export const ALL_BRAND_SIZE_TABLES: Record<BrandKey, { label: string; sizes: Siz
       { eu: '47', cm: '30.5', us: '12.5', uk: '11.5' },
       { eu: '47.5', cm: '31.0', us: '13', uk: '12' },
       { eu: '48', cm: '31.5', us: '13.5', uk: '12.5' },
-      { eu: '48.5', cm: '32.0', us: '14', uk: '13' },
     ],
   },
   umbro: {
@@ -226,7 +221,7 @@ export default function SizeChartModal({ isOpen, onClose, initialBrand }: SizeCh
           <div className="flex items-center gap-2">
             <Ruler className="w-5 h-5 text-[#FF6B00]" />
             <h3 className="font-black text-white uppercase tracking-tight text-base sm:text-lg">
-              Tabela rozmiarów
+              Tabela rozmiarów (39–48)
             </h3>
           </div>
           <button
@@ -237,7 +232,7 @@ export default function SizeChartModal({ isOpen, onClose, initialBrand }: SizeCh
           </button>
         </div>
 
-        {/* Przewijany poziomo pasek 8 marek */}
+        {/* Przełącznik marek */}
         <div className="p-3 bg-black/40 border-b border-neutral-800/80">
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
             {(Object.keys(ALL_BRAND_SIZE_TABLES) as BrandKey[]).map((key) => {
