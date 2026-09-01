@@ -9,12 +9,12 @@ export const Route = createFileRoute('/archive')({
   component: ArchivePage,
   head: () => ({
     meta: [
-      { title: 'Archiwum dropów — FootBubr' },
+      { title: 'Archiwum dropów - FootBubr' },
       {
         name: 'description',
         content: 'Sprzedane korki 1-of-1 z minionych dropów FootBubr. Grail Vault z historycznymi parami.',
       },
-      { property: 'og:title', content: 'Archiwum dropów — FootBubr' },
+      { property: 'og:title', content: 'Archiwum dropów - FootBubr' },
       { property: 'og:description', content: 'Sprzedane korki 1-of-1 z minionych dropów FootBubr.' },
     ],
   }),
