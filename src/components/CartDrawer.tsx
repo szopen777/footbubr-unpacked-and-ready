@@ -3,6 +3,7 @@ import { X, ShoppingBag, ArrowRight, Trash2, Truck, Plus, Minus } from 'lucide-r
 import { formatPrice } from '@/lib/utils';
 import { FREE_SHIPPING_THRESHOLD } from '@/lib/shipping';
 import { Link } from '@tanstack/react-router';
+import CartCrossSell from '@/components/CartCrossSell';
 
 export default function CartDrawer() {
   const { items, removeItem, updateQuantity, isOpen, closeCart, total, discountAmount, discountedTotal, promoCode } = useCart();
@@ -46,73 +47,78 @@ export default function CartDrawer() {
               </button>
             </div>
           ) : (
-            items.map(({ product, quantity }) => {
-              const pName = (product.name || '').toLowerCase();
-              const pBrand = (product.brand || '').toLowerCase();
-              const pModel = (product.model || '').toLowerCase();
-              const isAccessory =
-                pBrand === 'footbubr' ||
-                pName.includes('skarpety') ||
-                pName.includes('ochraniacze') ||
-                pName.includes('taśma') ||
-                pName.includes('tasma') ||
-                pName.includes('zestaw') ||
-                pModel.includes('skarpety') ||
-                pModel.includes('ochraniacze') ||
-                Boolean(product.accessory_type);
+            <>
+              {items.map(({ product, quantity }) => {
+                const pName = (product.name || '').toLowerCase();
+                const pBrand = (product.brand || '').toLowerCase();
+                const pModel = (product.model || '').toLowerCase();
+                const isAccessory =
+                  pBrand === 'footbubr' ||
+                  pName.includes('skarpety') ||
+                  pName.includes('ochraniacze') ||
+                  pName.includes('taśma') ||
+                  pName.includes('tasma') ||
+                  pName.includes('zestaw') ||
+                  pModel.includes('skarpety') ||
+                  pModel.includes('ochraniacze') ||
+                  Boolean(product.accessory_type);
 
-              return (
-                <div key={product.id} className="flex gap-3 bg-white/5 rounded-xl p-3 border border-neutral-800/80 group hover:border-neutral-700 transition-all">
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg overflow-hidden flex-shrink-0 bg-white/5">
-                    {product.images[0] ? (
-                      <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-neutral-600 text-xs">Brak</div>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0 flex flex-col justify-between">
-                    <div>
-                      <p className="font-semibold text-sm text-white leading-tight truncate">{product.name}</p>
-                      <p className="text-neutral-500 text-xs mt-0.5">
-                        {product.brand} · {isAccessory ? `Rozmiar: ${product.size_eu}` : `EU ${product.size_eu}`}
-                      </p>
-                      <p className="text-[#FF6B00] font-bold text-sm mt-1">{formatPrice(product.price)}</p>
+                return (
+                  <div key={product.id} className="flex gap-3 bg-white/5 rounded-xl p-3 border border-neutral-800/80 group hover:border-neutral-700 transition-all">
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg overflow-hidden flex-shrink-0 bg-white/5">
+                      {product.images[0] ? (
+                        <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-neutral-600 text-xs">Brak</div>
+                      )}
                     </div>
-
-                    {/* Sterowanie ilością (dla akcesoriów z magazynem > 1) */}
-                    {isAccessory && (product.stock_quantity ?? 1) > 1 ? (
-                      <div className="flex items-center gap-2 mt-2">
-                        <div className="flex items-center bg-black/40 border border-neutral-800 rounded-lg overflow-hidden">
-                          <button
-                            onClick={() => updateQuantity(product.id, quantity - 1)}
-                            className="p-1 text-neutral-400 hover:text-white hover:bg-white/5 transition-colors"
-                          >
-                            <Minus className="w-3.5 h-3.5" />
-                          </button>
-                          <span className="w-8 text-center font-bold text-white text-xs">{quantity}</span>
-                          <button
-                            onClick={() => updateQuantity(product.id, quantity + 1)}
-                            disabled={quantity >= (product.stock_quantity ?? 1)}
-                            className="p-1 text-neutral-400 hover:text-white hover:bg-white/5 transition-colors disabled:opacity-30"
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                        <span className="text-[11px] text-neutral-500">Łącznie: {formatPrice(product.price * quantity)}</span>
+                    <div className="flex-1 min-w-0 flex flex-col justify-between">
+                      <div>
+                        <p className="font-semibold text-sm text-white leading-tight truncate">{product.name}</p>
+                        <p className="text-neutral-500 text-xs mt-0.5">
+                          {product.brand} · {isAccessory ? `Rozmiar: ${product.size_eu}` : `EU ${product.size_eu}`}
+                        </p>
+                        <p className="text-[#FF6B00] font-bold text-sm mt-1">{formatPrice(product.price)}</p>
                       </div>
-                    ) : (
-                      <p className="text-xs text-neutral-500 mt-1">Ilość: 1 szt.</p>
-                    )}
+
+                      {/* Sterowanie ilością (dla akcesoriów z magazynem > 1) */}
+                      {isAccessory && (product.stock_quantity ?? 1) > 1 ? (
+                        <div className="flex items-center gap-2 mt-2">
+                          <div className="flex items-center bg-black/40 border border-neutral-800 rounded-lg overflow-hidden">
+                            <button
+                              onClick={() => updateQuantity(product.id, quantity - 1)}
+                              className="p-1 text-neutral-400 hover:text-white hover:bg-white/5 transition-colors"
+                            >
+                              <Minus className="w-3.5 h-3.5" />
+                            </button>
+                            <span className="w-8 text-center font-bold text-white text-xs">{quantity}</span>
+                            <button
+                              onClick={() => updateQuantity(product.id, quantity + 1)}
+                              disabled={quantity >= (product.stock_quantity ?? 1)}
+                              className="p-1 text-neutral-400 hover:text-white hover:bg-white/5 transition-colors disabled:opacity-30"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                          <span className="text-[11px] text-neutral-500">Łącznie: {formatPrice(product.price * quantity)}</span>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-neutral-500 mt-1">Ilość: 1 szt.</p>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => removeItem(product.id)}
+                      className="p-1.5 text-neutral-700 hover:text-red-400 transition-colors self-start active:scale-90"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
-                  <button
-                    onClick={() => removeItem(product.id)}
-                    className="p-1.5 text-neutral-700 hover:text-red-400 transition-colors self-start active:scale-90"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              );
-            })
+                );
+              })}
+
+              {/* Rekomendacja akcesoriów FOOTBUBR (Cross-sell) */}
+              <CartCrossSell />
+            </>
           )}
         </div>
 
