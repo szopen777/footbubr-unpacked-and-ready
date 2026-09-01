@@ -1,8 +1,9 @@
 import { Product } from '@/lib/supabase';
 import { cn, formatPrice, CONDITION_COLORS } from '@/lib/utils';
-import { ShoppingBag, Eye, Zap } from 'lucide-react';
+import { ShoppingBag, Eye, Zap, Heart } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 import { useCart } from '@/lib/cart-context';
+import { useFavorites } from '@/lib/favorites-context';
 import { useNavigate } from '@tanstack/react-router';
 import { toast } from 'sonner';
 
@@ -12,9 +13,11 @@ interface ProductCardProps {
 
 export default function ProductCard({ product }: ProductCardProps) {
   const { addItem, addItemSilent, items } = useCart();
+  const { isFavorite, toggleFavorite } = useFavorites();
   const navigate = useNavigate();
   const inCart = items.some((i) => i.product.id === product.id);
   const isSold = product.status === 'sold';
+  const favorited = isFavorite(product.id);
 
   const pName = (product.name || '').toLowerCase();
   const pBrand = (product.brand || '').toLowerCase();
@@ -47,6 +50,12 @@ export default function ProductCard({ product }: ProductCardProps) {
     navigate({ to: '/checkout' });
   };
 
+  const handleToggleFavorite = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleFavorite(product);
+  };
+
   return (
     <div
       className={cn(
@@ -70,9 +79,25 @@ export default function ProductCard({ product }: ProductCardProps) {
           <div className="w-full h-full flex items-center justify-center text-neutral-700 text-sm">Brak zdjęcia</div>
         )}
 
+        {/* Przycisk polubienia (Serduszko) */}
+        <button
+          type="button"
+          onClick={handleToggleFavorite}
+          className="absolute top-2 left-2 sm:top-2.5 sm:left-2.5 z-10 p-2 rounded-xl bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/10 text-white transition-all active:scale-90"
+          title={favorited ? 'Usuń z ulubionych' : 'Dodaj do ulubionych'}
+          aria-label="Ulubione"
+        >
+          <Heart
+            className={cn(
+              'w-3.5 h-3.5 sm:w-4 sm:h-4 transition-colors',
+              favorited ? 'text-red-500 fill-red-500 scale-110' : 'text-neutral-300 hover:text-white'
+            )}
+          />
+        </button>
+
         {/* Nakładka wyprzedane */}
         {isSold && (
-          <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/70 flex items-center justify-center pointer-events-none">
             <span className="text-white font-black text-base sm:text-xl tracking-widest rotate-[-12deg] border-2 sm:border-4 border-white/80 px-3 sm:px-4 py-1 sm:py-1.5 rounded backdrop-blur-md bg-black/30">
               WYPRZEDANE
             </span>
@@ -81,7 +106,7 @@ export default function ProductCard({ product }: ProductCardProps) {
 
         {/* Wyrazista odznaka nawierzchni (tylko dla butów) */}
         {!isAccessory && product.surface_type && (
-          <div className="absolute top-2 left-2 sm:top-2.5 sm:left-2.5">
+          <div className="absolute bottom-2 left-2 sm:bottom-2.5 sm:left-2.5">
             <span className="text-xs sm:text-sm font-black bg-[#111111]/90 text-white border border-neutral-700 px-2 sm:px-2.5 py-0.5 rounded-md shadow-[0_4px_12px_rgba(0,0,0,0.6)] backdrop-blur-md tracking-wide">
               {product.surface_type}
             </span>
@@ -97,8 +122,8 @@ export default function ProductCard({ product }: ProductCardProps) {
 
         {/* Podgląd */}
         {!isSold && (
-          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 hidden sm:flex items-center justify-center">
-            <span className="flex items-center gap-2 bg-white text-black font-semibold text-sm px-4 py-2 rounded-xl transition-all transform translate-y-2 group-hover:translate-y-0 duration-300">
+          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 hidden sm:flex items-center justify-center pointer-events-none">
+            <span className="flex items-center gap-2 bg-white text-black font-semibold text-sm px-4 py-2 rounded-xl transition-all transform translate-y-2 group-hover:translate-y-0 duration-300 shadow-lg">
               <Eye className="w-4 h-4" />
               Podgląd
             </span>
