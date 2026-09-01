@@ -110,7 +110,7 @@ export default function Footer() {
         </div>
       </div>
 
-      {/* 2. Sekcja Newslettera (-5% wysyłane na maila) */}
+      {/* 2. Sekcja Newslettera (-5% na maila) */}
       <div className="border-b border-neutral-800/80 py-10 sm:py-12 bg-gradient-to-b from-transparent to-black/40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="bg-[#121212] border border-neutral-800 rounded-3xl p-6 sm:p-10 flex flex-col lg:flex-row items-center justify-between gap-6 relative overflow-hidden">
@@ -125,7 +125,7 @@ export default function Footer() {
                 Dołącz do FootBubr Club
               </h3>
               <p className="text-xs sm:text-sm text-neutral-400">
-                Zapisz się do alertów o nowych dropach korków. Unikalny kod -5% wyślemy na podany adres e-mail.
+                Zapisz się do alertów o nowych dropach korków. Unikalny kod -5% wyślemy na Twój adres e-mail.
               </p>
             </div>
 
@@ -202,7 +202,7 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* Kolumna 2: Katalog */}
+          {/* Kolumna 2: Kolekcja */}
           <div className="space-y-3">
             <h4 className="text-xs font-black text-white uppercase tracking-wider">Kolekcja</h4>
             <ul className="space-y-2.5 text-sm">
@@ -218,7 +218,7 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Kolumna 3: Pomoc & Obsługa */}
+          {/* Kolumna 3: Pomoc i Obsługa */}
           <div className="space-y-3">
             <h4 className="text-xs font-black text-white uppercase tracking-wider">Pomoc i Obsługa</h4>
             <ul className="space-y-2.5 text-sm">
@@ -226,19 +226,13 @@ export default function Footer() {
                 <Link to="/track-order" className="hover:text-[#FF6B00] transition-colors">Śledzenie zamówienia</Link>
               </li>
               <li>
-                <span className="text-neutral-400 hover:text-white transition-colors cursor-pointer" onClick={() => toast.info('Tabela z dokładnymi centymetrami wkładek jest dostępna na karcie każdego buta.')}>
-                  Jak dobrać rozmiar?
-                </span>
+                <Link to="/shipping-info" className="hover:text-[#FF6B00] transition-colors">Czas i koszt dostawy</Link>
               </li>
               <li>
-                <span className="text-neutral-400 hover:text-white transition-colors cursor-pointer" onClick={() => toast.info('Wysyłamy w 24h przez Paczkomaty InPost oraz kuriera. Darmowa dostawa od 300 zł.')}>
-                  Czas i koszt dostawy
-                </span>
+                <Link to="/payments" className="hover:text-[#FF6B00] transition-colors">Formy płatności</Link>
               </li>
               <li>
-                <span className="text-neutral-400 hover:text-white transition-colors cursor-pointer" onClick={() => toast.info('Akceptujemy BLIK, szybkie przelewy PayU/Przelewy24 oraz karty płatnicze.')}>
-                  Formy płatności
-                </span>
+                <Link to="/size-guide" className="hover:text-[#FF6B00] transition-colors">Tabela rozmiarów</Link>
               </li>
             </ul>
           </div>
@@ -248,24 +242,16 @@ export default function Footer() {
             <h4 className="text-xs font-black text-white uppercase tracking-wider">Informacje</h4>
             <ul className="space-y-2.5 text-sm">
               <li>
-                <span className="text-neutral-400 hover:text-white transition-colors cursor-pointer" onClick={() => toast.info('FootBubr — pasja do unikatowego obuwia piłkarskiego i najwyższej jakości sprzętu.')}>
-                  O nas
-                </span>
+                <Link to="/about" className="hover:text-[#FF6B00] transition-colors">O nas</Link>
               </li>
               <li>
-                <span className="text-neutral-400 hover:text-white transition-colors cursor-pointer" onClick={() => toast.info('Regulamin zakupów w sklepie internetowym FootBubr.')}>
-                  Regulamin sklepu
-                </span>
+                <Link to="/terms" className="hover:text-[#FF6B00] transition-colors">Regulamin sklepu</Link>
               </li>
               <li>
-                <span className="text-neutral-400 hover:text-white transition-colors cursor-pointer" onClick={() => toast.info('Dbamy o bezpieczeństwo Twoich danych zgodnie z RODO.')}>
-                  Polityka prywatności
-                </span>
+                <Link to="/privacy-policy" className="hover:text-[#FF6B00] transition-colors">Polityka prywatności</Link>
               </li>
               <li>
-                <span className="text-neutral-400 hover:text-white transition-colors cursor-pointer" onClick={() => toast.info('Masz 14 dni na odstąpienie od umowy i zwrot nieużywanego towaru.')}>
-                  Zwroty i reklamacje
-                </span>
+                <Link to="/returns" className="hover:text-[#FF6B00] transition-colors">Zwroty i reklamacje</Link>
               </li>
             </ul>
           </div>
