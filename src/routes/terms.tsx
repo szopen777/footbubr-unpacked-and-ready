@@ -5,7 +5,7 @@ import { ArrowLeft, Shield, FileText, CheckCircle2 } from 'lucide-react';
 export const Route = createFileRoute('/terms')({
   component: TermsPage,
   head: () => ({
-    meta: [{ title: 'Regulamin Sklepu — FootBubr' }],
+    meta: [{ title: 'Regulamin Sklepu - FootBubr' }],
   }),
 });
 
