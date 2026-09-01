@@ -2,14 +2,15 @@ import { useEffect, useState } from 'react';
 import { supabase, Product } from '@/lib/supabase';
 import Header from '@/components/Header';
 import CartDrawer from '@/components/CartDrawer';
+import ProductCard from '@/components/ProductCard';
 import { cn, formatPrice, SURFACE_LABELS, CONDITION_COLORS } from '@/lib/utils';
 import { 
   ShoppingBag, ArrowLeft, CircleAlert as AlertCircle, Package, 
-  CircleCheck as CheckCircle2, Circle as XCircle, ChevronLeft, ChevronRight, 
-  Loader as Loader2, ZoomIn, Zap, Ruler, ShieldCheck, Truck, Lock, Plus, Minus, Heart 
+  Loader as Loader2, ZoomIn, Zap, Ruler, Plus, Minus, Heart, Eye
 } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
 import { useFavorites } from '@/lib/favorites-context';
+import { useRecentlyViewed } from '@/lib/use-recently-viewed';
 import { Link, useNavigate, createFileRoute } from '@tanstack/react-router';
 import { toast } from 'sonner';
 import SizeChartModal from '@/components/SizeChartModal';
@@ -26,6 +27,8 @@ function ProductPage() {
   const [quantity, setQuantity] = useState(1);
   const { addItem, addItemSilent, items } = useCart();
   const { isFavorite, toggleFavorite } = useFavorites();
+
+  const { recentProducts } = useRecentlyViewed(product?.id);
 
   const cartItem = product ? items.find((i) => i.product.id === product.id) : null;
   const inCart = Boolean(cartItem);
@@ -96,14 +99,12 @@ function ProductPage() {
       <Header />
       <CartDrawer />
 
-      {/* Modal z tabelą rozmiarów */}
       <SizeChartModal 
         isOpen={showSizeChart} 
         onClose={() => setShowSizeChart(false)} 
         initialBrand={product.brand}
       />
 
-      {/* Modal pełnoekranowego zoomu (Lightbox) */}
       <ImageLightboxModal
         images={validImages}
         initialIndex={activeImage}
@@ -148,7 +149,6 @@ function ProductPage() {
                 <div className="w-full h-full flex items-center justify-center text-neutral-700">Brak zdjęcia</div>
               )}
 
-              {/* Przycisk polubienia (Serduszko na zdjęciu) */}
               <button
                 type="button"
                 onClick={(e) => {
@@ -175,6 +175,7 @@ function ProductPage() {
                 </div>
               )}
             </div>
+
             {images.length > 1 && (
               <div className="flex gap-2 overflow-x-auto pb-1">
                 {images.map((img, i) => (
@@ -222,7 +223,6 @@ function ProductPage() {
               </div>
             </div>
 
-            {/* Wybór ilości (Tylko dla akcesoriów) */}
             {isAccessory && !isSold && (
               <div className="flex items-center gap-4 bg-[#141414] border border-neutral-800 rounded-2xl p-4">
                 <span className="text-sm text-neutral-400 font-medium">Wybierz ilość:</span>
@@ -244,7 +244,6 @@ function ProductPage() {
               </div>
             )}
 
-            {/* Tabela specyfikacji */}
             <div className="bg-[#141414] rounded-2xl border border-neutral-800/80 overflow-hidden">
               <div className="px-4 py-3 border-b border-neutral-800 flex items-center justify-between">
                 <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider">Specyfikacja</h3>
@@ -277,7 +276,6 @@ function ProductPage() {
               </div>
             </div>
 
-            {/* Przyciski zakupu */}
             {isSold ? (
               <div className="flex items-center justify-center gap-2 bg-white/5 border border-neutral-800 text-neutral-500 font-bold py-4 rounded-2xl">
                 <Package className="w-5 h-5" />
@@ -303,6 +301,24 @@ function ProductPage() {
             )}
           </div>
         </div>
+
+        {/* Sekcja: Ostatnio oglądane */}
+        {recentProducts.length > 0 && (
+          <div className="mt-16 sm:mt-24 pt-10 border-t border-neutral-800/80 animate-fade-in">
+            <div className="flex items-center gap-2.5 mb-6">
+              <Eye className="w-5 h-5 text-[#FF6B00]" />
+              <h2 className="text-lg sm:text-xl font-black text-white uppercase tracking-tight">
+                Ostatnio oglądane
+              </h2>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5">
+              {recentProducts.map((p) => (
+                <ProductCard key={p.id} product={p} />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
