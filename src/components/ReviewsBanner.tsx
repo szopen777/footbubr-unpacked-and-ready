@@ -1,8 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Star, ShieldCheck, CheckCircle2, MessageSquarePlus, Loader2 } from 'lucide-react';
+import { Star, ShieldCheck, CheckCircle2, MessageSquarePlus, Loader2, Package } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+
+interface PurchasedItemOption {
+  id: string;
+  name: string;
+}
 
 interface ReviewItem {
   id: string;
@@ -11,6 +16,10 @@ interface ReviewItem {
   comment: string;
   is_verified_buyer: boolean;
   created_at: string;
+  products?: {
+    name: string;
+    brand: string;
+  } | null;
 }
 
 export default function ReviewsBanner() {
@@ -19,27 +28,110 @@ export default function ReviewsBanner() {
   const [showModal, setShowModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // Formularz opinii o sklepie
+  // Formularz opinii
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
+  const [selectedProductId, setSelectedProductId] = useState<string>('');
+
+  // Stan weryfikacji produktów powiązanych z mailem
+  const [checkingOrders, setCheckingOrders] = useState(false);
+  const [userPurchases, setUserPurchases] = useState<PurchasedItemOption[]>([]);
+  const [emailVerified, setEmailVerified] = useState(false);
 
   const fetchReviews = async () => {
     setLoading(true);
     const { data } = await supabase
       .from('reviews')
-      .select('*')
+      .select(`
+        id,
+        author_name,
+        rating,
+        comment,
+        is_verified_buyer,
+        created_at,
+        products (
+          name,
+          brand
+        )
+      `)
       .order('created_at', { ascending: false })
       .limit(6);
 
-    if (data) setReviews(data);
+    if (data) setReviews(data as unknown as ReviewItem[]);
     setLoading(false);
   };
 
   useEffect(() => {
     fetchReviews();
   }, []);
+
+  // Weryfikacja zamówień i pobranie listy produktów po wpisaniu e-maila
+  const handleVerifyEmail = async () => {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      toast.error('Wpisz poprawny adres e-mail');
+      return;
+    }
+
+    setCheckingOrders(true);
+
+    try {
+      const { data: orders, error } = await supabase
+        .from('orders')
+        .select('id, status, product_id, items, products(id, name)')
+        .ilike('customer_email', cleanEmail);
+
+      if (error) throw error;
+
+      const validOrders = (orders || []).filter((o: any) => {
+        const s = (o.status || '').toLowerCase();
+        return !s.includes('anulow') && !s.includes('cancel');
+      });
+
+      if (validOrders.length === 0) {
+        toast.error('Nie znaleziono zamówień', {
+          description: 'Nie znaleźliśmy zrealizowanych zamówień przypisanych do tego adresu e-mail.',
+        });
+        setEmailVerified(false);
+        setUserPurchases([]);
+        return;
+      }
+
+      // Wyciągamy unikalne zakupione produkty
+      const itemsMap = new Map<string, string>();
+
+      validOrders.forEach((o: any) => {
+        if (o.product_id && o.products?.name) {
+          itemsMap.set(o.product_id, o.products.name);
+        }
+        if (Array.isArray(o.items)) {
+          o.items.forEach((it: any) => {
+            const pId = it.product?.id || it.id;
+            const pName = it.product?.name || it.name;
+            if (pId && pName) itemsMap.set(pId, pName);
+          });
+        }
+      });
+
+      const options: PurchasedItemOption[] = Array.from(itemsMap.entries()).map(([id, name]) => ({
+        id,
+        name,
+      }));
+
+      setUserPurchases(options);
+      setEmailVerified(true);
+      if (options.length > 0) {
+        setSelectedProductId(options[0].id);
+      }
+      toast.success('Zweryfikowano zamówienie!');
+    } catch {
+      toast.error('Błąd weryfikacji adresu e-mail');
+    } finally {
+      setCheckingOrders(false);
+    }
+  };
 
   const handleAddStoreReview = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,33 +144,17 @@ export default function ReviewsBanner() {
       return;
     }
 
+    if (!emailVerified) {
+      toast.error('Najpierw zweryfikuj adres e-mail');
+      return;
+    }
+
     setSubmitting(true);
 
     try {
-      // Weryfikacja czy ten e-mail złożył jakiekolwiek zamówienie w sklepie
-      const { data: orders, error: orderErr } = await supabase
-        .from('orders')
-        .select('id, status')
-        .ilike('customer_email', cleanEmail);
-
-      if (orderErr) throw orderErr;
-
-      const hasValidOrder = orders?.some((o: any) => {
-        const s = (o.status || '').toLowerCase();
-        return !s.includes('anulow') && !s.includes('cancel');
-      });
-
-      if (!hasValidOrder) {
-        toast.error('Brak zweryfikowanego zamówienia', {
-          description: 'Opinie mogą dodawać wyłącznie klienci, którzy zrealizowali zamówienie w FootBubr.',
-        });
-        setSubmitting(false);
-        return;
-      }
-
-      const { error: insertErr } = await supabase.from('reviews').insert([
+      const { error } = await supabase.from('reviews').insert([
         {
-          product_id: null,
+          product_id: selectedProductId ? selectedProductId : null,
           author_name: cleanName,
           customer_email: cleanEmail,
           rating,
@@ -87,7 +163,7 @@ export default function ReviewsBanner() {
         },
       ]);
 
-      if (insertErr) throw insertErr;
+      if (error) throw error;
 
       toast.success('Dziękujemy za opinię!', {
         description: 'Twoja ocena została opublikowana.',
@@ -96,6 +172,9 @@ export default function ReviewsBanner() {
       setName('');
       setEmail('');
       setComment('');
+      setSelectedProductId('');
+      setEmailVerified(false);
+      setUserPurchases([]);
       setShowModal(false);
       fetchReviews();
     } catch {
@@ -142,37 +221,82 @@ export default function ReviewsBanner() {
         </div>
       </div>
 
-      {/* Modal dodawania opinii o sklepie */}
+      {/* Modal dodawania opinii */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
-          <div className="bg-[#141414] border border-neutral-800 rounded-3xl p-6 w-full max-w-lg shadow-2xl space-y-4 animate-scale-in">
+          <div className="bg-[#141414] border border-neutral-800 rounded-3xl p-6 w-full max-w-lg shadow-2xl space-y-4 animate-scale-in max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
               <h3 className="font-black text-white uppercase text-base">Dodaj opinię o zakupach</h3>
-              <button onClick={() => setShowModal(false)} className="text-xs text-neutral-500 hover:text-white">
+              <button 
+                onClick={() => {
+                  setShowModal(false);
+                  setEmailVerified(false);
+                }} 
+                className="text-xs text-neutral-500 hover:text-white"
+              >
                 Zamknij
               </button>
             </div>
 
-            <form onSubmit={handleAddStoreReview} className="space-y-3.5 text-xs">
+            <form onSubmit={handleAddStoreReview} className="space-y-4 text-xs">
+              
+              {/* Krok weryfikacji e-mail */}
+              <div>
+                <label className="block font-bold uppercase text-neutral-400 mb-1">E-mail z zamówienia *</label>
+                <div className="flex gap-2">
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      setEmailVerified(false);
+                    }}
+                    placeholder="twoj@email.pl"
+                    className="flex-1 bg-black/40 border border-neutral-800 focus:border-[#FF6B00] rounded-xl px-3 py-2.5 text-white outline-none"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={handleVerifyEmail}
+                    disabled={checkingOrders || !email}
+                    className="bg-white/10 hover:bg-white/20 disabled:opacity-50 text-white font-bold px-3.5 py-2.5 rounded-xl transition-all flex items-center gap-1.5 flex-shrink-0"
+                  >
+                    {checkingOrders ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Sprawdź'}
+                  </button>
+                </div>
+                {emailVerified && (
+                  <p className="text-emerald-400 text-[11px] mt-1.5 flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Adres e-mail zweryfikowany pomyślnie.
+                  </p>
+                )}
+              </div>
+
+              {/* Wybór zakupionego produktu */}
+              {emailVerified && userPurchases.length > 0 && (
+                <div>
+                  <label className="block font-bold uppercase text-neutral-400 mb-1">Wybierz oceniany produkt *</label>
+                  <select
+                    value={selectedProductId}
+                    onChange={(e) => setSelectedProductId(e.target.value)}
+                    className="w-full bg-black/40 border border-neutral-800 focus:border-[#FF6B00] rounded-xl px-3 py-2.5 text-white outline-none cursor-pointer"
+                  >
+                    <option value="">Ogólna opinia o sklepie i obsłudze</option>
+                    {userPurchases.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div>
                 <label className="block font-bold uppercase text-neutral-400 mb-1">Twoje imię / Nick *</label>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="np. Michał"
-                  className="w-full bg-black/40 border border-neutral-800 focus:border-[#FF6B00] rounded-xl px-3 py-2.5 text-white outline-none"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold uppercase text-neutral-400 mb-1">E-mail z zamówienia *</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="twoj@email.pl"
+                  placeholder="np. Ignacy"
                   className="w-full bg-black/40 border border-neutral-800 focus:border-[#FF6B00] rounded-xl px-3 py-2.5 text-white outline-none"
                   required
                 />
@@ -204,7 +328,7 @@ export default function ReviewsBanner() {
                 <textarea
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
-                  placeholder="Jak oceniasz kontakt, czas wysyłki i stan zamówionych produktów?"
+                  placeholder="Napisz kilka słów o jakości produktu, wysyłce lub obsłudze..."
                   rows={3}
                   className="w-full bg-black/40 border border-neutral-800 focus:border-[#FF6B00] rounded-xl px-3 py-2.5 text-white outline-none resize-none"
                   required
@@ -213,24 +337,24 @@ export default function ReviewsBanner() {
 
               <button
                 type="submit"
-                disabled={submitting}
-                className="w-full bg-[#FF6B00] hover:bg-[#FF7A00] disabled:opacity-50 text-black font-black uppercase py-3 rounded-xl transition-all shadow-[0_2px_12px_rgba(255,107,0,0.25)] flex items-center justify-center gap-2"
+                disabled={submitting || !emailVerified}
+                className="w-full bg-[#FF6B00] hover:bg-[#FF7A00] disabled:opacity-40 text-black font-black uppercase py-3 rounded-xl transition-all shadow-[0_2px_12px_rgba(255,107,0,0.25)] flex items-center justify-center gap-2"
               >
-                {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Zweryfikuj zakup i opublikuj'}
+                {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Opublikuj recenzję'}
               </button>
             </form>
           </div>
         </div>
       )}
 
-      {/* Siatka prawdziwych opinii */}
+      {/* Siatka opinii */}
       {loading ? (
         <div className="py-10 flex justify-center">
           <Loader2 className="w-6 h-6 animate-spin text-[#FF6B00]" />
         </div>
       ) : reviews.length === 0 ? (
         <div className="bg-[#141414] border border-neutral-800 rounded-2xl p-8 text-center text-xs text-neutral-500">
-          Pierwsze opinie pojawią się wkrótce po doręczeniu zamówień. Kupiłeś coś u nas? Kliknij „Oceń zakupy”!
+          Brak opinii. Kupiłeś coś u nas? Kliknij „Oceń zakupy”!
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
@@ -252,14 +376,26 @@ export default function ReviewsBanner() {
                     </span>
                   )}
                 </div>
+
+                {/* Badge ocenionego produktu */}
+                {rev.products?.name && (
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-neutral-800 text-[11px] text-neutral-300 max-w-full truncate">
+                    <Package className="w-3.5 h-3.5 text-[#FF6B00] flex-shrink-0" />
+                    <span className="truncate">{rev.products.name}</span>
+                  </div>
+                )}
+
                 <p className="text-xs sm:text-sm text-neutral-300 leading-relaxed font-normal">
                   "{rev.comment}"
                 </p>
               </div>
 
+              {/* Dolny pasek: Autor oraz data */}
               <div className="pt-3 border-t border-neutral-800/80 flex items-center justify-between text-xs text-neutral-500">
                 <h4 className="font-bold text-white">{rev.author_name}</h4>
-                <span>{new Date(rev.created_at).toLocaleDateString('pl-PL')}</span>
+                <span className="font-mono text-[11px]">
+                  {new Date(rev.created_at).toLocaleDateString('pl-PL')}
+                </span>
               </div>
             </div>
           ))}
