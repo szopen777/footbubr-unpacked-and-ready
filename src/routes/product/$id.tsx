@@ -6,10 +6,11 @@ import ProductCard from '@/components/ProductCard';
 import LiveViewersCounter from '@/components/LiveViewersCounter';
 import ShareButton from '@/components/ShareButton';
 import ProductReviews from '@/components/ProductReviews';
+import { Skeleton } from '@/components/skeleton';
 import { cn, formatPrice, SURFACE_LABELS, CONDITION_COLORS } from '@/lib/utils';
 import { 
   ShoppingBag, ArrowLeft, CircleAlert as AlertCircle, Package, 
-  Loader as Loader2, ZoomIn, Zap, Ruler, Plus, Minus, Heart, Eye
+  ZoomIn, Zap, Ruler, Plus, Minus, Heart, Eye
 } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
 import { useFavorites } from '@/lib/favorites-context';
@@ -52,8 +53,35 @@ function ProductPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-[#FF6B00] animate-spin" />
+      <div className="min-h-screen">
+        <Header />
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-6 sm:py-8">
+          <Skeleton className="h-4 w-48 mb-6" />
+          
+          <div className="grid lg:grid-cols-2 gap-6 lg:gap-10 xl:gap-16">
+            <div className="space-y-3">
+              <Skeleton className="aspect-square w-full rounded-2xl" />
+              <div className="flex gap-2">
+                {[1, 2, 3].map((i) => (
+                  <Skeleton key={i} className="w-16 h-16 rounded-xl" />
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-6 pt-2">
+              <div className="space-y-4">
+                <Skeleton className="h-6 w-32" />
+                <Skeleton className="h-10 w-3/4" />
+                <Skeleton className="h-12 w-40 mt-4" />
+              </div>
+              <Skeleton className="h-36 w-full rounded-2xl" />
+              <div className="flex gap-3 mt-4">
+                <Skeleton className="h-14 flex-1 rounded-2xl" />
+                <Skeleton className="h-14 flex-1 rounded-2xl" />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -259,7 +287,7 @@ function ProductPage() {
               </div>
             )}
 
-            {/* Specyfikacja z linkami do modalu i przewodnika */}
+            {/* Specyfikacja z linkami */}
             <div className="bg-[#141414] rounded-2xl border border-neutral-800/80 overflow-hidden">
               <div className="px-4 py-3 border-b border-neutral-800 flex items-center justify-between flex-wrap gap-2">
                 <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider">Specyfikacja</h3>
@@ -328,7 +356,7 @@ function ProductPage() {
           </div>
         </div>
 
-        {/* Recenzje produktu — TYLKO dla stałego asortymentu akcesoriów */}
+        {/* Recenzje produktu — tylko akcesoria */}
         {isAccessory && (
           <ProductReviews productId={product.id} productName={product.name} />
         )}
