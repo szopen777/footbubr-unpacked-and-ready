@@ -86,7 +86,7 @@ export default function Footer() {
   return (
     <footer className="bg-[#090909] border-t border-neutral-800 text-neutral-400">
       
-      {/* 1. Kompaktowy pasek BUBRCLUB (Newsletter) */}
+      {/* 1. Moduł BUBRCLUB (Newsletter) */}
       <div className="border-b border-neutral-800/80 bg-gradient-to-r from-black/80 via-[#111] to-black/80 py-6 sm:py-7">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col lg:flex-row items-center justify-between gap-4">
@@ -137,11 +137,11 @@ export default function Footer() {
         </div>
       </div>
 
-      {/* 2. Główna treść stopki (Siatka kolumn) */}
+      {/* 2. Główna treść stopki */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-12">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 lg:gap-10">
           
-          {/* Kolumna 1: O marce (Szerokość: 2 kolumny) */}
+          {/* Kolumna 1: O marce */}
           <div className="lg:col-span-2 space-y-3">
             <Link to="/" className="flex items-center gap-2.5 group w-fit">
               <div className="w-9 h-9 flex items-center justify-center transition-transform group-hover:scale-105 duration-200">
@@ -203,13 +203,9 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <button
-                  type="button"
-                  className="text-left text-neutral-400 hover:text-white transition-colors"
-                  onClick={() => toast.info('Tabela rozmiarów z długościami wkładek w cm dostępna jest na karcie każdego buta.')}
-                >
+                <Link to="/size-guide" className="hover:text-[#FF6B00] transition-colors">
                   Jak dobrać rozmiar?
-                </button>
+                </Link>
               </li>
               <li>
                 <button
@@ -265,7 +261,7 @@ export default function Footer() {
 
         </div>
 
-        {/* 3. Pasek dolny: Płatności & Copyright */}
+        {/* 3. Pasek dolny */}
         <div className="mt-10 pt-6 border-t border-neutral-800/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-neutral-500">
           <p>© {new Date().getFullYear()} FootBubr. Wszelkie prawa zastrzeżone.</p>
           
