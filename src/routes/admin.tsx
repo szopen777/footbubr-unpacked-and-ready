@@ -6,8 +6,8 @@ import { formatPrice, INPUT_CLASS, SELECT_CLASS, cn } from '@/lib/utils';
 import { 
   Package, ShoppingCart, LogOut, Eye, EyeOff, Loader as Loader2, Trash2, 
   CreditCard as Edit2, X, Check, CircleAlert as AlertCircle, ArrowLeft, 
-  ChevronDown, Zap, Calendar, Menu, Sparkles, Copy, Truck, MapPin, 
-  Plus, Minus, FileText, Clock, Layers, Upload, Footprints, Tag 
+  ChevronDown, Zap, Sparkles, Truck, Plus, Minus, FileText, Clock, Layers, 
+  Upload, Footprints, Tag, MessageSquare, Star, CheckCircle2, Volume2, Menu, Mail, Lock
 } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 import type { Database } from '@/integrations/supabase/types';
@@ -15,7 +15,7 @@ import type { Database } from '@/integrations/supabase/types';
 type ProductInsert = Database['public']['Tables']['products']['Insert'];
 type ProductUpdate = Database['public']['Tables']['products']['Update'];
 
-type View = 'products' | 'orders' | 'drop-settings' | 'discounts';
+type View = 'products' | 'orders' | 'drop-settings' | 'discounts' | 'reviews';
 type CustomProductStatus = 'available' | 'draft' | 'drop' | 'sold';
 type DropTypeChoice = 'global' | 'custom';
 type ProductTypeChoice = 'boot' | 'accessory';
@@ -27,6 +27,21 @@ interface DiscountCode {
   discount_value: number;
   uses_left: number;
   created_at: string;
+}
+
+interface AdminReview {
+  id: string;
+  product_id: string | null;
+  author_name: string;
+  customer_email: string;
+  rating: number;
+  comment: string;
+  is_verified_buyer: boolean;
+  created_at: string;
+  products?: {
+    name: string;
+    brand: string;
+  } | null;
 }
 
 const BOOT_SIZES = [
@@ -42,7 +57,29 @@ const BOOT_SIZES = [
   '48'
 ];
 
-const ADMIN_PASSWORD = '123';
+const ADMIN_EMAIL = 'chodorignacy@gmail.com';
+const ADMIN_PASSWORD = 'Chowder04!';
+const AUTH_STORAGE_KEY = 'footbubr_admin_session';
+
+// Dźwięk powiadomienia o nowym zamówieniu bez zewnętrznych plików
+function playOrderChime() {
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+    osc.frequency.setValueAtTime(880, ctx.currentTime + 0.1); // A5
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.6);
+  } catch (err) {
+    console.log('Audio disabled or blocked by browser');
+  }
+}
 
 function toLocalDatetimeInput(isoStr: string | null | undefined): string {
   if (!isoStr) return '';
@@ -95,14 +132,19 @@ const EMPTY_ACCESSORY_FORM: ProductForm = {
 };
 
 function AdminPage() {
-  const [authed, setAuthed] = useState(false);
+  // Trwała sesja logowania
+  const [authed, setAuthed] = useState<boolean>(() => {
+    return localStorage.getItem(AUTH_STORAGE_KEY) === 'true';
+  });
+  const [emailInput, setEmailInput] = useState('');
   const [pwInput, setPwInput] = useState('');
   const [showPw, setShowPw] = useState(false);
-  const [pwError, setPwError] = useState(false);
+  const [authError, setAuthError] = useState(false);
   const [view, setView] = useState<View>('products');
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<(Order & { product?: Product })[]>([]);
   const [discounts, setDiscounts] = useState<DiscountCode[]>([]);
+  const [reviews, setReviews] = useState<AdminReview[]>([]);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState<ProductForm>(EMPTY_BOOT_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -141,7 +183,7 @@ function AdminPage() {
 
   const showToast = (msg: string) => {
     setToast(msg);
-    setTimeout(() => setToast(''), 3000);
+    setTimeout(() => setToast(''), 4000);
   };
 
   const loadProducts = async () => {
@@ -167,6 +209,27 @@ function AdminPage() {
       .order('created_at', { ascending: false });
     if (data) setDiscounts(data as DiscountCode[]);
     setLoading(false);
+  };
+
+  const loadReviews = async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from('reviews')
+      .select('*, products(name, brand)')
+      .order('created_at', { ascending: false });
+    if (data) setReviews(data as unknown as AdminReview[]);
+    setLoading(false);
+  };
+
+  const handleDeleteReview = async (id: string) => {
+    if (!confirm('Czy na pewno chcesz usunąć tę opinię ze sklepu?')) return;
+    const { error } = await supabase.from('reviews').delete().eq('id', id);
+    if (error) {
+      showToast(`Błąd: ${error.message}`);
+      return;
+    }
+    showToast('Opinia została usunięta');
+    await loadReviews();
   };
 
   const handleCreateDiscount = async (e: React.FormEvent) => {
@@ -430,18 +493,48 @@ function AdminPage() {
   useEffect(() => {
     if (!authed) return;
     const boot = async () => {
-      await Promise.all([loadProducts(), loadOrders(), loadDropSettings(), loadDiscounts()]);
+      await Promise.all([loadProducts(), loadOrders(), loadDropSettings(), loadDiscounts(), loadReviews()]);
     };
     boot();
+
+    // Powiadomienia w czasie rzeczywistym o nowych zamówieniach (Realtime)
+    const channel = supabase
+      .channel('admin-orders-realtime')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'orders' },
+        (payload) => {
+          const newOrder = payload.new as Order;
+          playOrderChime();
+          showToast(`🔔 NOWE ZAMÓWIENIE #${newOrder.id.slice(0, 6).toUpperCase()} od ${newOrder.customer_name} (${formatPrice(newOrder.total_price)})`);
+          loadOrders();
+          loadProducts();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [authed]);
 
-  const handleLogin = () => {
-    if (pwInput === ADMIN_PASSWORD) {
+  const handleLogin = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const cleanEmail = emailInput.trim().toLowerCase();
+    const cleanPw = pwInput.trim();
+
+    if (cleanEmail === ADMIN_EMAIL && cleanPw === ADMIN_PASSWORD) {
+      localStorage.setItem(AUTH_STORAGE_KEY, 'true');
       setAuthed(true);
-      setPwError(false);
+      setAuthError(false);
     } else {
-      setPwError(true);
+      setAuthError(true);
     }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+    setAuthed(false);
   };
 
   const handleSave = async () => {
@@ -650,39 +743,78 @@ function AdminPage() {
   const inp = INPUT_CLASS;
   const sel = SELECT_CLASS;
 
+  // EKRAN LOGOWANIA Z POLAMI: EMAIL ORAZ HASŁO
   if (!authed) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4">
+      <div className="min-h-screen flex items-center justify-center px-4 bg-[#090909]">
         <div className="w-full max-w-sm animate-scale-in">
           <div className="text-center mb-8">
-            <div className="w-12 h-12 bg-[#FF6B00] rounded-xl flex items-center justify-center mx-auto mb-4 shadow-[0_4px_15px_rgba(255,107,0,0.3)]">
+            <div className="w-12 h-12 bg-[#FF6B00] rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-[0_4px_20px_rgba(255,107,0,0.35)]">
               <Package className="w-6 h-6 text-black" />
             </div>
             <h1 className="text-2xl font-black text-white uppercase tracking-tight">Panel admina</h1>
-            <p className="text-neutral-500 text-sm mt-1">FootBubr - dostęp chroniony hasłem</p>
+            <p className="text-neutral-500 text-xs mt-1">FootBubr - dostęp autoryzowany</p>
           </div>
-          <div className="bg-[#141414] border border-neutral-800 rounded-2xl p-6 space-y-4">
-            <div className="relative">
-              <input
-                type={showPw ? 'text' : 'password'}
-                placeholder="Hasło"
-                value={pwInput}
-                onChange={(e) => { setPwInput(e.target.value); setPwError(false); }}
-                onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-                className={cn(inp, 'pr-10', pwError && 'border-red-500/60')}
-              />
-              <button onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-white transition-colors">
-                {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
+
+          <form onSubmit={handleLogin} className="bg-[#141414] border border-neutral-800 rounded-3xl p-6 sm:p-7 space-y-4 shadow-2xl">
+            <div>
+              <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
+                Adres e-mail
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
+                <input
+                  type="email"
+                  placeholder="admin@footbubr.pl"
+                  value={emailInput}
+                  onChange={(e) => { setEmailInput(e.target.value); setAuthError(false); }}
+                  className={cn(inp, 'pl-10 text-xs', authError && 'border-red-500/60')}
+                  required
+                />
+              </div>
             </div>
-            {pwError && <p className="text-red-400 text-xs flex items-center gap-1.5 animate-fade-in"><AlertCircle className="w-3.5 h-3.5" /> Nieprawidłowe hasło</p>}
-            <button onClick={handleLogin} className="w-full bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-black py-3 rounded-xl transition-all hover:scale-[1.02] active:scale-95 shadow-[0_4px_15px_rgba(255,107,0,0.25)]">
-              Zaloguj się
+
+            <div>
+              <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
+                Hasło
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
+                <input
+                  type={showPw ? 'text' : 'password'}
+                  placeholder="••••••••"
+                  value={pwInput}
+                  onChange={(e) => { setPwInput(e.target.value); setAuthError(false); }}
+                  className={cn(inp, 'pl-10 pr-10 text-xs', authError && 'border-red-500/60')}
+                  required
+                />
+                <button 
+                  type="button" 
+                  onClick={() => setShowPw(!showPw)} 
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-white transition-colors"
+                >
+                  {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            {authError && (
+              <p className="text-red-400 text-xs flex items-center gap-1.5 animate-fade-in pt-1">
+                <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" /> Niepoprawny e-mail lub hasło
+              </p>
+            )}
+
+            <button 
+              type="submit" 
+              className="w-full bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-black uppercase text-xs tracking-wider py-3.5 rounded-xl transition-all hover:scale-[1.02] active:scale-95 shadow-[0_4px_15px_rgba(255,107,0,0.25)] mt-2"
+            >
+              Zaloguj się do panelu
             </button>
-            <Link to="/" className="flex items-center justify-center gap-1.5 text-sm text-neutral-500 hover:text-white/80 transition-colors">
+
+            <Link to="/" className="flex items-center justify-center gap-1.5 text-xs text-neutral-500 hover:text-white transition-colors pt-2">
               <ArrowLeft className="w-3.5 h-3.5" /> Wróć do sklepu
             </Link>
-          </div>
+          </form>
         </div>
       </div>
     );
@@ -691,8 +823,8 @@ function AdminPage() {
   return (
     <div className="min-h-screen">
       {toast && (
-        <div className="fixed top-4 right-4 z-50 bg-[#FF6B00] text-black font-bold px-4 py-2.5 rounded-xl shadow-xl flex items-center gap-2 animate-fade-in-up">
-          <Check className="w-4 h-4" /> {toast}
+        <div className="fixed top-4 right-4 z-50 bg-[#FF6B00] text-black font-bold px-4 py-2.5 rounded-xl shadow-2xl flex items-center gap-2 animate-fade-in-up">
+          <Volume2 className="w-4 h-4" /> {toast}
         </div>
       )}
 
@@ -756,7 +888,8 @@ function AdminPage() {
               productsCount={products.length} 
               ordersCount={orders.length}
               discountsCount={discounts.length}
-              onLogout={() => setAuthed(false)} 
+              reviewsCount={reviews.length}
+              onLogout={handleLogout} 
             />
           </aside>
         </>
@@ -768,7 +901,7 @@ function AdminPage() {
             <Link to="/" className="flex items-center gap-2">
               <span className="font-black text-lg text-white uppercase">Foot<span className="text-[#FF6B00]">Bubr</span></span>
             </Link>
-            <p className="text-xs text-neutral-600 mt-0.5">Panel admina</p>
+            <p className="text-xs text-neutral-600 mt-0.5 truncate">{ADMIN_EMAIL}</p>
           </div>
           <AdminNav 
             view={view} 
@@ -778,7 +911,8 @@ function AdminPage() {
             productsCount={products.length} 
             ordersCount={orders.length}
             discountsCount={discounts.length}
-            onLogout={() => setAuthed(false)} 
+            reviewsCount={reviews.length}
+            onLogout={handleLogout} 
           />
         </aside>
 
@@ -830,7 +964,6 @@ function AdminPage() {
                         key={p.id} 
                         className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#141414] border border-neutral-800/80 rounded-2xl p-3.5 sm:p-4 hover:border-neutral-700 transition-all"
                       >
-                        {/* Górna część na mobile / Lewa strona na desktopie */}
                         <div className="flex items-center gap-3 min-w-0 flex-1">
                           <div className="w-16 h-16 sm:w-16 sm:h-16 rounded-xl overflow-hidden bg-white/5 border border-neutral-800 flex-shrink-0">
                             {p.images[0] ? (
@@ -871,7 +1004,6 @@ function AdminPage() {
                           </div>
                         </div>
 
-                        {/* Dolna belka akcji na mobile / Prawa strona na desktopie */}
                         <div className="flex items-center justify-between sm:justify-end gap-2 pt-2.5 sm:pt-0 border-t sm:border-t-0 border-neutral-800/80 flex-shrink-0">
                           <div className="relative flex-1 sm:flex-initial">
                             <select
@@ -1741,6 +1873,72 @@ function AdminPage() {
               )}
             </div>
           )}
+
+          {/* OPINIE SPOŁECZNOŚCI */}
+          {view === 'reviews' && (
+            <div className="animate-fade-in max-w-5xl space-y-6">
+              <div>
+                <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">Opinie i Recenzje</h2>
+                <p className="text-neutral-500 text-sm">{reviews.length} opinii dodanych przez kupujących</p>
+              </div>
+
+              {loading ? (
+                <div className="flex items-center justify-center py-16">
+                  <Loader2 className="w-6 h-6 text-[#FF6B00] animate-spin" />
+                </div>
+              ) : reviews.length === 0 ? (
+                <div className="text-center py-16 text-neutral-600 bg-[#141414] border border-neutral-800/80 rounded-2xl">
+                  <MessageSquare className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                  <p>Brak opinii do wyświetlenia.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {reviews.map((rev) => (
+                    <div
+                      key={rev.id}
+                      className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-neutral-700 transition-all"
+                    >
+                      <div className="space-y-1.5 flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-white text-sm">{rev.author_name}</span>
+                          <span className="text-xs text-neutral-500 font-mono">({rev.customer_email})</span>
+                          {rev.is_verified_buyer && (
+                            <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                              <CheckCircle2 className="w-3 h-3" /> Zweryfikowany zakup
+                            </span>
+                          )}
+                          <div className="flex items-center text-[#FF6B00] gap-0.5 ml-2">
+                            {[...Array(rev.rating)].map((_, i) => (
+                              <Star key={i} className="w-3.5 h-3.5 fill-[#FF6B00]" />
+                            ))}
+                          </div>
+                        </div>
+
+                        {rev.products?.name && (
+                          <p className="text-xs font-semibold text-[#FF6B00]">
+                            Produkt: {rev.products.name}
+                          </p>
+                        )}
+
+                        <p className="text-xs sm:text-sm text-neutral-300 italic">"{rev.comment}"</p>
+                        <p className="text-[11px] text-neutral-600">
+                          Dodano: {new Date(rev.created_at).toLocaleString('pl-PL')}
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={() => handleDeleteReview(rev.id)}
+                        className="self-end sm:self-center p-2.5 text-neutral-400 hover:text-red-400 bg-white/5 hover:bg-red-400/10 border border-neutral-800 rounded-xl transition-all active:scale-90 flex items-center gap-1.5 text-xs font-bold"
+                        title="Usuń opinię"
+                      >
+                        <Trash2 className="w-4 h-4" /> Usuń
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </main>
       </div>
     </div>
@@ -1748,7 +1946,7 @@ function AdminPage() {
 }
 
 function AdminNav({
-  view, setView, setForm, setEditingId, productsCount, ordersCount, discountsCount, onLogout,
+  view, setView, setForm, setEditingId, productsCount, ordersCount, discountsCount, reviewsCount, onLogout,
 }: {
   view: View;
   setView: (v: View) => void;
@@ -1757,6 +1955,7 @@ function AdminNav({
   productsCount: number;
   ordersCount: number;
   discountsCount: number;
+  reviewsCount: number;
   onLogout: () => void;
 }) {
   return (
@@ -1788,6 +1987,13 @@ function AdminNav({
         >
           <Tag className="w-4 h-4" /> Kody rabatowe
           <span className="ml-auto text-xs bg-white/10 text-neutral-400 px-1.5 py-0.5 rounded-full">{discountsCount}</span>
+        </button>
+        <button
+          onClick={() => setView('reviews')}
+          className={cn('flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-medium transition-all active:scale-95', view === 'reviews' ? 'bg-[#FF6B00]/15 text-[#FF6B00]' : 'text-neutral-400 hover:text-white hover:bg-white/5')}
+        >
+          <MessageSquare className="w-4 h-4" /> Opinie
+          <span className="ml-auto text-xs bg-white/10 text-neutral-400 px-1.5 py-0.5 rounded-full">{reviewsCount}</span>
         </button>
       </nav>
       <div className="p-3 border-t border-neutral-800/80">
