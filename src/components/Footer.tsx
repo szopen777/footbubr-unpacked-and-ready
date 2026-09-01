@@ -278,8 +278,7 @@ export default function Footer() {
           </div>
 
           <div className="flex items-center gap-1.5 text-neutral-400">
-            <Footprints className="w-3.5 h-3.5 text-[#FF6B00]" />
-            <span>Dla graczy, którzy cenią unikalność.</span>
+            <span>Działalność nierejestrowana.</span>
           </div>
         </div>
       </div>
