@@ -1,3 +1,4 @@
+import ProductCardSkeleton from '@/components/ProductCardSkeleton';
 import DropCelebrationOverlay from '@/components/DropCelebrationOverlay';
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState, useCallback, useRef } from 'react';
