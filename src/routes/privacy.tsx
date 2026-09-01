@@ -5,7 +5,7 @@ import { ArrowLeft, Lock } from 'lucide-react';
 export const Route = createFileRoute('/privacy')({
   component: PrivacyPage,
   head: () => ({
-    meta: [{ title: 'Polityka Prywatności — FootBubr' }],
+    meta: [{ title: 'Polityka Prywatności - FootBubr' }],
   }),
 });
 
