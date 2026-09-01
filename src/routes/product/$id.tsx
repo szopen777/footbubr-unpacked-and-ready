@@ -328,10 +328,12 @@ function ProductPage() {
           </div>
         </div>
 
-        {/* 1. Recenzje produktu */}
-        <ProductReviews productId={product.id} productName={product.name} />
+        {/* Recenzje produktu — TYLKO dla stałego asortymentu akcesoriów */}
+        {isAccessory && (
+          <ProductReviews productId={product.id} productName={product.name} />
+        )}
 
-        {/* 2. Ostatnio oglądane */}
+        {/* Ostatnio oglądane */}
         {recentProducts.length > 0 && (
           <div className="mt-14 sm:mt-18 pt-10 border-t border-neutral-800/80 animate-fade-in">
             <div className="flex items-center gap-2.5 mb-6">
