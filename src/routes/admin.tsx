@@ -659,7 +659,7 @@ function AdminPage() {
               <Package className="w-6 h-6 text-black" />
             </div>
             <h1 className="text-2xl font-black text-white uppercase tracking-tight">Panel admina</h1>
-            <p className="text-neutral-500 text-sm mt-1">FootBubr — dostęp chroniony hasłem</p>
+            <p className="text-neutral-500 text-sm mt-1">FootBubr - dostęp chroniony hasłem</p>
           </div>
           <div className="bg-[#141414] border border-neutral-800 rounded-2xl p-6 space-y-4">
             <div className="relative">
@@ -1088,11 +1088,11 @@ function AdminPage() {
                             <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Nawierzchnia</label>
                             <div className="relative">
                               <select className={sel} value={form.surface_type} onChange={(e) => setForm({ ...form, surface_type: e.target.value })}>
-                                <option value="FG">FG — Lanki</option>
-                                <option value="SG">SG — Wkręty/Mixy</option>
-                                <option value="AG">AG — Sztuczna trawa</option>
-                                <option value="TF">TF — Turfy</option>
-                                <option value="IC">IC — Halówki</option>
+                                <option value="FG">FG - Lanki</option>
+                                <option value="SG">SG - Wkręty/Mixy</option>
+                                <option value="AG">AG - Sztuczna trawa</option>
+                                <option value="TF">TF - Turfy</option>
+                                <option value="IC">IC - Halówki</option>
                               </select>
                               <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none" />
                             </div>
@@ -1252,7 +1252,7 @@ function AdminPage() {
                               <div className="min-w-0 flex-1">
                                 <span className="text-sm font-semibold text-white block">Drop główny (ze zrobionych)</span>
                                 <span className="text-xs text-neutral-400 block mt-0.5">
-                                  {dropSettings?.title || 'Nowy drop'} — {dropSettings?.drop_date && !dropSettings.is_tbd
+                                  {dropSettings?.title || 'Nowy drop'} - {dropSettings?.drop_date && !dropSettings.is_tbd
                                     ? new Date(dropSettings.drop_date).toLocaleString('pl-PL')
                                     : 'Brak ustalonej daty / Wkrótce'}
                                 </span>
@@ -1457,7 +1457,7 @@ function AdminPage() {
                         </div>
                         <div>
                           <p className="text-neutral-500 text-xs">Telefon</p>
-                          <p className="text-white">{selectedOrder.customer_phone || '—'}</p>
+                          <p className="text-white">{selectedOrder.customer_phone || '-'}</p>
                         </div>
                       </div>
                       <div className="pt-2 border-t border-neutral-800">
@@ -1467,7 +1467,7 @@ function AdminPage() {
                         {selectedOrder.shipping_method === 'paczkomat' ? (
                           <p className="text-white font-mono font-bold text-lg">{selectedOrder.paczkomat_code}</p>
                         ) : (
-                          <p className="text-white">{selectedOrder.shipping_address || '—'}</p>
+                          <p className="text-white">{selectedOrder.shipping_address || '-'}</p>
                         )}
                       </div>
                     </div>
@@ -1534,10 +1534,10 @@ function AdminPage() {
                       value={settingsForm.featured_product_id}
                       onChange={(e) => setSettingsForm({ ...settingsForm, featured_product_id: e.target.value })}
                     >
-                      <option value="none">— Brak wyróżnionego produktu —</option>
+                      <option value="none">- Brak wyróżnionego produktu -</option>
                       {products.map((p) => (
                         <option key={p.id} value={p.id}>
-                          {p.brand} {p.name} (EU {p.size_eu}) — {formatPrice(p.price)}
+                          {p.brand} {p.name} (EU {p.size_eu}) - {formatPrice(p.price)}
                         </option>
                       ))}
                     </select>
@@ -1803,10 +1803,10 @@ export const Route = createFileRoute('/admin')({
   component: AdminPage,
   head: () => ({
     meta: [
-      { title: 'Panel administracyjny — FootBubr' },
+      { title: 'Panel administracyjny - FootBubr' },
       { name: 'description', content: 'Zarządzanie produktami, dropami i zamówieniami sklepu FootBubr.' },
       { name: 'robots', content: 'noindex, nofollow' },
-      { property: 'og:title', content: 'Panel administracyjny — FootBubr' },
+      { property: 'og:title', content: 'Panel administracyjny - FootBubr' },
       { property: 'og:description', content: 'Zarządzanie produktami, dropami i zamówieniami FootBubr.' },
     ],
   }),
