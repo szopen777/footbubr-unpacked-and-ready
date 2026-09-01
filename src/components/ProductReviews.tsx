@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Star, CheckCircle2, MessageSquarePlus, Loader2 } from 'lucide-react';
+import { Star, CheckCircle2, MessageSquarePlus, Loader2, ShieldCheck, AlertCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -19,8 +19,9 @@ export default function ProductReviews({ productId, productName }: { productId: 
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // Stan formularza
+  // Pola formularza
   const [authorName, setAuthorName] = useState('');
+  const [email, setEmail] = useState('');
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
 
@@ -42,32 +43,75 @@ export default function ProductReviews({ productId, productName }: { productId: 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!authorName.trim() || !comment.trim()) {
-      toast.error('Wypełnij wszystkie pola');
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanName = authorName.trim();
+    const cleanComment = comment.trim();
+
+    if (!cleanName || !cleanEmail || !cleanComment) {
+      toast.error('Wypełnij wszystkie wymagane pola');
       return;
     }
 
     setSubmitting(true);
-    const { error } = await supabase.from('reviews').insert([
-      {
-        product_id: productId,
-        author_name: authorName.trim(),
-        rating,
-        comment: comment.trim(),
-        is_verified_buyer: true,
-      },
-    ]);
 
-    if (error) {
-      toast.error('Błąd dodawania opinii');
-    } else {
-      toast.success('Dziękujemy za opinię!');
+    try {
+      // 1. Sprawdzanie czy e-mail kupił ten produkt
+      const { data: orders, error: orderErr } = await supabase
+        .from('orders')
+        .select('id, status, product_id, items')
+        .ilike('customer_email', cleanEmail);
+
+      if (orderErr) throw orderErr;
+
+      // Sprawdzamy czy zamówienie zawiera ten produkt i nie jest anulowane
+      const hasPurchased = orders?.some((order: any) => {
+        const status = (order.status || '').toLowerCase();
+        if (status.includes('anulow') || status.includes('cancel')) return false;
+
+        // Bezpośrednie powiązanie product_id lub wewnątrz koszyka items
+        if (order.product_id === productId) return true;
+        if (Array.isArray(order.items)) {
+          return order.items.some((item: any) => item.product?.id === productId || item.id === productId);
+        }
+        return false;
+      });
+
+      if (!hasPurchased) {
+        toast.error('Brak zweryfikowanego zakupu', {
+          description: 'Opinie mogą dodawać wyłącznie osoby, które zakupiły ten produkt podając ten adres e-mail.',
+        });
+        setSubmitting(false);
+        return;
+      }
+
+      // 2. Dodanie zweryfikowanej opinii
+      const { error: insertErr } = await supabase.from('reviews').insert([
+        {
+          product_id: productId,
+          author_name: cleanName,
+          customer_email: cleanEmail,
+          rating,
+          comment: cleanComment,
+          is_verified_buyer: true,
+        },
+      ]);
+
+      if (insertErr) throw insertErr;
+
+      toast.success('Opinia została dodana!', {
+        description: 'Dziękujemy za podzielenie się opinią o produkcie.',
+      });
+
       setAuthorName('');
+      setEmail('');
       setComment('');
       setShowForm(false);
       fetchReviews();
+    } catch {
+      toast.error('Wystąpił błąd podczas dodawania opinii.');
+    } finally {
+      setSubmitting(false);
     }
-    setSubmitting(false);
   };
 
   const avgRating = reviews.length > 0 
@@ -79,14 +123,14 @@ export default function ProductReviews({ productId, productName }: { productId: 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h3 className="text-lg sm:text-xl font-black text-white uppercase tracking-tight flex items-center gap-2">
-            Opinie klientów
+            Opinie o produkcie
             {avgRating && (
               <span className="text-xs bg-[#FF6B00]/15 text-[#FF6B00] border border-[#FF6B00]/30 px-2.5 py-0.5 rounded-full font-mono font-bold">
                 ★ {avgRating} ({reviews.length})
               </span>
             )}
           </h3>
-          <p className="text-xs text-neutral-400 mt-0.5">Recenzje zweryfikowanych kupujących produkt {productName}</p>
+          <p className="text-xs text-neutral-400 mt-0.5">Zweryfikowane recenzje kupujących produkt {productName}</p>
         </div>
 
         <button
@@ -95,13 +139,18 @@ export default function ProductReviews({ productId, productName }: { productId: 
           className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-neutral-800 text-xs font-bold text-white rounded-xl transition-all active:scale-95 self-start sm:self-auto"
         >
           <MessageSquarePlus className="w-4 h-4 text-[#FF6B00]" />
-          {showForm ? 'Anuluj' : 'Dodaj recenzję'}
+          {showForm ? 'Anuluj' : 'Napisz opinię'}
         </button>
       </div>
 
-      {/* Formularz dodawania recenzji */}
+      {/* Formularz weryfikowanego dodawania opinii */}
       {showForm && (
-        <form onSubmit={handleSubmit} className="bg-[#141414] border border-neutral-800 rounded-2xl p-5 mb-8 space-y-4 animate-fade-in shadow-xl">
+        <form onSubmit={handleSubmit} className="bg-[#141414] border border-neutral-800 rounded-2xl p-5 sm:p-6 mb-8 space-y-4 animate-fade-in shadow-xl">
+          <div className="flex items-center gap-2 text-xs text-[#FF6B00] bg-[#FF6B00]/10 border border-[#FF6B00]/20 p-3 rounded-xl">
+            <ShieldCheck className="w-4 h-4 flex-shrink-0" />
+            <span>Wpisz e-mail użyty podczas zakupu w celu automatycznej weryfikacji transakcji.</span>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold uppercase text-neutral-400 mb-1.5">Twoje imię / Nick *</label>
@@ -114,25 +163,38 @@ export default function ProductReviews({ productId, productName }: { productId: 
                 required
               />
             </div>
+
             <div>
-              <label className="block text-xs font-bold uppercase text-neutral-400 mb-1.5">Ocena *</label>
-              <div className="flex items-center gap-2 pt-1">
-                {[1, 2, 3, 4, 5].map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => setRating(s)}
-                    className="p-1 text-neutral-600 hover:text-[#FF6B00] transition-colors"
-                  >
-                    <Star
-                      className={cn(
-                        'w-5 h-5 transition-all',
-                        s <= rating ? 'text-[#FF6B00] fill-[#FF6B00]' : 'text-neutral-700'
-                      )}
-                    />
-                  </button>
-                ))}
-              </div>
+              <label className="block text-xs font-bold uppercase text-neutral-400 mb-1.5">E-mail z zamówienia *</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="twoj@email.pl"
+                className="w-full bg-black/40 border border-neutral-800 focus:border-[#FF6B00] rounded-xl px-3.5 py-2.5 text-xs text-white outline-none transition-all"
+                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold uppercase text-neutral-400 mb-1.5">Ocena *</label>
+            <div className="flex items-center gap-2 pt-0.5">
+              {[1, 2, 3, 4, 5].map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setRating(s)}
+                  className="p-1 text-neutral-600 hover:text-[#FF6B00] transition-colors"
+                >
+                  <Star
+                    className={cn(
+                      'w-5 h-5 transition-all',
+                      s <= rating ? 'text-[#FF6B00] fill-[#FF6B00]' : 'text-neutral-700'
+                    )}
+                  />
+                </button>
+              ))}
             </div>
           </div>
 
@@ -141,7 +203,7 @@ export default function ProductReviews({ productId, productName }: { productId: 
             <textarea
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              placeholder="Jak oceniasz dopasowanie, jakość wykonania lub materiał?"
+              placeholder="Jak oceniasz jakość wykonania, dopasowanie i użytkowanie?"
               rows={3}
               className="w-full bg-black/40 border border-neutral-800 focus:border-[#FF6B00] rounded-xl px-3.5 py-2.5 text-xs text-white outline-none transition-all resize-none"
               required
@@ -153,19 +215,19 @@ export default function ProductReviews({ productId, productName }: { productId: 
             disabled={submitting}
             className="bg-[#FF6B00] hover:bg-[#FF7A00] disabled:opacity-50 text-black font-black uppercase text-xs tracking-wider px-6 py-2.5 rounded-xl transition-all shadow-[0_2px_12px_rgba(255,107,0,0.25)] flex items-center justify-center gap-2"
           >
-            {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Opublikuj recenzję'}
+            {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Zweryfikuj zakup i opublikuj'}
           </button>
         </form>
       )}
 
       {/* Lista opinii */}
       {loading ? (
-        <div className="py-6 flex justify-center text-neutral-500">
+        <div className="py-8 flex justify-center text-neutral-500">
           <Loader2 className="w-5 h-5 animate-spin text-[#FF6B00]" />
         </div>
       ) : reviews.length === 0 ? (
         <div className="bg-[#141414] border border-neutral-800 rounded-2xl p-6 text-center text-xs text-neutral-500">
-          Brak recenzji dla tego produktu. Bądź pierwszą osobą, która doda opinię!
+          Brak opinii dla tego produktu. Jeśli posiadasz ten produkt, dodaj pierwszą recenzję!
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
