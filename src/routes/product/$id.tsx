@@ -44,7 +44,6 @@ function ProductPage() {
   const [quantity, setQuantity] = useState(1);
   const [selectedSize, setSelectedSize] = useState<string>('');
 
-  // Konfigurator zestawu
   const [bundleShinGuard, setBundleShinGuard] = useState<'S' | 'XS'>('S');
   const [bundleTapeColor, setBundleTapeColor] = useState<'Czarna' | 'Biała'>('Czarna');
   const [bundleStocks, setBundleStocks] = useState<BundleLiveStocks>({
@@ -102,17 +101,18 @@ function ProductPage() {
             let tpBlack = 50;
             let tpWhite = 50;
 
-            // 1. Skarpety
             const sock = related.find((p) => p.accessory_type === 'Skarpety antypoślizgowe' || p.name.toLowerCase().includes('skarpety'));
             if (sock) sStock = sock.stock_quantity ?? 0;
 
-            // 2. Ochraniacze
             const shin = related.find((p) => p.accessory_type === 'Mini ochraniacze' || p.name.toLowerCase().includes('ochraniacze'));
             if (shin) {
               try {
                 if (shin.condition_detail && shin.condition_detail.startsWith('[')) {
                   const sVariants: Variant[] = JSON.parse(shin.condition_detail);
-                  const foundS = sVariants.find((v) => v.size.toUpperCase().includes('S') && !v.size.toUpperCase().includes('XS'));
+                  const foundS = sVariants.find((v) => {
+                    const clean = v.size.toUpperCase();
+                    return (clean.startsWith('S') || clean.includes(' S')) && !clean.includes('XS');
+                  });
                   const foundXS = sVariants.find((v) => v.size.toUpperCase().includes('XS'));
                   if (foundS) sgS = foundS.stock;
                   if (foundXS) sgXS = foundXS.stock;
@@ -120,7 +120,6 @@ function ProductPage() {
               } catch {}
             }
 
-            // 3. Taśmy
             const tapes = related.filter((p) => (p.accessory_type || '').toLowerCase().includes('taśm') || p.name.toLowerCase().includes('taśma') || p.name.toLowerCase().includes('tasma'));
             tapes.forEach((t) => {
               const nameLower = t.name.toLowerCase();
@@ -205,7 +204,6 @@ function ProductPage() {
 
   const currentVariant = variants.find((v) => v.size === selectedSize);
 
-  // Dynamiczne obliczanie realnie dostępnych zestawów w wybranej konfiguracji
   const selectedShinGuardStock = bundleShinGuard === 'S' ? bundleStocks.shinGuardSStock : bundleStocks.shinGuardXSStock;
   const selectedTapeStock = bundleTapeColor === 'Czarna' ? bundleStocks.tapeBlackStock : bundleStocks.tapeWhiteStock;
   
@@ -219,10 +217,10 @@ function ProductPage() {
 
   const getProductForCart = () => {
     if (isBundle) {
-      const shinGuardLabel = bundleShinGuard === 'S' ? 'S (10x6 cm)' : 'XS (8x5 cm)';
+      const shinGuardLabel = bundleShinGuard === 'S' ? 'S (10×6 cm)' : 'XS (8×5 cm)';
       return {
         ...product,
-        size_eu: `Ochraniacze: ${shinGuardLabel} | Taśma: ${bundleTapeColor}`,
+        size_eu: `Skarpety: One Size (41-44) | Ochraniacze: ${shinGuardLabel} | Taśma: ${bundleTapeColor}`,
       };
     }
 
@@ -423,7 +421,7 @@ function ProductPage() {
                           {bundleStocks.shinGuardSStock} szt.
                         </span>
                       </div>
-                      <span className="text-[10px] text-neutral-400 mt-1">10x6 cm (Klasyczny mini)</span>
+                      <span className="text-[10px] text-neutral-400 mt-1">10×6 cm (Klasyczny mini)</span>
                     </button>
 
                     <button
@@ -444,7 +442,7 @@ function ProductPage() {
                           {bundleStocks.shinGuardXSStock} szt.
                         </span>
                       </div>
-                      <span className="text-[10px] text-neutral-400 mt-1">8x5 cm (Ultra micro)</span>
+                      <span className="text-[10px] text-neutral-400 mt-1">8×5 cm (Ultra micro)</span>
                     </button>
                   </div>
                 </div>
