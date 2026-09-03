@@ -81,7 +81,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" },
       { title: "FootBubr - Unikalne Korki Piłkarskie 1 of 1 & Akcesoria" },
       {
         name: "description",
@@ -90,27 +90,27 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { name: "theme-color", content: "#0c0c0c" },
       { property: "og:type", content: "website" },
-      { property: "og:url", content: "https://footbubr-unpacked-and-ready.vercel.app/" },
+      { property: "og:url", content: "https://footbubr.pl/" },
       { property: "og:site_name", content: "FootBubr" },
       { property: "og:title", content: "FootBubr - Unikalne Korki Piłkarskie 1 of 1" },
       {
         property: "og:description",
         content: "Limitowane pary korków 1 of 1 oraz profesjonalne akcesoria piłkarskie. Sprawdź najnowszy drop!",
       },
-      { property: "og:image", content: "https://footbubr-unpacked-and-ready.vercel.app/og-image.png" },
-      { property: "og:image:secure_url", content: "https://footbubr-unpacked-and-ready.vercel.app/og-image.png" },
+      { property: "og:image", content: "https://footbubr.pl/og-image.png" },
+      { property: "og:image:secure_url", content: "https://footbubr.pl/og-image.png" },
       { property: "og:image:type", content: "image/png" },
       { property: "og:image:width", content: "1200" },
       { property: "og:image:height", content: "630" },
       { property: "og:locale", content: "pl_PL" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:url", content: "https://footbubr-unpacked-and-ready.vercel.app/" },
+      { name: "twitter:url", content: "https://footbubr.pl/" },
       { name: "twitter:title", content: "FootBubr - Unikalne Korki Piłkarskie 1 of 1" },
       {
         name: "twitter:description",
         content: "Limitowane pary korków 1 of 1 oraz profesjonalne akcesoria piłkarskie. Sprawdź najnowszy drop!",
       },
-      { name: "twitter:image", content: "https://footbubr-unpacked-and-ready.vercel.app/og-image.png" },
+      { name: "twitter:image", content: "https://footbubr.pl/og-image.png" },
     ],
     links: [
       {
@@ -138,29 +138,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="pl" className="dark">
+    <html lang="pl" className="dark overflow-x-hidden max-w-[100vw]">
       <head>
         <meta charSet="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
         <title>FootBubr - Unikalne Korki Piłkarskie 1 of 1 & Akcesoria</title>
-        <meta name="description" content="Limitowane pary korków piłkarskich 1 of 1, skarpety antypoślizgowe i akcesoria. Oryginalne modele Nike, Adidas, Puma." />
-        <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://footbubr-unpacked-and-ready.vercel.app/" />
-        <meta property="og:site_name" content="FootBubr" />
-        <meta property="og:title" content="FootBubr - Unikalne Korki Piłkarskie 1 of 1" />
-        <meta property="og:description" content="Limitowane pary korków 1 of 1 oraz profesjonalne akcesoria piłkarskie. Sprawdź najnowszy drop!" />
-        <meta property="og:image" content="https://footbubr-unpacked-and-ready.vercel.app/og-image.png" />
-        <meta property="og:image:secure_url" content="https://footbubr-unpacked-and-ready.vercel.app/og-image.png" />
-        <meta property="og:image:type" content="image/png" />
-        <meta property="og:image:width" content="1200" />
-        <meta property="og:image:height" content="630" />
-        <meta property="og:locale" content="pl_PL" />
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:image" content="https://footbubr-unpacked-and-ready.vercel.app/og-image.png" />
-        
         <HeadContent />
       </head>
-      <body>
+      <body className="overflow-x-hidden max-w-[100vw] w-full relative">
         {children}
         <Scripts />
       </body>
@@ -175,9 +160,13 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <FavoritesProvider>
         <CartProvider>
-          <TopAnnouncementBar />
-          <Outlet />
-          <Footer />
+          <div className="flex flex-col min-h-screen w-full max-w-[100vw] overflow-x-hidden">
+            <TopAnnouncementBar />
+            <main className="flex-1 w-full max-w-[100vw] overflow-x-hidden">
+              <Outlet />
+            </main>
+            <Footer />
+          </div>
           <Toaster
             position="bottom-center"
             theme="dark"
