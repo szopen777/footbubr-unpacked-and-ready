@@ -93,8 +93,9 @@ function toLocalDatetimeInput(isoStr: string | null | undefined): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-function isMatchingShinGuardSize(variantSizeName: string, chosenSize: 'S' | 'XS'): boolean {
-  const clean = variantSizeName.toUpperCase().trim();
+function isMatchingShinGuardSize(variantSizeName: string | undefined | null, chosenSize: 'S' | 'XS'): boolean {
+  if (!variantSizeName) return false;
+  const clean = String(variantSizeName).toUpperCase().trim();
   if (chosenSize === 'XS') {
     return clean.startsWith('XS') || clean.includes(' XS') || clean.includes('XS ');
   }
@@ -195,10 +196,10 @@ function AdminPage() {
   const [newCodeUses, setNewCodeUses] = useState('10');
   const [creatingDiscount, setCreatingDiscount] = useState(false);
 
-  const availableProducts = products.filter((p) => p.status === 'available');
-  const draftProducts = products.filter((p) => p.status === 'draft' && !p.drop_scheduled_at);
-  const dropProducts = products.filter((p) => p.status === 'draft' && p.drop_scheduled_at !== null);
-  const soldProducts = products.filter((p) => p.status === 'sold');
+  const availableProducts = products.filter((p) => p?.status === 'available');
+  const draftProducts = products.filter((p) => p?.status === 'draft' && !p?.drop_scheduled_at);
+  const dropProducts = products.filter((p) => p?.status === 'draft' && p?.drop_scheduled_at !== null);
+  const soldProducts = products.filter((p) => p?.status === 'sold');
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -209,35 +210,44 @@ function AdminPage() {
     setLoading(true);
     const nowIso = new Date().toISOString();
 
-    await supabase
-      .from('products')
-      .update({ status: 'available', drop_scheduled_at: null })
-      .eq('status', 'draft')
-      .lte('drop_scheduled_at', nowIso);
+    try {
+      await supabase
+        .from('products')
+        .update({ status: 'available', drop_scheduled_at: null })
+        .eq('status', 'draft')
+        .lte('drop_scheduled_at', nowIso);
 
-    const { data } = await supabase.from('products').select('*').order('created_at', { ascending: false });
-    if (data) setProducts(data as Product[]);
-    setLoading(false);
+      const { data } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+      if (data) setProducts(data as Product[]);
+    } catch (err) {
+      console.error('Błąd ładowania produktów:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const loadDiscounts = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from('discount_codes')
-      .select('*')
-      .order('created_at', { ascending: false });
-    if (data) setDiscounts(data as DiscountCode[]);
-    setLoading(false);
+    try {
+      const { data } = await supabase.from('discount_codes').select('*').order('created_at', { ascending: false });
+      if (data) setDiscounts(data as DiscountCode[]);
+    } catch (err) {
+      console.error('Błąd ładowania kodów:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const loadReviews = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from('reviews')
-      .select('*, products(name, brand)')
-      .order('created_at', { ascending: false });
-    if (data) setReviews(data as unknown as AdminReview[]);
-    setLoading(false);
+    try {
+      const { data } = await supabase.from('reviews').select('*, products(name, brand)').order('created_at', { ascending: false });
+      if (data) setReviews(data as unknown as AdminReview[]);
+    } catch (err) {
+      console.error('Błąd ładowania opinii:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDeleteReview = async (id: string) => {
@@ -375,7 +385,7 @@ function AdminPage() {
             }).eq('id', sockProd.id);
           }
 
-          // 2. Ochraniacze (z użyciem isMatchingShinGuardSize)
+          // 2. Ochraniacze
           const rawNote = targetOrder.paczkomat_code || targetOrder.shipping_address || targetOrder.product?.size_eu || '';
           const chosenSize: 'S' | 'XS' = rawNote.toUpperCase().includes('XS') ? 'XS' : 'S';
           const chosenTapeColorKey = rawNote.toLowerCase().includes('biał') ? 'biał' : 'czarn';
@@ -394,11 +404,11 @@ function AdminPage() {
                 const shinVariants = JSON.parse(shinProd.condition_detail);
                 const updated = shinVariants.map((v: any) => {
                   if (isMatchingShinGuardSize(v.size, chosenSize)) {
-                    return { ...v, stock: v.stock + 1 };
+                    return { ...v, stock: (v.stock || 0) + 1 };
                   }
                   return v;
                 });
-                const totalStock = updated.reduce((s: number, v: any) => s + v.stock, 0);
+                const totalStock = updated.reduce((s: number, v: any) => s + (v.stock || 0), 0);
                 await supabase.from('products').update({
                   condition_detail: JSON.stringify(updated),
                   stock_quantity: totalStock,
@@ -435,10 +445,10 @@ function AdminPage() {
             if (prod?.condition_detail && prod.condition_detail.startsWith('[')) {
               const parsed = JSON.parse(prod.condition_detail);
               const updated = parsed.map((v: any) => {
-                if (rawNote.includes(v.size)) return { ...v, stock: v.stock + 1 };
+                if (rawNote.includes(v.size)) return { ...v, stock: (v.stock || 0) + 1 };
                 return v;
               });
-              const totalStock = updated.reduce((s: number, v: any) => s + v.stock, 0);
+              const totalStock = updated.reduce((s: number, v: any) => s + (v.stock || 0), 0);
               await supabase.from('products').update({
                 condition_detail: JSON.stringify(updated),
                 stock_quantity: totalStock,
@@ -505,7 +515,7 @@ function AdminPage() {
 
     if (uploadedUrls.length > 0) {
       setForm((prev) => {
-        const existing = prev.images.trim();
+        const existing = (prev.images || '').trim();
         const combined = existing ? `${existing}\n${uploadedUrls.join('\n')}` : uploadedUrls.join('\n');
         return { ...prev, images: combined };
       });
@@ -517,7 +527,7 @@ function AdminPage() {
   };
 
   const handleRemoveImage = async (indexToRemove: number) => {
-    const imageList = form.images.split('\n').map((s) => s.trim()).filter(Boolean);
+    const imageList = (form.images || '').split('\n').map((s) => s.trim()).filter(Boolean);
     const urlToRemove = imageList[indexToRemove];
 
     if (urlToRemove && urlToRemove.includes('product-images')) {
@@ -540,20 +550,21 @@ function AdminPage() {
   const handleAddVariant = () => {
     setForm((prev) => ({
       ...prev,
-      variants: [...prev.variants, { size: '', stock: 50 }],
+      variants: [...(prev.variants || []), { size: '', stock: 50 }],
     }));
   };
 
   const handleRemoveVariant = (index: number) => {
     setForm((prev) => ({
       ...prev,
-      variants: prev.variants.filter((_, i) => i !== index),
+      variants: (prev.variants || []).filter((_, i) => i !== index),
     }));
   };
 
   const handleVariantChange = (index: number, field: 'size' | 'stock', value: string) => {
     setForm((prev) => {
-      const updated = [...prev.variants];
+      const updated = [...(prev.variants || [])];
+      if (!updated[index]) return prev;
       if (field === 'size') {
         updated[index].size = value;
       } else {
@@ -583,30 +594,39 @@ function AdminPage() {
 
   const loadOrders = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from('orders')
-      .select('*, product:products(*)')
-      .order('created_at', { ascending: false });
-    if (data) setOrders(data as any);
-    setLoading(false);
+    try {
+      const { data } = await supabase
+        .from('orders')
+        .select('*, product:products(*)')
+        .order('created_at', { ascending: false });
+      if (data) setOrders(data as any);
+    } catch (err) {
+      console.error('Błąd ładowania zamówień:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const loadDropSettings = async () => {
-    const { data } = await supabase
-      .from('drop_settings')
-      .select('*')
-      .eq('id', 1)
-      .maybeSingle();
-    if (data) {
-      const s = data as DropSettings;
-      setDropSettings(s);
-      setSettingsForm({
-        drop_date: toLocalDatetimeInput(s.drop_date),
-        is_tbd: s.is_tbd,
-        featured_product_id: s.featured_product_id || 'none',
-        title: s.title,
-        subtitle: s.subtitle,
-      });
+    try {
+      const { data } = await supabase
+        .from('drop_settings')
+        .select('*')
+        .eq('id', 1)
+        .maybeSingle();
+      if (data) {
+        const s = data as DropSettings;
+        setDropSettings(s);
+        setSettingsForm({
+          drop_date: toLocalDatetimeInput(s.drop_date),
+          is_tbd: s.is_tbd,
+          featured_product_id: s.featured_product_id || 'none',
+          title: s.title || 'Nowy drop',
+          subtitle: s.subtitle || '',
+        });
+      }
+    } catch (err) {
+      console.error('Błąd drop_settings:', err);
     }
   };
 
@@ -653,7 +673,7 @@ function AdminPage() {
         (payload) => {
           const newOrder = payload.new as Order;
           playOrderChime();
-          showToast(`🔔 NOWE ZAMÓWIENIE #${newOrder.id.slice(0, 6).toUpperCase()} od ${newOrder.customer_name} (${formatPrice(newOrder.total_price)})`);
+          showToast(`🔔 NOWE ZAMÓWIENIE #${newOrder.id?.slice(0, 6).toUpperCase()} od ${newOrder.customer_name} (${formatPrice(newOrder.total_price || 0)})`);
           loadOrders();
           loadProducts();
         }
@@ -731,9 +751,9 @@ function AdminPage() {
     let finalConditionDetail = form.condition_detail;
 
     if (isAcc) {
-      if (form.variants.length > 0) {
+      if (form.variants && form.variants.length > 0) {
         finalSizeEu = form.variants.map((v) => v.size.trim()).join(' / ') || form.size_eu;
-        finalStock = form.variants.reduce((sum, v) => sum + v.stock, 0);
+        finalStock = form.variants.reduce((sum, v) => sum + (v.stock || 0), 0);
         finalConditionDetail = JSON.stringify(form.variants);
       }
     } else {
@@ -756,7 +776,7 @@ function AdminPage() {
       level: isAcc ? 'Amatorski' : form.level as any,
       condition: form.condition as any,
       condition_detail: finalConditionDetail || null,
-      images: form.images.split('\n').map((s) => s.trim()).filter(Boolean),
+      images: (form.images || '').split('\n').map((s) => s.trim()).filter(Boolean),
       box_included: isAcc ? false : form.box_included,
       bag_included: isAcc ? false : form.bag_included,
       extras_description: form.extras_description || null,
@@ -819,22 +839,22 @@ function AdminPage() {
 
     setForm({
       productType: isAcc ? 'accessory' : 'boot',
-      name: p.name, 
-      brand: p.brand, 
-      model: p.model, 
-      size_eu: String(p.size_eu), 
+      name: p.name || '', 
+      brand: p.brand || '', 
+      model: p.model || '', 
+      size_eu: String(p.size_eu || ''), 
       accessory_type: p.accessory_type || 'Skarpety antypoślizgowe', 
       insole_length_cm: p.insole_length_cm ? String(p.insole_length_cm) : '', 
-      price: String(p.price), 
+      price: String(p.price || ''), 
       original_price: p.original_price ? String(p.original_price) : '', 
       stock_quantity: String(p.stock_quantity ?? (isAcc ? 100 : 1)), 
-      surface_type: p.surface_type, 
-      level: p.level, 
-      condition: p.condition, 
+      surface_type: p.surface_type || 'FG', 
+      level: p.level || 'Amatorski', 
+      condition: p.condition || 'Nowe z metką', 
       condition_detail: p.condition_detail && !p.condition_detail.startsWith('[') ? p.condition_detail : '', 
-      images: p.images.join('\n'), 
-      box_included: p.box_included, 
-      bag_included: p.bag_included, 
+      images: Array.isArray(p.images) ? p.images.join('\n') : (typeof p.images === 'string' ? p.images : ''), 
+      box_included: Boolean(p.box_included), 
+      bag_included: Boolean(p.bag_included), 
       extras_description: p.extras_description || '', 
       status: customStatus, 
       drop_type: dType, 
@@ -853,8 +873,9 @@ function AdminPage() {
   };
 
   const handleQuickStatusChange = async (id: string, newStatus: CustomProductStatus) => {
-    const targetProduct = products.find((p) => p.id === id);
-    
+    const targetProduct = products.find((p) => p?.id === id);
+    if (!targetProduct) return;
+
     const pName = (targetProduct?.name || '').toLowerCase();
     const pBrand = (targetProduct?.brand || '').toLowerCase();
     const isAccessory =
@@ -1121,23 +1142,25 @@ function AdminPage() {
               ) : (
                 <div className="space-y-3">
                   {products.map((p: any) => {
-                    const isDrop = p.status === 'draft' && p.drop_scheduled_at !== null;
-                    const isDraft = p.status === 'draft' && p.drop_scheduled_at === null;
+                    const isDrop = p?.status === 'draft' && p?.drop_scheduled_at !== null;
+                    const isDraft = p?.status === 'draft' && p?.drop_scheduled_at === null;
 
                     let currentCustomStatus: CustomProductStatus = 'available';
-                    if (p.status === 'sold') currentCustomStatus = 'sold';
+                    if (p?.status === 'sold') currentCustomStatus = 'sold';
                     else if (isDraft) currentCustomStatus = 'draft';
                     else if (isDrop) currentCustomStatus = 'drop';
 
+                    const mainImg = Array.isArray(p?.images) && p.images.length > 0 ? p.images[0] : null;
+
                     return (
                       <div 
-                        key={p.id} 
+                        key={p?.id || Math.random()} 
                         className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#141414] border border-neutral-800/80 rounded-2xl p-3.5 sm:p-4 hover:border-neutral-700 transition-all"
                       >
                         <div className="flex items-center gap-3 min-w-0 flex-1">
                           <div className="w-16 h-16 sm:w-16 sm:h-16 rounded-xl overflow-hidden bg-white/5 border border-neutral-800 flex-shrink-0">
-                            {p.images[0] ? (
-                              <img src={p.images[0]} alt={p.name} className="w-full h-full object-cover" />
+                            {mainImg ? (
+                              <img src={mainImg} alt={p?.name || ''} className="w-full h-full object-cover" />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center text-neutral-600 text-xs">Brak</div>
                             )}
@@ -1145,15 +1168,15 @@ function AdminPage() {
 
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                              <span className="text-xs font-black text-[#FF6B00] uppercase tracking-wider">{p.brand}</span>
-                              <span className="text-xs text-neutral-400 font-medium">EU {p.size_eu}</span>
-                              {p.accessory_type && (
+                              <span className="text-xs font-black text-[#FF6B00] uppercase tracking-wider">{p?.brand || 'FOOTBUBR'}</span>
+                              <span className="text-xs text-neutral-400 font-medium">{p?.size_eu || ''}</span>
+                              {p?.accessory_type && (
                                 <span className="text-[11px] text-neutral-400 bg-white/5 border border-neutral-800 px-2 py-0.5 rounded-full">
                                   {p.accessory_type}
                                 </span>
                               )}
                               <span className="text-[11px] font-bold text-neutral-300 bg-white/5 border border-neutral-700 px-2 py-0.5 rounded-full">
-                                Magazyn: {p.stock_quantity ?? 1} szt.
+                                Magazyn: {p?.stock_quantity ?? 1} szt.
                               </span>
                               
                               {isDraft && (
@@ -1169,8 +1192,8 @@ function AdminPage() {
                               )}
                             </div>
 
-                            <p className="font-semibold text-white text-sm truncate leading-snug">{p.name}</p>
-                            <p className="text-sm font-bold text-white mt-0.5">{formatPrice(p.price)}</p>
+                            <p className="font-semibold text-white text-sm truncate leading-snug">{p?.name || 'Produkt'}</p>
+                            <p className="text-sm font-bold text-white mt-0.5">{formatPrice(p?.price ?? 0)}</p>
                           </div>
                         </div>
 
@@ -1362,7 +1385,7 @@ function AdminPage() {
                             </button>
                           </div>
 
-                          {form.variants.map((variant, idx) => (
+                          {(form.variants || []).map((variant, idx) => (
                             <div key={idx} className="flex items-center gap-2 bg-black/40 border border-neutral-800 p-2.5 rounded-xl">
                               <div className="flex-1">
                                 <label className="text-[10px] font-bold text-neutral-500 uppercase block mb-1">Rozmiar / Wymiary</label>
@@ -1386,7 +1409,7 @@ function AdminPage() {
                                   required
                                 />
                               </div>
-                              {form.variants.length > 1 && (
+                              {(form.variants || []).length > 1 && (
                                 <button
                                   type="button"
                                   onClick={() => handleRemoveVariant(idx)}
@@ -1400,7 +1423,7 @@ function AdminPage() {
                           ))}
 
                           <p className="text-[11px] text-neutral-500">
-                            Łączny stan magazynowy: <span className="font-bold text-white">{form.variants.reduce((acc, v) => acc + v.stock, 0)} sztuk</span>.
+                            Łączny stan magazynowy: <span className="font-bold text-white">{(form.variants || []).reduce((acc, v) => acc + (v.stock || 0), 0)} sztuk</span>.
                           </p>
                         </div>
                       )}
@@ -1505,7 +1528,7 @@ function AdminPage() {
                         />
                       </div>
 
-                      {form.images.trim() && (
+                      {form.images && form.images.trim() && (
                         <div className="flex gap-3 overflow-x-auto py-2">
                           {form.images.split('\n').filter(Boolean).map((url, i) => (
                             <div key={i} className="relative group w-20 h-20 rounded-xl border border-neutral-800 overflow-hidden flex-shrink-0 bg-black/40">
@@ -1670,11 +1693,11 @@ function AdminPage() {
                     const rawData = o.shipping_method === 'paczkomat' 
                       ? (o.paczkomat_code || '') 
                       : (o.shipping_address || '');
-                    const cleanDelivery = rawData.split(' [Wariant:')[0].trim();
+                    const cleanDelivery = typeof rawData === 'string' ? rawData.split(' [Wariant:')[0].trim() : '';
 
                     return (
                       <div
-                        key={o.id}
+                        key={o?.id || Math.random()}
                         className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-4 sm:p-5 hover:border-neutral-700 transition-all cursor-pointer"
                         onClick={() => openOrderDetail(o)}
                       >
@@ -1688,15 +1711,15 @@ function AdminPage() {
                             </div>
                             <div className="grid sm:grid-cols-2 gap-2 text-sm">
                               <div>
-                                <p className="text-white font-semibold">{o.customer_name}</p>
-                                <p className="text-neutral-500 truncate">{o.customer_email}</p>
+                                <p className="text-white font-semibold">{o.customer_name || ''}</p>
+                                <p className="text-neutral-500 truncate">{o.customer_email || ''}</p>
                                 {o.customer_phone && <p className="text-neutral-500">{o.customer_phone}</p>}
                               </div>
                               <div>
                                 <p className="text-neutral-400 text-xs sm:text-sm">
                                   {o.shipping_method === 'paczkomat' ? `Paczkomat: ${cleanDelivery}` : `Kurier: ${cleanDelivery}`}
                                 </p>
-                                <p className="text-neutral-400 text-xs sm:text-sm">Płatność: {o.payment_method}</p>
+                                <p className="text-neutral-400 text-xs sm:text-sm">Płatność: {o.payment_method || ''}</p>
                                 {o.tracking_number && (
                                   <p className="text-blue-400 text-xs sm:text-sm mt-0.5 flex items-center gap-1">
                                     <Truck className="w-3 h-3" />
@@ -1710,8 +1733,8 @@ function AdminPage() {
                             </div>
                           </div>
                           <div className="text-right flex-shrink-0">
-                            <p className="font-black text-white text-base sm:text-lg">{formatPrice(o.total_price)}</p>
-                            <p className="text-xs text-neutral-600">{new Date(o.created_at).toLocaleDateString('pl-PL')}</p>
+                            <p className="font-black text-white text-base sm:text-lg">{formatPrice(o?.total_price ?? 0)}</p>
+                            <p className="text-xs text-neutral-600">{o?.created_at ? new Date(o.created_at).toLocaleDateString('pl-PL') : ''}</p>
                           </div>
                         </div>
                       </div>
@@ -1793,11 +1816,11 @@ function AdminPage() {
                       <div className="grid sm:grid-cols-2 gap-3 text-sm">
                         <div>
                           <p className="text-neutral-500 text-xs">Imię i nazwisko</p>
-                          <p className="text-white font-semibold">{selectedOrder.customer_name}</p>
+                          <p className="text-white font-semibold">{selectedOrder.customer_name || ''}</p>
                         </div>
                         <div>
                           <p className="text-neutral-500 text-xs">E-mail</p>
-                          <p className="text-white">{selectedOrder.customer_email}</p>
+                          <p className="text-white">{selectedOrder.customer_email || ''}</p>
                         </div>
                         <div>
                           <p className="text-neutral-500 text-xs">Telefon</p>
@@ -1810,8 +1833,8 @@ function AdminPage() {
                           ? (selectedOrder.paczkomat_code || '') 
                           : (selectedOrder.shipping_address || '');
 
-                        const cleanDelivery = rawData.split(' [Wariant:')[0].trim();
-                        const variantMatch = rawData.match(/\[Wariant:\s*(.*?)\]/);
+                        const cleanDelivery = typeof rawData === 'string' ? rawData.split(' [Wariant:')[0].trim() : '';
+                        const variantMatch = typeof rawData === 'string' ? rawData.match(/\[Wariant:\s*(.*?)\]/) : null;
                         const variantText = variantMatch ? variantMatch[1] : null;
 
                         return (
@@ -1927,8 +1950,8 @@ function AdminPage() {
                     >
                       <option value="none">- Brak wyróżnionego produktu -</option>
                       {products.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.brand} {p.name} (EU {p.size_eu}) - {formatPrice(p.price)}
+                        <option key={p?.id || Math.random()} value={p?.id || ''}>
+                          {p?.brand || ''} {p?.name || ''} (EU {p?.size_eu || ''}) - {formatPrice(p?.price ?? 0)}
                         </option>
                       ))}
                     </select>
@@ -1967,25 +1990,28 @@ function AdminPage() {
                 </h3>
 
                 <div className="space-y-2">
-                  {dropProducts.map((p) => (
-                    <div key={p.id} className="flex items-center justify-between p-3 bg-white/5 border border-neutral-800 rounded-xl">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-10 h-10 rounded-lg overflow-hidden bg-black/40 border border-neutral-800 flex-shrink-0">
-                          {p.images[0] && <img src={p.images[0]} alt={p.name} className="w-full h-full object-cover" />}
+                  {dropProducts.map((p) => {
+                    const dImg = Array.isArray(p?.images) && p.images.length > 0 ? p.images[0] : null;
+                    return (
+                      <div key={p?.id || Math.random()} className="flex items-center justify-between p-3 bg-white/5 border border-neutral-800 rounded-xl">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-10 h-10 rounded-lg overflow-hidden bg-black/40 border border-neutral-800 flex-shrink-0">
+                            {dImg && <img src={dImg} alt={p?.name || ''} className="w-full h-full object-cover" />}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-white text-sm font-semibold truncate">{p?.name || ''}</p>
+                            <p className="text-xs text-neutral-500">{p?.brand || ''} · EU {p?.size_eu || ''} · {formatPrice(p?.price ?? 0)}</p>
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <p className="text-white text-sm font-semibold truncate">{p.name}</p>
-                          <p className="text-xs text-neutral-500">{p.brand} · EU {p.size_eu} · {formatPrice(p.price)}</p>
-                        </div>
+                        <button
+                          onClick={() => handleQuickStatusChange(p.id, 'draft')}
+                          className="flex items-center gap-1 text-xs text-neutral-400 hover:text-white bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg transition-all active:scale-95"
+                        >
+                          <Minus className="w-3.5 h-3.5" /> Przenieś do szkiców
+                        </button>
                       </div>
-                      <button
-                        onClick={() => handleQuickStatusChange(p.id, 'draft')}
-                        className="flex items-center gap-1 text-xs text-neutral-400 hover:text-white bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg transition-all active:scale-95"
-                      >
-                        <Minus className="w-3.5 h-3.5" /> Przenieś do szkiców
-                      </button>
-                    </div>
-                  ))}
+                    );
+                  })}
 
                   {dropProducts.length === 0 && (
                     <p className="text-xs text-neutral-600 py-4 text-center">Brak produktów przypisanych do dropu.</p>
@@ -1997,10 +2023,10 @@ function AdminPage() {
                     <h4 className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2">Dodaj ze szkiców do dropu:</h4>
                     <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                       {draftProducts.map((p) => (
-                        <div key={p.id} className="flex items-center justify-between p-2.5 bg-black/30 border border-neutral-800/60 rounded-xl">
+                        <div key={p?.id || Math.random()} className="flex items-center justify-between p-2.5 bg-black/30 border border-neutral-800/60 rounded-xl">
                           <div className="min-w-0">
-                            <p className="text-neutral-300 text-xs font-semibold truncate">{p.name}</p>
-                            <p className="text-[11px] text-neutral-500">EU {p.size_eu} · {formatPrice(p.price)}</p>
+                            <p className="text-neutral-300 text-xs font-semibold truncate">{p?.name || ''}</p>
+                            <p className="text-[11px] text-neutral-500">EU {p?.size_eu || ''} · {formatPrice(p?.price ?? 0)}</p>
                           </div>
                           <button
                             onClick={() => handleQuickStatusChange(p.id, 'drop')}
@@ -2164,7 +2190,7 @@ function AdminPage() {
                             </span>
                           )}
                           <div className="flex items-center text-[#FF6B00] gap-0.5 ml-2">
-                            {[...Array(rev.rating)].map((_, i) => (
+                            {[...Array(rev.rating || 5)].map((_, i) => (
                               <Star key={i} className="w-3.5 h-3.5 fill-[#FF6B00]" />
                             ))}
                           </div>
@@ -2178,7 +2204,7 @@ function AdminPage() {
 
                         <p className="text-xs sm:text-sm text-neutral-300 italic">"{rev.comment}"</p>
                         <p className="text-[11px] text-neutral-600">
-                          Dodano: {new Date(rev.created_at).toLocaleString('pl-PL')}
+                          Dodano: {rev.created_at ? new Date(rev.created_at).toLocaleString('pl-PL') : ''}
                         </p>
                       </div>
 
@@ -2198,6 +2224,66 @@ function AdminPage() {
         </main>
       </div>
     </div>
+  );
+}
+
+function AdminNav({
+  view, setView, setForm, setEditingId, productsCount, ordersCount, discountsCount, reviewsCount, onLogout,
+}: {
+  view: View;
+  setView: (v: View) => void;
+  setForm: (f: ProductForm) => void;
+  setEditingId: (id: string | null) => void;
+  productsCount: number;
+  ordersCount: number;
+  discountsCount: number;
+  reviewsCount: number;
+  onLogout: () => void;
+}) {
+  return (
+    <>
+      <nav className="flex-1 p-3 space-y-1">
+        <button
+          onClick={() => { setView('products'); setForm(EMPTY_BOOT_FORM); setEditingId(null); }}
+          className={cn('flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-medium transition-all active:scale-95', view === 'products' ? 'bg-[#FF6B00]/15 text-[#FF6B00]' : 'text-neutral-400 hover:text-white hover:bg-white/5')}
+        >
+          <Package className="w-4 h-4" /> Produkty
+          <span className="ml-auto text-xs bg-white/10 text-neutral-400 px-1.5 py-0.5 rounded-full">{productsCount}</span>
+        </button>
+        <button
+          onClick={() => setView('orders')}
+          className={cn('flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-medium transition-all active:scale-95', view === 'orders' ? 'bg-[#FF6B00]/15 text-[#FF6B00]' : 'text-neutral-400 hover:text-white hover:bg-white/5')}
+        >
+          <ShoppingCart className="w-4 h-4" /> Zamówienia
+          <span className="ml-auto text-xs bg-white/10 text-neutral-400 px-1.5 py-0.5 rounded-full">{ordersCount}</span>
+        </button>
+        <button
+          onClick={() => setView('drop-settings')}
+          className={cn('flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-medium transition-all active:scale-95', view === 'drop-settings' ? 'bg-[#FF6B00]/15 text-[#FF6B00]' : 'text-neutral-400 hover:text-white hover:bg-white/5')}
+        >
+          <Sparkles className="w-4 h-4" /> Ustawienia dropu
+        </button>
+        <button
+          onClick={() => setView('discounts')}
+          className={cn('flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-medium transition-all active:scale-95', view === 'discounts' ? 'bg-[#FF6B00]/15 text-[#FF6B00]' : 'text-neutral-400 hover:text-white hover:bg-white/5')}
+        >
+          <Tag className="w-4 h-4" /> Kody rabatowe
+          <span className="ml-auto text-xs bg-white/10 text-neutral-400 px-1.5 py-0.5 rounded-full">{discountsCount}</span>
+        </button>
+        <button
+          onClick={() => setView('reviews')}
+          className={cn('flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-medium transition-all active:scale-95', view === 'reviews' ? 'bg-[#FF6B00]/15 text-[#FF6B00]' : 'text-neutral-400 hover:text-white hover:bg-white/5')}
+        >
+          <MessageSquare className="w-4 h-4" /> Opinie
+          <span className="ml-auto text-xs bg-white/10 text-neutral-400 px-1.5 py-0.5 rounded-full">{reviewsCount}</span>
+        </button>
+      </nav>
+      <div className="p-3 border-t border-neutral-800/80">
+        <button onClick={onLogout} className="flex items-center gap-2 w-full px-3 py-2.5 rounded-xl text-sm text-neutral-500 hover:text-white/80 hover:bg-white/5 transition-all active:scale-95">
+          <LogOut className="w-4 h-4" /> Wyloguj
+        </button>
+      </div>
+    </>
   );
 }
 
