@@ -5,7 +5,8 @@ const STATIC_ITEMS = [
   'DARMOWA WYSYŁKA OD 500 ZŁ',
   'WSZYSTKIE PARY 100% ORYGINALNE',
   'WYSYŁKA INPOST / KURIER',
-  'KORKI 1 OF 1 — KAŻDA PARA UNIKAT',
+  'KORKI 1 OF 1 - KAŻDA PARA UNIKAT',
+  'TOPOWE AKCESORIA',
 ];
 
 function buildItems(dropText: string): string[] {
