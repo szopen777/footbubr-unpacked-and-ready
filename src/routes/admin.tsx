@@ -621,15 +621,14 @@ function AdminPage() {
     let finalConditionDetail = form.condition_detail;
 
     if (isAcc) {
-      if (form.variants.length > 0) {
-        finalSizeEu = form.variants.map((v) => v.size.split(' ')[0]).join(' / ') || form.size_eu;
-        finalStock = form.variants.reduce((sum, v) => sum + v.stock, 0);
-        finalConditionDetail = JSON.stringify(form.variants);
-      }
-    } else {
-      finalStock = dbStatus === 'sold' ? 0 : 1;
-    }
-
+  if (form.variants.length > 0) {
+    finalSizeEu = form.variants.map((v) => v.size.trim()).join(' / ') || form.size_eu;
+    finalStock = form.variants.reduce((sum, v) => sum + v.stock, 0);
+    finalConditionDetail = JSON.stringify(form.variants);
+  } else {
+    finalSizeEu = form.size_eu;
+  }
+}
     const bootStock = dbStatus === 'sold' ? 0 : 1;
 
     const payload: ProductInsert = {
