@@ -66,15 +66,14 @@ const ADMIN_EMAIL = 'chodorignacy@gmail.com';
 const ADMIN_PASSWORD = 'Chowder04!';
 const AUTH_STORAGE_KEY = 'footbubr_admin_session';
 
-// Dźwięk powiadomienia o nowym zamówieniu bez zewnętrznych plików
 function playOrderChime() {
   try {
     const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = 'triangle';
-    osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
-    osc.frequency.setValueAtTime(880, ctx.currentTime + 0.1); // A5
+    osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+    osc.frequency.setValueAtTime(880, ctx.currentTime + 0.1);
     gain.gain.setValueAtTime(0.3, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
     osc.connect(gain);
@@ -92,6 +91,16 @@ function toLocalDatetimeInput(isoStr: string | null | undefined): string {
   if (isNaN(d.getTime())) return '';
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function isMatchingShinGuardSize(variantSizeName: string, chosenSize: 'S' | 'XS'): boolean {
+  const clean = variantSizeName.toUpperCase().trim();
+  if (chosenSize === 'XS') {
+    return clean.startsWith('XS') || clean.includes(' XS') || clean.includes('XS ');
+  }
+  const isXS = clean.startsWith('XS') || clean.includes(' XS') || clean.includes('XS ');
+  if (isXS) return false;
+  return clean.startsWith('S') || clean.includes(' S') || clean.includes('S ') || clean.includes('S-') || clean.includes('S -');
 }
 
 interface ProductForm {
@@ -137,13 +146,12 @@ const EMPTY_ACCESSORY_FORM: ProductForm = {
   box_included: false, bag_included: false, extras_description: '',
   status: 'available', drop_type: 'global', drop_scheduled_at: '',
   variants: [
-    { size: 'S (10x6 cm)', stock: 50 },
-    { size: 'XS (8x5 cm)', stock: 50 },
+    { size: 'S - 10×6 cm', stock: 50 },
+    { size: 'XS - 8×5 cm', stock: 50 },
   ],
 };
 
 function AdminPage() {
-  // Trwała sesja logowania
   const [authed, setAuthed] = useState<boolean>(() => {
     return localStorage.getItem(AUTH_STORAGE_KEY) === 'true';
   });
@@ -343,10 +351,8 @@ function AdminPage() {
           pName.includes('zestaw');
 
         if (!isAccessory) {
-          // Korki 1 of 1
           await supabase.from('products').update({ status: 'available', stock_quantity: 1 }).eq('id', productId);
         } else if (isBundle) {
-          // Zestaw FOOTBUBR PRO: przywróć box + składowe
           const newBoxStock = (prod?.stock_quantity ?? 0) + 1;
           await supabase.from('products').update({
             stock_quantity: newBoxStock,
@@ -369,9 +375,9 @@ function AdminPage() {
             }).eq('id', sockProd.id);
           }
 
-          // 2. Ochraniacze (wg wariantu zapisanego w zamówieniu)
+          // 2. Ochraniacze (z użyciem precyzyjnego dopasowania)
           const orderVariantStr = targetOrder.product?.size_eu || '';
-          const chosenSize = orderVariantStr.includes('XS') ? 'XS' : 'S';
+          const chosenSize: 'S' | 'XS' = orderVariantStr.toUpperCase().includes('XS') ? 'XS' : 'S';
 
           const { data: shinProd } = await supabase
             .from('products')
@@ -386,7 +392,7 @@ function AdminPage() {
               if (shinProd.condition_detail && shinProd.condition_detail.startsWith('[')) {
                 const shinVariants = JSON.parse(shinProd.condition_detail);
                 const updated = shinVariants.map((v: any) => {
-                  if (v.size.toUpperCase().includes(chosenSize)) {
+                  if (isMatchingShinGuardSize(v.size, chosenSize)) {
                     return { ...v, stock: v.stock + 1 };
                   }
                   return v;
@@ -406,7 +412,7 @@ function AdminPage() {
             } catch {}
           }
 
-          // 3. Taśma (wg koloru zapisanego w zamówieniu)
+          // 3. Taśma
           const chosenTapeColor = orderVariantStr.toLowerCase().includes('biała') ? 'biała' : 'czarna';
           const { data: tapeProds } = await supabase
             .from('products')
@@ -424,7 +430,6 @@ function AdminPage() {
             }
           }
         } else {
-          // Pojedyncze akcesorium (np. same ochraniacze lub skarpety)
           const orderVariantStr = targetOrder.product?.size_eu || '';
           try {
             if (prod?.condition_detail && prod.condition_detail.startsWith('[')) {
@@ -455,8 +460,9 @@ function AdminPage() {
     setDeletingOrder(false);
     setSelectedOrder(null);
     await loadOrders();
-    showToast('Zamówienie usunięte i stany zaktualizowane');
+    showToast('Zamówienie usunięte i stan przywrócony');
   };
+
   const openOrderDetail = (order: Order & { product?: Product }) => {
     setSelectedOrder(order);
     setOrderTrackingInput(order.tracking_number || '');
@@ -639,7 +645,6 @@ function AdminPage() {
     };
     boot();
 
-    // Powiadomienia w czasie rzeczywistym o nowych zamówieniach (Realtime)
     const channel = supabase
       .channel('admin-orders-realtime')
       .on(
@@ -726,14 +731,15 @@ function AdminPage() {
     let finalConditionDetail = form.condition_detail;
 
     if (isAcc) {
-  if (form.variants.length > 0) {
-    finalSizeEu = form.variants.map((v) => v.size.trim()).join(' / ') || form.size_eu;
-    finalStock = form.variants.reduce((sum, v) => sum + v.stock, 0);
-    finalConditionDetail = JSON.stringify(form.variants);
-  } else {
-    finalSizeEu = form.size_eu;
-  }
-}
+      if (form.variants.length > 0) {
+        finalSizeEu = form.variants.map((v) => v.size.trim()).join(' / ') || form.size_eu;
+        finalStock = form.variants.reduce((sum, v) => sum + v.stock, 0);
+        finalConditionDetail = JSON.stringify(form.variants);
+      }
+    } else {
+      finalStock = dbStatus === 'sold' ? 0 : 1;
+    }
+
     const bootStock = dbStatus === 'sold' ? 0 : 1;
 
     const payload: ProductInsert = {
@@ -908,7 +914,6 @@ function AdminPage() {
   const inp = INPUT_CLASS;
   const sel = SELECT_CLASS;
 
-  // EKRAN LOGOWANIA Z POLAMI: EMAIL ORAZ HASŁO
   if (!authed) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4 bg-[#090909]">
@@ -1221,7 +1226,6 @@ function AdminPage() {
             </div>
           )}
 
-          {/* Modal dodawania / edycji produktu */}
           {showProductModal && (
             <>
               <div
@@ -1235,13 +1239,11 @@ function AdminPage() {
                     <button
                       onClick={() => { setShowProductModal(false); setForm(EMPTY_BOOT_FORM); setEditingId(null); }}
                       className="p-2 text-neutral-500 hover:text-white bg-white/5 rounded-xl transition-all active:scale-90"
-                      aria-label="Zamknij"
                     >
                       <X className="w-5 h-5" />
                     </button>
                   </div>
                   <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
-                    
                     {!editingId && (
                       <div className="bg-[#141414] border border-neutral-800 rounded-2xl p-2">
                         <p className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2 px-2">Wybierz typ dodawanego produktu:</p>
@@ -1319,7 +1321,6 @@ function AdminPage() {
                         <input className={inp} placeholder="np. Nike Mercurial Elite 1 of 1" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
                       </div>
                       
-                      {/* SEKCJA ROZMIARU I WARIANTÓW */}
                       {form.productType === 'boot' ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div>
@@ -1366,7 +1367,7 @@ function AdminPage() {
                                 <label className="text-[10px] font-bold text-neutral-500 uppercase block mb-1">Rozmiar / Wymiary</label>
                                 <input
                                   className={cn(inp, 'text-xs')}
-                                  placeholder="np. S (10x6 cm)"
+                                  placeholder="np. S - 10×6 cm"
                                   value={variant.size}
                                   onChange={(e) => handleVariantChange(idx, 'size', e.target.value)}
                                   required
@@ -1904,7 +1905,6 @@ function AdminPage() {
                 </div>
               </div>
 
-              {/* Produkty w dropie */}
               <div className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-5 sm:p-6 space-y-4">
                 <h3 className="font-bold text-white uppercase tracking-tight text-base flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-[#FF6B00]" />
@@ -1962,7 +1962,6 @@ function AdminPage() {
             </div>
           )}
 
-          {/* KODY RABATOWE */}
           {view === 'discounts' && (
             <div className="animate-fade-in max-w-4xl space-y-6">
               <div>
@@ -2077,7 +2076,6 @@ function AdminPage() {
             </div>
           )}
 
-          {/* OPINIE SPOŁECZNOŚCI */}
           {view === 'reviews' && (
             <div className="animate-fade-in max-w-5xl space-y-6">
               <div>
