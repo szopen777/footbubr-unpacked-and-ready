@@ -86,33 +86,73 @@ function CheckoutPage() {
   const orderTotal = discountedTotal + shippingCost;
 
   const handleSearchInpost = async (queryToSearch?: string) => {
-    const q = (queryToSearch ?? searchQuery).trim();
-    if (!q) return;
+    const raw = (queryToSearch ?? searchQuery).trim();
+    if (!raw) return;
 
     setSearchingPoints(true);
     setSearchMessage('');
 
     try {
-      const res = await fetch(`https://api-pl-points.easypack24.net/v1/points?type=parcel_locker&relative_point=${encodeURIComponent(q)}&limit=15`);
-      const data = await res.json();
-
-      if (data && Array.isArray(data.items) && data.items.length > 0) {
-        setPointsList(data.items);
-      } else {
-        // Fallback: szukanie po nazwie lub mieście
-        const resCity = await fetch(`https://api-pl-points.easypack24.net/v1/points?type=parcel_locker&city=${encodeURIComponent(q)}&limit=15`);
-        const dataCity = await resCity.json();
-
-        if (dataCity && Array.isArray(dataCity.items) && dataCity.items.length > 0) {
-          setPointsList(dataCity.items);
-        } else {
-          setPointsList([]);
-          setSearchMessage('Nie znaleziono paczkomatów w tej lokalizacji. Spróbuj podać np. ulicę lub kod pocztowy.');
+      // 1. Sprawdzenie czy wpisano bezpośredni kod paczkomatu (np. KRA01M)
+      const cleanCode = raw.toUpperCase().replace(/\s+/g, '');
+      if (/^[A-Z]{3}[0-9]{2,}[A-Z0-9]*$/.test(cleanCode)) {
+        const resCode = await fetch(`https://api-pl-points.easypack24.net/v1/points/${cleanCode}`);
+        if (resCode.ok) {
+          const singlePoint = await resCode.json();
+          if (singlePoint && singlePoint.name) {
+            setPointsList([singlePoint]);
+            setSearchingPoints(false);
+            return;
+          }
         }
+      }
+
+      // 2. Geokodowanie adresu (rozpoznaje "Kluczborska 5", miasta, kody pocztowe itp.)
+      let coords: { lat: number; lng: number } | null = null;
+      try {
+        const geoRes = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&countrycodes=pl&limit=1&q=${encodeURIComponent(raw)}`
+        );
+        const geoData = await geoRes.json();
+        if (Array.isArray(geoData) && geoData.length > 0) {
+          coords = {
+            lat: parseFloat(geoData[0].lat),
+            lng: parseFloat(geoData[0].lon),
+          };
+        }
+      } catch (err) {
+        console.warn('Geocoding fallback', err);
+      }
+
+      // 3. Wyszukiwanie w InPost po koordynatach geograficznych
+      if (coords) {
+        const resNear = await fetch(
+          `https://api-pl-points.easypack24.net/v1/points?type=parcel_locker&relative_point=${coords.lat},${coords.lng}&limit=15`
+        );
+        const dataNear = await resNear.json();
+        if (dataNear && Array.isArray(dataNear.items) && dataNear.items.length > 0) {
+          setPointsList(dataNear.items);
+          setSearchingPoints(false);
+          return;
+        }
+      }
+
+      // 4. Fallback: wyszukiwanie tekstowe (sama ulica / miasto / kod)
+      const cleanStreet = raw.replace(/[0-9]/g, '').trim();
+      const resFallback = await fetch(
+        `https://api-pl-points.easypack24.net/v1/points?type=parcel_locker&query=${encodeURIComponent(cleanStreet || raw)}&limit=15`
+      );
+      const dataFallback = await resFallback.json();
+
+      if (dataFallback && Array.isArray(dataFallback.items) && dataFallback.items.length > 0) {
+        setPointsList(dataFallback.items);
+      } else {
+        setPointsList([]);
+        setSearchMessage('Nie znaleziono paczkomatów. Spróbuj dopisać miasto (np. Kluczborska, Kraków) lub podać kod pocztowy.');
       }
     } catch (err) {
       setPointsList([]);
-      setSearchMessage('Błąd połączenia z bazą InPost. Możesz wpisać kod paczkomatu ręcznie.');
+      setSearchMessage('Błąd połączenia. Możesz wpisać kod paczkomatu ręcznie w polu formularza.');
     } finally {
       setSearchingPoints(false);
     }
@@ -584,7 +624,7 @@ function CheckoutPage() {
       <Header />
       <CartDrawer />
 
-      {/* WYSZUKIWARKA PACZKOMATÓW BEZ TOKENU */}
+      {/* WYSZUKIWARKA PACZKOMATÓW Z GEOKODOWANIEM */}
       {showInpostModal && (
         <div className="fixed inset-0 z-[200] bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-fade-in">
           <div className="bg-[#141414] border border-neutral-800 rounded-2xl w-full max-w-xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden relative">
@@ -609,7 +649,7 @@ function CheckoutPage() {
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
                   <input
                     type="text"
-                    placeholder="Wpisz miasto, ulicę lub kod (np. Poznań, Półwiejska)..."
+                    placeholder="Wpisz np. Kluczborska 5, Poznań lub kod..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSearchInpost()}
@@ -628,14 +668,14 @@ function CheckoutPage() {
               </div>
 
               <div className="flex items-center justify-between text-[11px] text-neutral-400">
-                <span>Szukasz na mapie?</span>
+                <span>Wolisz oficjalną mapę?</span>
                 <a
                   href="https://inpost.pl/znajdz-paczkomat"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-[#FF6B00] hover:underline flex items-center gap-1 font-semibold"
                 >
-                  Otwórz oficjalną mapę InPost <ExternalLink className="w-3 h-3" />
+                  Otwórz w nowej karcie <ExternalLink className="w-3 h-3" />
                 </a>
               </div>
             </div>
@@ -644,7 +684,7 @@ function CheckoutPage() {
               {searchingPoints && (
                 <div className="py-12 text-center text-neutral-400 flex flex-col items-center gap-2">
                   <Loader2 className="w-6 h-6 text-[#FF6B00] animate-spin" />
-                  <span className="text-xs">Wyszukiwanie paczkomatów w bazie...</span>
+                  <span className="text-xs">Lokalizowanie adresu i paczkomatów w okolicy...</span>
                 </div>
               )}
 
@@ -690,7 +730,7 @@ function CheckoutPage() {
                   {searchMessage ? (
                     <p className="text-xs text-amber-400/90">{searchMessage}</p>
                   ) : (
-                    <p className="text-xs">Wpisz miejscowość lub ulicę powyżej, aby zobaczyć listę paczkomatów.</p>
+                    <p className="text-xs">Wpisz ulicę z numerem lub miejscowość powyżej, aby znaleźć najbliższe paczkomaty.</p>
                   )}
                 </div>
               )}
