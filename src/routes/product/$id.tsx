@@ -90,7 +90,6 @@ function ProductPage() {
         const isBndl = prod.accessory_type === 'Zestawy FOOTBUBR' || pName.includes('zestaw');
 
         if (isBndl) {
-          // Pobierz na żywo stany powiązanych produktów do konfiguratora
           const { data: related } = await supabase
             .from('products')
             .select('*')
@@ -355,8 +354,10 @@ function ProductPage() {
                   <div className="flex items-center gap-2 bg-[#FF6B00]/10 border border-[#FF6B00]/20 backdrop-blur-md rounded-xl px-4 py-2 flex-1">
                     <AlertCircle className="w-4 h-4 text-[#FF6B00] flex-shrink-0" />
                     <span className="text-xs sm:text-sm font-semibold text-[#FF6B00]">
-                      {isAccessory
+                      {isBundle
                         ? `Dostępne w tej konfiguracji: ${maxStock} kpl.`
+                        : isAccessory
+                        ? `Dostępne w magazynie: ${maxStock} szt.`
                         : 'Tylko 1 sztuka w magazynie — unikat!'}
                     </span>
                   </div>
@@ -372,7 +373,7 @@ function ProductPage() {
               </div>
             </div>
 
-            {/* KONFIGURATOR ZESTAWU FOOTBUBR PRO Z LICZNIKAMI SZTUK */}
+            {/* KONFIGURATOR ZESTAWU FOOTBUBR PRO */}
             {isBundle && !isSold && (
               <div className="bg-[#141414] border border-neutral-800 rounded-2xl p-4 sm:p-5 space-y-4">
                 <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
