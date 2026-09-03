@@ -93,7 +93,6 @@ function CheckoutPage() {
       const aBuilding = (a?.address_details?.building_number || '').toLowerCase();
       const bBuilding = (b?.address_details?.building_number || '').toLowerCase();
 
-      // Dopasowanie ulicy i numeru budynku
       const aMatchesStreet = cleanWords.some((w) => aStreet.includes(w));
       const bMatchesStreet = cleanWords.some((w) => bStreet.includes(w));
       const aMatchesNumber = cleanNumbers ? aBuilding.includes(cleanNumbers) : false;
@@ -138,57 +137,60 @@ function CheckoutPage() {
           `https://api-pl-points.easypack24.net/v1/points?type=parcel_locker&post_code=${encodeURIComponent(pCode)}&limit=30`
         );
         const dataPost = await resPost.json();
-        if (dataPost?.items?.length > 0) {
+        if (dataPost?.items && Array.isArray(dataPost.items) && dataPost.items.length > 0) {
           setPointsList(sortPointsByRelevance(dataPost.items, raw));
           setSearchingPoints(false);
           return;
         }
       }
 
-      // 3. Wyszukiwanie po ulicy / adresie przez oficjalny parametr search_query
-      const normalizedQuery = raw.replace(/([a-zA-ZąćęłńóśźżĄĆĘŁŃÓŚŹŻ])(\d)/g, '$1 $2');
-      const resSearch = await fetch(
-        `https://api-pl-points.easypack24.net/v1/points?type=parcel_locker&search_query=${encodeURIComponent(normalizedQuery)}&limit=30`
-      );
-      const dataSearch = await resSearch.json();
-
-      if (dataSearch?.items?.length > 0) {
-        setPointsList(sortPointsByRelevance(dataSearch.items, normalizedQuery));
-        setSearchingPoints(false);
-        return;
+      // 3. Sprawdzenie czy to samo miasto (brak cyfr, jedno słowo)
+      const isJustCity = !/\d/.test(raw) && raw.split(/\s+/).length <= 2;
+      if (isJustCity) {
+        const resCity = await fetch(
+          `https://api-pl-points.easypack24.net/v1/points?type=parcel_locker&city=${encodeURIComponent(raw)}&limit=30`
+        );
+        const dataCity = await resCity.json();
+        if (dataCity?.items && Array.isArray(dataCity.items) && dataCity.items.length > 0) {
+          setPointsList(dataCity.items);
+          setSearchingPoints(false);
+          return;
+        }
       }
 
-      // 4. Fallback: wyszukiwanie geolokalizacyjne w przypadku braku wyników tekstowych
+      // 4. Geokodowanie (działa precyzyjnie dla ulic, np. "Kluczborska", "Kluczborska 5", "Kluczborska Wrocław")
       let coords: { lat: number; lng: number } | null = null;
       try {
+        const normalizedQuery = raw.replace(/([a-zA-ZąćęłńóśźżĄĆĘŁŃÓŚŹŻ])(\d)/g, '$1 $2');
         const geoRes = await fetch(
           `https://nominatim.openstreetmap.org/search?format=json&countrycodes=pl&limit=1&q=${encodeURIComponent(normalizedQuery)}`
         );
         const geoData = await geoRes.json();
-        if (geoData?.[0]?.lat && geoData?.[0]?.lon) {
+        if (Array.isArray(geoData) && geoData.length > 0 && geoData[0]?.lat && geoData[0]?.lon) {
           coords = {
             lat: parseFloat(geoData[0].lat),
             lng: parseFloat(geoData[0].lon),
           };
         }
       } catch (err) {
-        console.warn('Geocoding fallback failed', err);
+        console.warn('Geocoding fallback', err);
       }
 
+      // 5. Wyszukiwanie w InPost po koordynatach
       if (coords && !isNaN(coords.lat) && !isNaN(coords.lng)) {
         const resNear = await fetch(
-          `https://api-pl-points.easypack24.net/v1/points?type=parcel_locker&relative_point=${coords.lat},${coords.lng}&limit=25`
+          `https://api-pl-points.easypack24.net/v1/points?type=parcel_locker&relative_point=${coords.lat},${coords.lng}&limit=30`
         );
         const dataNear = await resNear.json();
-        if (dataNear?.items?.length > 0) {
-          setPointsList(sortPointsByRelevance(dataNear.items, normalizedQuery));
+        if (dataNear?.items && Array.isArray(dataNear.items) && dataNear.items.length > 0) {
+          setPointsList(sortPointsByRelevance(dataNear.items, raw));
           setSearchingPoints(false);
           return;
         }
       }
 
       setPointsList([]);
-      setSearchMessage('Nie znaleziono paczkomatów. Spróbuj dopisać miasto lub podać kod pocztowy.');
+      setSearchMessage('Nie znaleziono paczkomatów. Spróbuj dopisać miasto (np. Kluczborska Wrocław) lub podać kod pocztowy.');
     } catch (err) {
       setPointsList([]);
       setSearchMessage('Błąd połączenia. Możesz wpisać kod paczkomatu ręcznie w formularzu.');
