@@ -1798,16 +1798,53 @@ function AdminPage() {
                           <p className="text-white">{selectedOrder.customer_phone || '-'}</p>
                         </div>
                       </div>
-                      <div className="pt-2 border-t border-neutral-800">
-                        <p className="text-neutral-500 text-xs mb-1">
-                          {selectedOrder.shipping_method === 'paczkomat' ? 'Kod paczkomatu' : 'Adres dostawy'}
-                        </p>
-                        {selectedOrder.shipping_method === 'paczkomat' ? (
-                          <p className="text-white font-mono font-bold text-lg">{selectedOrder.paczkomat_code}</p>
-                        ) : (
-                          <p className="text-white">{selectedOrder.shipping_address || '-'}</p>
-                        )}
-                      </div>
+                      {(() => {
+  const rawData = selectedOrder.shipping_method === 'paczkomat' 
+    ? (selectedOrder.paczkomat_code || '') 
+    : (selectedOrder.shipping_address || '');
+
+  const cleanDelivery = rawData.split(' [Wariant:')[0].trim();
+  const variantMatch = rawData.match(/\[Wariant:\s*(.*?)\]/);
+  const variantText = variantMatch ? variantMatch[1] : null;
+
+  return (
+    <>
+      <div className="pt-2 border-t border-neutral-800">
+        <p className="text-neutral-500 text-xs mb-1">
+          {selectedOrder.shipping_method === 'paczkomat' ? 'Kod paczkomatu' : 'Adres dostawy'}
+        </p>
+        <p className="text-white font-mono font-bold text-lg">
+          {cleanDelivery || '-'}
+        </p>
+      </div>
+
+      {/* DEDYKOWANA SEKCJA ZAMÓWIONEGO PRODUKTU I WARIANTU */}
+      <div className="pt-3 border-t border-neutral-800 space-y-2">
+        <p className="text-xs font-bold text-neutral-500 uppercase tracking-wider">
+          Zamówiony produkt
+        </p>
+        <div className="p-3 bg-black/40 border border-neutral-800 rounded-xl space-y-1.5">
+          <p className="text-white font-bold text-sm">
+            {selectedOrder.product?.name || 'Produkt'}
+          </p>
+
+          {variantText ? (
+            <div className="flex items-center gap-2 pt-1 flex-wrap">
+              <span className="text-[11px] text-neutral-400 font-medium">Wybrany wariant:</span>
+              <span className="text-xs font-bold text-[#FF6B00] bg-[#FF6B00]/10 border border-[#FF6B00]/30 px-2.5 py-0.5 rounded-lg">
+                {variantText}
+              </span>
+            </div>
+          ) : selectedOrder.product?.size_eu ? (
+            <p className="text-xs text-neutral-400">
+              Rozmiar: <span className="text-white font-semibold">{selectedOrder.product.size_eu}</span>
+            </p>
+          ) : null}
+        </div>
+      </div>
+    </>
+  );
+})()}
                     </div>
 
                     <div className="pt-3 border-t border-neutral-800 flex justify-end">
