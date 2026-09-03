@@ -375,12 +375,11 @@ function AdminPage() {
             }).eq('id', sockProd.id);
           }
 
-          // Odczyt wariantu z notatki zamówienia
+          // 2. Ochraniacze (z użyciem isMatchingShinGuardSize)
           const rawNote = targetOrder.paczkomat_code || targetOrder.shipping_address || targetOrder.product?.size_eu || '';
           const chosenSize: 'S' | 'XS' = rawNote.toUpperCase().includes('XS') ? 'XS' : 'S';
           const chosenTapeColorKey = rawNote.toLowerCase().includes('biał') ? 'biał' : 'czarn';
 
-          // 2. Ochraniacze (z użyciem isMatchingShinGuardSize)
           const { data: shinProd } = await supabase
             .from('products')
             .select('*')
@@ -414,7 +413,7 @@ function AdminPage() {
             } catch {}
           }
 
-          // 3. Taśma (dopasowanie po rdzeniu 'biał' lub 'czarn')
+          // 3. Taśma
           const { data: tapeProds } = await supabase
             .from('products')
             .select('*')
@@ -1022,7 +1021,7 @@ function AdminPage() {
                   disabled={publishing || dropProducts.length === 0}
                   className="flex-1 bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-bold py-3 rounded-xl transition-all active:scale-95 disabled:opacity-40 shadow-[0_4px_15px_rgba(255,107,0,0.25)]"
                 >
-                  {publishing ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Opublikuj teraz'}
+                  {publishing ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Opublikuj teraz'}
                 </button>
                 <button
                   onClick={() => setShowPublishModal(false)}
@@ -1667,50 +1666,57 @@ function AdminPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {orders.map((o) => (
-                    <div
-                      key={o.id}
-                      className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-4 sm:p-5 hover:border-neutral-700 transition-all cursor-pointer"
-                      onClick={() => openOrderDetail(o)}
-                    >
-                      <div className="flex items-start justify-between gap-3 sm:gap-4">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-2 flex-wrap">
-                            <span className="text-xs font-mono font-bold text-neutral-300">{formatOrderNumber(o)}</span>
-                            <span className={cn('text-xs font-bold px-2 py-0.5 rounded-full', ORDER_STATUS_STYLES[o.status] || 'bg-white/10 text-neutral-400')}>
-                              {ORDER_STATUS_LABELS[o.status] || o.status}
-                            </span>
-                          </div>
-                          <div className="grid sm:grid-cols-2 gap-2 text-sm">
-                            <div>
-                              <p className="text-white font-semibold">{o.customer_name}</p>
-                              <p className="text-neutral-500 truncate">{o.customer_email}</p>
-                              {o.customer_phone && <p className="text-neutral-500">{o.customer_phone}</p>}
+                  {orders.map((o) => {
+                    const rawData = o.shipping_method === 'paczkomat' 
+                      ? (o.paczkomat_code || '') 
+                      : (o.shipping_address || '');
+                    const cleanDelivery = rawData.split(' [Wariant:')[0].trim();
+
+                    return (
+                      <div
+                        key={o.id}
+                        className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-4 sm:p-5 hover:border-neutral-700 transition-all cursor-pointer"
+                        onClick={() => openOrderDetail(o)}
+                      >
+                        <div className="flex items-start justify-between gap-3 sm:gap-4">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-2 flex-wrap">
+                              <span className="text-xs font-mono font-bold text-neutral-300">{formatOrderNumber(o)}</span>
+                              <span className={cn('text-xs font-bold px-2 py-0.5 rounded-full', ORDER_STATUS_STYLES[o.status] || 'bg-white/10 text-neutral-400')}>
+                                {ORDER_STATUS_LABELS[o.status] || o.status}
+                              </span>
                             </div>
-                            <div>
-                              <p className="text-neutral-400 text-xs sm:text-sm">
-                                {o.shipping_method === 'paczkomat' ? `Paczkomat: ${o.paczkomat_code}` : `Kurier: ${o.shipping_address}`}
-                              </p>
-                              <p className="text-neutral-400 text-xs sm:text-sm">Płatność: {o.payment_method}</p>
-                              {o.tracking_number && (
-                                <p className="text-blue-400 text-xs sm:text-sm mt-0.5 flex items-center gap-1">
-                                  <Truck className="w-3 h-3" />
-                                  {o.tracking_number}
+                            <div className="grid sm:grid-cols-2 gap-2 text-sm">
+                              <div>
+                                <p className="text-white font-semibold">{o.customer_name}</p>
+                                <p className="text-neutral-500 truncate">{o.customer_email}</p>
+                                {o.customer_phone && <p className="text-neutral-500">{o.customer_phone}</p>}
+                              </div>
+                              <div>
+                                <p className="text-neutral-400 text-xs sm:text-sm">
+                                  {o.shipping_method === 'paczkomat' ? `Paczkomat: ${cleanDelivery}` : `Kurier: ${cleanDelivery}`}
                                 </p>
-                              )}
-                              {o.product && (
-                                <p className="text-[#FF6B00] font-medium mt-1 text-xs sm:text-sm">{o.product.name} · Rozmiar: {o.product.size_eu}</p>
-                              )}
+                                <p className="text-neutral-400 text-xs sm:text-sm">Płatność: {o.payment_method}</p>
+                                {o.tracking_number && (
+                                  <p className="text-blue-400 text-xs sm:text-sm mt-0.5 flex items-center gap-1">
+                                    <Truck className="w-3 h-3" />
+                                    {o.tracking_number}
+                                  </p>
+                                )}
+                                {o.product && (
+                                  <p className="text-[#FF6B00] font-medium mt-1 text-xs sm:text-sm">{o.product.name}</p>
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                        <div className="text-right flex-shrink-0">
-                          <p className="font-black text-white text-base sm:text-lg">{formatPrice(o.total_price)}</p>
-                          <p className="text-xs text-neutral-600">{new Date(o.created_at).toLocaleDateString('pl-PL')}</p>
+                          <div className="text-right flex-shrink-0">
+                            <p className="font-black text-white text-base sm:text-lg">{formatPrice(o.total_price)}</p>
+                            <p className="text-xs text-neutral-600">{new Date(o.created_at).toLocaleDateString('pl-PL')}</p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -1798,53 +1804,63 @@ function AdminPage() {
                           <p className="text-white">{selectedOrder.customer_phone || '-'}</p>
                         </div>
                       </div>
+
                       {(() => {
-  const rawData = selectedOrder.shipping_method === 'paczkomat' 
-    ? (selectedOrder.paczkomat_code || '') 
-    : (selectedOrder.shipping_address || '');
+                        const rawData = selectedOrder.shipping_method === 'paczkomat' 
+                          ? (selectedOrder.paczkomat_code || '') 
+                          : (selectedOrder.shipping_address || '');
 
-  const cleanDelivery = rawData.split(' [Wariant:')[0].trim();
-  const variantMatch = rawData.match(/\[Wariant:\s*(.*?)\]/);
-  const variantText = variantMatch ? variantMatch[1] : null;
+                        const cleanDelivery = rawData.split(' [Wariant:')[0].trim();
+                        const variantMatch = rawData.match(/\[Wariant:\s*(.*?)\]/);
+                        const variantText = variantMatch ? variantMatch[1] : null;
 
-  return (
-    <>
-      <div className="pt-2 border-t border-neutral-800">
-        <p className="text-neutral-500 text-xs mb-1">
-          {selectedOrder.shipping_method === 'paczkomat' ? 'Kod paczkomatu' : 'Adres dostawy'}
-        </p>
-        <p className="text-white font-mono font-bold text-lg">
-          {cleanDelivery || '-'}
-        </p>
-      </div>
+                        return (
+                          <>
+                            <div className="pt-2 border-t border-neutral-800">
+                              <p className="text-neutral-500 text-xs mb-1">
+                                {selectedOrder.shipping_method === 'paczkomat' ? 'Kod paczkomatu' : 'Adres dostawy'}
+                              </p>
+                              <p className="text-white font-mono font-bold text-lg">
+                                {cleanDelivery || '-'}
+                              </p>
+                            </div>
 
-      {/* DEDYKOWANA SEKCJA ZAMÓWIONEGO PRODUKTU I WARIANTU */}
-      <div className="pt-3 border-t border-neutral-800 space-y-2">
-        <p className="text-xs font-bold text-neutral-500 uppercase tracking-wider">
-          Zamówiony produkt
-        </p>
-        <div className="p-3 bg-black/40 border border-neutral-800 rounded-xl space-y-1.5">
-          <p className="text-white font-bold text-sm">
-            {selectedOrder.product?.name || 'Produkt'}
-          </p>
+                            <div className="pt-3 border-t border-neutral-800 space-y-2">
+                              <p className="text-xs font-bold text-neutral-500 uppercase tracking-wider">
+                                Zamówiony produkt
+                              </p>
+                              <div className="p-3 bg-black/40 border border-neutral-800 rounded-xl space-y-1.5">
+                                <p className="text-white font-bold text-sm">
+                                  {selectedOrder.product?.name || 'Produkt'}
+                                </p>
 
-          {variantText ? (
-            <div className="flex items-center gap-2 pt-1 flex-wrap">
-              <span className="text-[11px] text-neutral-400 font-medium">Wybrany wariant:</span>
-              <span className="text-xs font-bold text-[#FF6B00] bg-[#FF6B00]/10 border border-[#FF6B00]/30 px-2.5 py-0.5 rounded-lg">
-                {variantText}
-              </span>
-            </div>
-          ) : selectedOrder.product?.size_eu ? (
-            <p className="text-xs text-neutral-400">
-              Rozmiar: <span className="text-white font-semibold">{selectedOrder.product.size_eu}</span>
-            </p>
-          ) : null}
-        </div>
-      </div>
-    </>
-  );
-})()}
+                                {variantText ? (
+                                  <div className="space-y-1.5 pt-1">
+                                    <p className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
+                                      Skład zestawu do spakowania:
+                                    </p>
+                                    <div className="flex flex-wrap gap-1.5">
+                                      {variantText.split('|').map((part, idx) => (
+                                        <span
+                                          key={idx}
+                                          className="text-xs font-bold text-white bg-white/5 border border-neutral-700 px-2.5 py-1 rounded-lg flex items-center gap-1.5"
+                                        >
+                                          <span className="w-1.5 h-1.5 rounded-full bg-[#FF6B00]" />
+                                          {part.trim()}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                ) : selectedOrder.product?.size_eu ? (
+                                  <p className="text-xs text-neutral-400">
+                                    Rozmiar: <span className="text-white font-semibold">{selectedOrder.product.size_eu}</span>
+                                  </p>
+                                ) : null}
+                              </div>
+                            </div>
+                          </>
+                        );
+                      })()}
                     </div>
 
                     <div className="pt-3 border-t border-neutral-800 flex justify-end">
@@ -2182,66 +2198,6 @@ function AdminPage() {
         </main>
       </div>
     </div>
-  );
-}
-
-function AdminNav({
-  view, setView, setForm, setEditingId, productsCount, ordersCount, discountsCount, reviewsCount, onLogout,
-}: {
-  view: View;
-  setView: (v: View) => void;
-  setForm: (f: ProductForm) => void;
-  setEditingId: (id: string | null) => void;
-  productsCount: number;
-  ordersCount: number;
-  discountsCount: number;
-  reviewsCount: number;
-  onLogout: () => void;
-}) {
-  return (
-    <>
-      <nav className="flex-1 p-3 space-y-1">
-        <button
-          onClick={() => { setView('products'); setForm(EMPTY_BOOT_FORM); setEditingId(null); }}
-          className={cn('flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-medium transition-all active:scale-95', view === 'products' ? 'bg-[#FF6B00]/15 text-[#FF6B00]' : 'text-neutral-400 hover:text-white hover:bg-white/5')}
-        >
-          <Package className="w-4 h-4" /> Produkty
-          <span className="ml-auto text-xs bg-white/10 text-neutral-400 px-1.5 py-0.5 rounded-full">{productsCount}</span>
-        </button>
-        <button
-          onClick={() => setView('orders')}
-          className={cn('flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-medium transition-all active:scale-95', view === 'orders' ? 'bg-[#FF6B00]/15 text-[#FF6B00]' : 'text-neutral-400 hover:text-white hover:bg-white/5')}
-        >
-          <ShoppingCart className="w-4 h-4" /> Zamówienia
-          <span className="ml-auto text-xs bg-white/10 text-neutral-400 px-1.5 py-0.5 rounded-full">{ordersCount}</span>
-        </button>
-        <button
-          onClick={() => setView('drop-settings')}
-          className={cn('flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-medium transition-all active:scale-95', view === 'drop-settings' ? 'bg-[#FF6B00]/15 text-[#FF6B00]' : 'text-neutral-400 hover:text-white hover:bg-white/5')}
-        >
-          <Sparkles className="w-4 h-4" /> Ustawienia dropu
-        </button>
-        <button
-          onClick={() => setView('discounts')}
-          className={cn('flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-medium transition-all active:scale-95', view === 'discounts' ? 'bg-[#FF6B00]/15 text-[#FF6B00]' : 'text-neutral-400 hover:text-white hover:bg-white/5')}
-        >
-          <Tag className="w-4 h-4" /> Kody rabatowe
-          <span className="ml-auto text-xs bg-white/10 text-neutral-400 px-1.5 py-0.5 rounded-full">{discountsCount}</span>
-        </button>
-        <button
-          onClick={() => setView('reviews')}
-          className={cn('flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-medium transition-all active:scale-95', view === 'reviews' ? 'bg-[#FF6B00]/15 text-[#FF6B00]' : 'text-neutral-400 hover:text-white hover:bg-white/5')}
-        >
-          <MessageSquare className="w-4 h-4" /> Opinie
-          <span className="ml-auto text-xs bg-white/10 text-neutral-400 px-1.5 py-0.5 rounded-full">{reviewsCount}</span>
-        </button>
-      </nav>
-      <div className="p-3 border-t border-neutral-800/80">
-        <button onClick={onLogout} className="flex items-center gap-2 w-full px-3 py-2.5 rounded-xl text-sm text-neutral-500 hover:text-white/80 hover:bg-white/5 transition-all active:scale-95">
-          <LogOut className="w-4 h-4" /> Wyloguj
-        </button>
-      </div>
-    </>
   );
 }
 
