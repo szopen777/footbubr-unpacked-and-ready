@@ -34,6 +34,18 @@ function formatPhoneNumber(val: string): string {
   return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
 }
 
+// Precyzyjne dopasowanie rozmiaru ochraniacza: rozróżnia 'S' od 'XS'
+function isMatchingShinGuardSize(variantSizeName: string, chosenSize: 'S' | 'XS'): boolean {
+  const clean = variantSizeName.toUpperCase().trim();
+  if (chosenSize === 'XS') {
+    return clean.startsWith('XS') || clean.includes(' XS') || clean.includes('XS ');
+  }
+  // Gdy wybrano 'S' - upewniamy się, że to nie jest 'XS'
+  const isXS = clean.startsWith('XS') || clean.includes(' XS') || clean.includes('XS ');
+  if (isXS) return false;
+  return clean.startsWith('S') || clean.includes(' S') || clean.includes('S ') || clean.includes('S-') || clean.includes('S -');
+}
+
 function CheckoutPage() {
   const { items, total, discountedTotal, discountAmount, promoCode, appliedPromo, applyPromo, removePromo, clearCart } = useCart();
   const [step, setStep] = useState<'summary' | 'success'>('summary');
@@ -183,16 +195,13 @@ function CheckoutPage() {
     if (items.length === 0) return;
 
     setSubmitting(true);
-
-    // Historia do ewentualnego rollbacku
     const rollbacks: (() => Promise<any>)[] = [];
 
     try {
-      // 1. Rezerwacja produktów i aktualizacja powiązań
+      // 1. Rezerwacja produktów i bezpieczna synchronizacja
       for (const { product, quantity } of items) {
         const pName = (product.name || '').toLowerCase();
         const pBrand = (product.brand || '').toLowerCase();
-        const pModel = (product.model || '').toLowerCase();
         const isAccessory =
           pBrand === 'footbubr' ||
           pName.includes('skarpety') ||
@@ -200,15 +209,13 @@ function CheckoutPage() {
           pName.includes('taśma') ||
           pName.includes('tasma') ||
           pName.includes('zestaw') ||
-          pModel.includes('skarpety') ||
-          pModel.includes('ochraniacze') ||
           Boolean(product.accessory_type);
 
         const isBundle =
           product.accessory_type === 'Zestawy FOOTBUBR' ||
           pName.includes('zestaw');
 
-        // SCENARIUSZ A: Zwykłe Korki 1 of 1
+        // SCENARIUSZ A: Korki 1 of 1
         if (!isAccessory) {
           const { data: updatedProduct, error: updateError } = await supabase
             .from('products')
@@ -231,7 +238,7 @@ function CheckoutPage() {
 
         // SCENARIUSZ B: Zestaw FOOTBUBR PRO (Box)
         else if (isBundle) {
-          // 1. Odejmij z samego Boxa
+          // 1. Zdejmij ze stanu Boxa
           const { data: currentBox } = await supabase.from('products').select('*').eq('id', product.id).single();
           if (!currentBox || (currentBox.stock_quantity ?? 0) < quantity) {
             setGeneralError('Brak wystarczającej ilości zestawów w magazynie.');
@@ -249,13 +256,12 @@ function CheckoutPage() {
             await supabase.from('products').update({ stock_quantity: currentBox.stock_quantity, status: currentBox.status }).eq('id', product.id);
           });
 
-          // 2. Wyciągnij wybrane warianty z konfiguracji:
-          // Format z product/$id: "Ochraniacze: S (10x6 cm) | Taśma: Czarna"
+          // Wyciągnij warianty: "Ochraniacze: S (10x6 cm) | Taśma: Czarna"
           const configStr = product.size_eu || '';
-          const chosenShinGuardSize = configStr.includes('XS') ? 'XS' : 'S';
+          const chosenShinGuardSize: 'S' | 'XS' = configStr.toUpperCase().includes('XS') ? 'XS' : 'S';
           const chosenTapeColor = configStr.toLowerCase().includes('biała') ? 'biała' : 'czarna';
 
-          // 3. Synchronizacja: Odejmij ze Skarpet piłkarskich
+          // 2. Synchronizacja: Skarpety
           const { data: sockProd } = await supabase
             .from('products')
             .select('*')
@@ -277,7 +283,7 @@ function CheckoutPage() {
             });
           }
 
-          // 4. Synchronizacja: Odejmij z Ochraniaczy (konkretny rozmiar w JSON)
+          // 3. Synchronizacja: Ochraniacze (dokładnie ten jeden wariant S lub XS)
           const { data: shinProd } = await supabase
             .from('products')
             .select('*')
@@ -296,7 +302,7 @@ function CheckoutPage() {
 
             if (shinVariants.length > 0) {
               const updatedVariants = shinVariants.map((v) => {
-                if (v.size.toUpperCase().includes(chosenShinGuardSize)) {
+                if (isMatchingShinGuardSize(v.size, chosenShinGuardSize)) {
                   return { ...v, stock: Math.max(0, v.stock - quantity) };
                 }
                 return v;
@@ -330,7 +336,7 @@ function CheckoutPage() {
             }
           }
 
-          // 5. Synchronizacja: Odejmij z Taśmy (wg koloru)
+          // 4. Synchronizacja: Taśma (dokładnie dany kolor)
           const { data: tapeProds } = await supabase
             .from('products')
             .select('*')
@@ -354,7 +360,7 @@ function CheckoutPage() {
           }
         }
 
-        // SCENARIUSZ C: Pojedyncze akcesorium z wariantami (np. Ochraniacze osobno)
+        // SCENARIUSZ C: Pojedyncze akcesorium z wariantami (np. ochraniacze kupione osobno)
         else {
           const { data: currentProd } = await supabase.from('products').select('*').eq('id', product.id).single();
           if (!currentProd || (currentProd.stock_quantity ?? 0) < quantity) {
