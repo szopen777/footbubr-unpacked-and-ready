@@ -25,6 +25,14 @@ interface Variant {
   stock: number;
 }
 
+interface BundleLiveStocks {
+  socksStock: number;
+  shinGuardSStock: number;
+  shinGuardXSStock: number;
+  tapeBlackStock: number;
+  tapeWhiteStock: number;
+}
+
 function ProductPage() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
@@ -36,9 +44,16 @@ function ProductPage() {
   const [quantity, setQuantity] = useState(1);
   const [selectedSize, setSelectedSize] = useState<string>('');
 
-  // Konfigurator zestawu boxa
+  // Konfigurator zestawu
   const [bundleShinGuard, setBundleShinGuard] = useState<'S' | 'XS'>('S');
   const [bundleTapeColor, setBundleTapeColor] = useState<'Czarna' | 'Biała'>('Czarna');
+  const [bundleStocks, setBundleStocks] = useState<BundleLiveStocks>({
+    socksStock: 100,
+    shinGuardSStock: 50,
+    shinGuardXSStock: 50,
+    tapeBlackStock: 50,
+    tapeWhiteStock: 50,
+  });
 
   const { addItem, addItemSilent } = useCart();
   const { isFavorite, toggleFavorite } = useFavorites();
@@ -53,6 +68,7 @@ function ProductPage() {
         .select('*')
         .eq('id', id)
         .maybeSingle();
+
       if (!error && data) {
         const prod = data as Product;
         setProduct(prod);
@@ -68,6 +84,59 @@ function ProductPage() {
           setSelectedSize(variants[0].size);
         } else {
           setSelectedSize(prod.size_eu);
+        }
+
+        const pName = (prod.name || '').toLowerCase();
+        const isBndl = prod.accessory_type === 'Zestawy FOOTBUBR' || pName.includes('zestaw');
+
+        if (isBndl) {
+          // Pobierz na żywo stany powiązanych produktów do konfiguratora
+          const { data: related } = await supabase
+            .from('products')
+            .select('*')
+            .neq('id', prod.id);
+
+          if (related) {
+            let sStock = 100;
+            let sgS = 50;
+            let sgXS = 50;
+            let tpBlack = 50;
+            let tpWhite = 50;
+
+            // 1. Skarpety
+            const sock = related.find((p) => p.accessory_type === 'Skarpety antypoślizgowe' || p.name.toLowerCase().includes('skarpety'));
+            if (sock) sStock = sock.stock_quantity ?? 0;
+
+            // 2. Ochraniacze
+            const shin = related.find((p) => p.accessory_type === 'Mini ochraniacze' || p.name.toLowerCase().includes('ochraniacze'));
+            if (shin) {
+              try {
+                if (shin.condition_detail && shin.condition_detail.startsWith('[')) {
+                  const sVariants: Variant[] = JSON.parse(shin.condition_detail);
+                  const foundS = sVariants.find((v) => v.size.toUpperCase().includes('S') && !v.size.toUpperCase().includes('XS'));
+                  const foundXS = sVariants.find((v) => v.size.toUpperCase().includes('XS'));
+                  if (foundS) sgS = foundS.stock;
+                  if (foundXS) sgXS = foundXS.stock;
+                }
+              } catch {}
+            }
+
+            // 3. Taśmy
+            const tapes = related.filter((p) => (p.accessory_type || '').toLowerCase().includes('taśm') || p.name.toLowerCase().includes('taśma') || p.name.toLowerCase().includes('tasma'));
+            tapes.forEach((t) => {
+              const nameLower = t.name.toLowerCase();
+              if (nameLower.includes('czarn')) tpBlack = t.stock_quantity ?? 0;
+              if (nameLower.includes('biał')) tpWhite = t.stock_quantity ?? 0;
+            });
+
+            setBundleStocks({
+              socksStock: sStock,
+              shinGuardSStock: sgS,
+              shinGuardXSStock: sgXS,
+              tapeBlackStock: tpBlack,
+              tapeWhiteStock: tpWhite,
+            });
+          }
         }
       }
       setLoading(false);
@@ -136,7 +205,18 @@ function ProductPage() {
   } catch {}
 
   const currentVariant = variants.find((v) => v.size === selectedSize);
-  const maxStock = currentVariant ? currentVariant.stock : (product.stock_quantity ?? 1);
+
+  // Dynamiczne obliczanie realnie dostępnych zestawów w wybranej konfiguracji
+  const selectedShinGuardStock = bundleShinGuard === 'S' ? bundleStocks.shinGuardSStock : bundleStocks.shinGuardXSStock;
+  const selectedTapeStock = bundleTapeColor === 'Czarna' ? bundleStocks.tapeBlackStock : bundleStocks.tapeWhiteStock;
+  
+  const realBundleStock = isBundle
+    ? Math.min(bundleStocks.socksStock, selectedShinGuardStock, selectedTapeStock, product.stock_quantity ?? 100)
+    : 0;
+
+  const maxStock = isBundle
+    ? realBundleStock
+    : currentVariant ? currentVariant.stock : (product.stock_quantity ?? 1);
 
   const getProductForCart = () => {
     if (isBundle) {
@@ -276,7 +356,7 @@ function ProductPage() {
                     <AlertCircle className="w-4 h-4 text-[#FF6B00] flex-shrink-0" />
                     <span className="text-xs sm:text-sm font-semibold text-[#FF6B00]">
                       {isAccessory
-                        ? `Dostępne w wybranym wariancie: ${maxStock} szt.`
+                        ? `Dostępne w tej konfiguracji: ${maxStock} kpl.`
                         : 'Tylko 1 sztuka w magazynie — unikat!'}
                     </span>
                   </div>
@@ -292,7 +372,7 @@ function ProductPage() {
               </div>
             </div>
 
-            {/* KONFIGURATOR ZESTAWU FOOTBUBR PRO */}
+            {/* KONFIGURATOR ZESTAWU FOOTBUBR PRO Z LICZNIKAMI SZTUK */}
             {isBundle && !isSold && (
               <div className="bg-[#141414] border border-neutral-800 rounded-2xl p-4 sm:p-5 space-y-4">
                 <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
@@ -302,94 +382,128 @@ function ProductPage() {
                   <span className="text-[11px] text-[#FF6B00] font-bold">Komplet 3w1</span>
                 </div>
 
-                {/* 1. SKARPETY (STAŁE) */}
+                {/* 1. SKARPETY */}
                 <div className="flex items-center justify-between p-3 rounded-xl bg-black/40 border border-neutral-800/80">
                   <div className="min-w-0">
                     <p className="text-xs font-bold text-white uppercase">1. Skarpety antypoślizgowe</p>
-                    <p className="text-[11px] text-neutral-400 mt-0.5">Białe z gripem</p>
+                    <p className="text-[11px] text-neutral-400 mt-0.5">
+                      Białe z gripem · <span className="text-neutral-400 font-medium">Stan: {bundleStocks.socksStock} par</span>
+                    </p>
                   </div>
                   <span className="text-xs font-bold text-neutral-300 bg-white/5 border border-neutral-700 px-2.5 py-1 rounded-lg">
                     One Size (41-44)
                   </span>
                 </div>
 
-                {/* 2. WYBÓR OCHRANIACZY */}
+                {/* 2. OCHRANIACZE */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-neutral-400 font-bold uppercase">2. Wybierz rozmiar ochraniaczy:</span>
                     <span className="text-[#FF6B00] font-bold text-[11px]">
-                      {bundleShinGuard === 'S' ? 'S (10x6 cm)' : 'XS (8x5 cm)'}
+                      {bundleShinGuard === 'S' ? `S (${bundleStocks.shinGuardSStock} szt.)` : `XS (${bundleStocks.shinGuardXSStock} szt.)`}
                     </span>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
+                      disabled={bundleStocks.shinGuardSStock === 0}
                       onClick={() => setBundleShinGuard('S')}
                       className={cn(
                         'flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all',
                         bundleShinGuard === 'S'
                           ? 'border-[#FF6B00] bg-[#FF6B00]/10 text-white shadow-[0_0_12px_rgba(255,107,0,0.2)]'
-                          : 'border-neutral-800 bg-black/40 text-neutral-400 hover:text-white'
+                          : 'border-neutral-800 bg-black/40 text-neutral-400 hover:text-white',
+                        bundleStocks.shinGuardSStock === 0 && 'opacity-30 cursor-not-allowed'
                       )}
                     >
-                      <span className="font-black text-sm">Rozmiar S</span>
-                      <span className="text-[10px] text-neutral-400 mt-0.5">10x6 cm (Klasyczny mini)</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-black text-sm">Rozmiar S</span>
+                        <span className="text-[10px] font-bold text-neutral-300 bg-white/10 px-1.5 py-0.5 rounded">
+                          {bundleStocks.shinGuardSStock} szt.
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-neutral-400 mt-1">10x6 cm (Klasyczny mini)</span>
                     </button>
+
                     <button
                       type="button"
+                      disabled={bundleStocks.shinGuardXSStock === 0}
                       onClick={() => setBundleShinGuard('XS')}
                       className={cn(
                         'flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all',
                         bundleShinGuard === 'XS'
                           ? 'border-[#FF6B00] bg-[#FF6B00]/10 text-white shadow-[0_0_12px_rgba(255,107,0,0.2)]'
-                          : 'border-neutral-800 bg-black/40 text-neutral-400 hover:text-white'
+                          : 'border-neutral-800 bg-black/40 text-neutral-400 hover:text-white',
+                        bundleStocks.shinGuardXSStock === 0 && 'opacity-30 cursor-not-allowed'
                       )}
                     >
-                      <span className="font-black text-sm">Rozmiar XS</span>
-                      <span className="text-[10px] text-neutral-400 mt-0.5">8x5 cm (Ultra micro)</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-black text-sm">Rozmiar XS</span>
+                        <span className="text-[10px] font-bold text-neutral-300 bg-white/10 px-1.5 py-0.5 rounded">
+                          {bundleStocks.shinGuardXSStock} szt.
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-neutral-400 mt-1">8x5 cm (Ultra micro)</span>
                     </button>
                   </div>
                 </div>
 
-                {/* 3. WYBÓR KOLORU TAŚMY */}
+                {/* 3. TAŚMA */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-neutral-400 font-bold uppercase">3. Wybierz kolor taśmy getrowej:</span>
-                    <span className="text-white font-bold text-[11px]">{bundleTapeColor}</span>
+                    <span className="text-white font-bold text-[11px]">
+                      {bundleTapeColor === 'Czarna' ? `Czarna (${bundleStocks.tapeBlackStock} szt.)` : `Biała (${bundleStocks.tapeWhiteStock} szt.)`}
+                    </span>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
+                      disabled={bundleStocks.tapeBlackStock === 0}
                       onClick={() => setBundleTapeColor('Czarna')}
                       className={cn(
-                        'flex items-center justify-center gap-2 p-2.5 rounded-xl border transition-all',
+                        'flex items-center justify-between p-2.5 px-3 rounded-xl border transition-all',
                         bundleTapeColor === 'Czarna'
                           ? 'border-[#FF6B00] bg-[#FF6B00]/10 text-white shadow-[0_0_12px_rgba(255,107,0,0.2)]'
-                          : 'border-neutral-800 bg-black/40 text-neutral-400 hover:text-white'
+                          : 'border-neutral-800 bg-black/40 text-neutral-400 hover:text-white',
+                        bundleStocks.tapeBlackStock === 0 && 'opacity-30 cursor-not-allowed'
                       )}
                     >
-                      <span className="w-3.5 h-3.5 rounded-full bg-black border border-white/20" />
-                      <span className="font-bold text-xs">Czarna</span>
+                      <div className="flex items-center gap-2">
+                        <span className="w-3.5 h-3.5 rounded-full bg-black border border-white/20" />
+                        <span className="font-bold text-xs">Czarna</span>
+                      </div>
+                      <span className="text-[10px] font-bold text-neutral-400 bg-white/5 px-1.5 py-0.5 rounded">
+                        {bundleStocks.tapeBlackStock} szt.
+                      </span>
                     </button>
+
                     <button
                       type="button"
+                      disabled={bundleStocks.tapeWhiteStock === 0}
                       onClick={() => setBundleTapeColor('Biała')}
                       className={cn(
-                        'flex items-center justify-center gap-2 p-2.5 rounded-xl border transition-all',
+                        'flex items-center justify-between p-2.5 px-3 rounded-xl border transition-all',
                         bundleTapeColor === 'Biała'
                           ? 'border-[#FF6B00] bg-[#FF6B00]/10 text-white shadow-[0_0_12px_rgba(255,107,0,0.2)]'
-                          : 'border-neutral-800 bg-black/40 text-neutral-400 hover:text-white'
+                          : 'border-neutral-800 bg-black/40 text-neutral-400 hover:text-white',
+                        bundleStocks.tapeWhiteStock === 0 && 'opacity-30 cursor-not-allowed'
                       )}
                     >
-                      <span className="w-3.5 h-3.5 rounded-full bg-white border border-neutral-300" />
-                      <span className="font-bold text-xs">Biała</span>
+                      <div className="flex items-center gap-2">
+                        <span className="w-3.5 h-3.5 rounded-full bg-white border border-neutral-300" />
+                        <span className="font-bold text-xs">Biała</span>
+                      </div>
+                      <span className="text-[10px] font-bold text-neutral-400 bg-white/5 px-1.5 py-0.5 rounded">
+                        {bundleStocks.tapeWhiteStock} szt.
+                      </span>
                     </button>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* WYBÓR ROZMIARU DLA POJEDYNCZYCH PRODUKTÓW Z WARIANTAMI (np. Ochraniacze osobno) */}
+            {/* WYBÓR ROZMIARU DLA POJEDYNCZYCH PRODUKTÓW */}
             {!isBundle && variants.length > 0 && !isSold && (
               <div className="bg-[#141414] border border-neutral-800 rounded-2xl p-4 space-y-3">
                 <div className="flex items-center justify-between text-xs">
@@ -472,7 +586,7 @@ function ProductPage() {
               <div className="divide-y divide-neutral-800/60">
                 {[
                   { 
-                    label: isBundle ? 'Wariant' : 'Rozmiar', 
+                    label: isBundle ? 'Wariant zestawu' : 'Rozmiar', 
                     value: isBundle 
                       ? `Ochraniacze: ${bundleShinGuard} • Taśma: ${bundleTapeColor}` 
                       : (selectedSize || product.size_eu) 
