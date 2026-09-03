@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/skeleton';
 import { cn, formatPrice, SURFACE_LABELS, CONDITION_COLORS } from '@/lib/utils';
 import { 
   ShoppingBag, ArrowLeft, CircleAlert as AlertCircle, Package, 
-  ZoomIn, Zap, Ruler, Plus, Minus, Heart, Eye
+  ZoomIn, Zap, Ruler, Plus, Minus, Heart, Eye, Check
 } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
 import { useFavorites } from '@/lib/favorites-context';
@@ -19,6 +19,11 @@ import { Link, useNavigate, createFileRoute } from '@tanstack/react-router';
 import { toast } from 'sonner';
 import SizeChartModal from '@/components/SizeChartModal';
 import { ImageLightboxModal } from '@/components/ImageLightboxModal';
+
+interface Variant {
+  size: string;
+  stock: number;
+}
 
 function ProductPage() {
   const { id } = Route.useParams();
@@ -29,13 +34,11 @@ function ProductPage() {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [showSizeChart, setShowSizeChart] = useState(false);
   const [quantity, setQuantity] = useState(1);
-  const { addItem, addItemSilent, items } = useCart();
+  const [selectedSize, setSelectedSize] = useState<string>('');
+  const { addItem, addItemSilent } = useCart();
   const { isFavorite, toggleFavorite } = useFavorites();
 
   const { recentProducts } = useRecentlyViewed(product?.id);
-
-  const cartItem = product ? items.find((i) => i.product.id === product.id) : null;
-  const inCart = Boolean(cartItem);
   const favorited = product ? isFavorite(product.id) : false;
 
   useEffect(() => {
@@ -45,7 +48,23 @@ function ProductPage() {
         .select('*')
         .eq('id', id)
         .maybeSingle();
-      if (!error && data) setProduct(data as Product);
+      if (!error && data) {
+        const prod = data as Product;
+        setProduct(prod);
+        
+        let variants: Variant[] = [];
+        try {
+          if (prod.condition_detail && prod.condition_detail.startsWith('[')) {
+            variants = JSON.parse(prod.condition_detail);
+          }
+        } catch {}
+
+        if (variants.length > 0) {
+          setSelectedSize(variants[0].size);
+        } else {
+          setSelectedSize(prod.size_eu);
+        }
+      }
       setLoading(false);
     };
     fetch();
@@ -57,7 +76,6 @@ function ProductPage() {
         <Header />
         <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-6 sm:py-8">
           <Skeleton className="h-4 w-48 mb-6" />
-          
           <div className="grid lg:grid-cols-2 gap-6 lg:gap-10 xl:gap-16">
             <div className="space-y-3">
               <Skeleton className="aspect-square w-full rounded-2xl" />
@@ -67,18 +85,9 @@ function ProductPage() {
                 ))}
               </div>
             </div>
-
             <div className="flex flex-col gap-6 pt-2">
-              <div className="space-y-4">
-                <Skeleton className="h-6 w-32" />
-                <Skeleton className="h-10 w-3/4" />
-                <Skeleton className="h-12 w-40 mt-4" />
-              </div>
+              <Skeleton className="h-10 w-3/4" />
               <Skeleton className="h-36 w-full rounded-2xl" />
-              <div className="flex gap-3 mt-4">
-                <Skeleton className="h-14 flex-1 rounded-2xl" />
-                <Skeleton className="h-14 flex-1 rounded-2xl" />
-              </div>
             </div>
           </div>
         </div>
@@ -101,7 +110,6 @@ function ProductPage() {
 
   const pName = (product.name || '').toLowerCase();
   const pBrand = (product.brand || '').toLowerCase();
-  const pModel = (product.model || '').toLowerCase();
   const isAccessory =
     pBrand === 'footbubr' ||
     pName.includes('skarpety') ||
@@ -109,19 +117,34 @@ function ProductPage() {
     pName.includes('taśma') ||
     pName.includes('tasma') ||
     pName.includes('zestaw') ||
-    pModel.includes('skarpety') ||
-    pModel.includes('ochraniacze') ||
     Boolean(product.accessory_type);
 
-  const maxStock = product.stock_quantity ?? 1;
+  let variants: Variant[] = [];
+  try {
+    if (product.condition_detail && product.condition_detail.startsWith('[')) {
+      variants = JSON.parse(product.condition_detail);
+    }
+  } catch {}
+
+  const currentVariant = variants.find((v) => v.size === selectedSize);
+  const maxStock = currentVariant ? currentVariant.stock : (product.stock_quantity ?? 1);
+
+  const getProductForCart = () => {
+    return {
+      ...product,
+      size_eu: selectedSize || product.size_eu,
+    };
+  };
 
   const handleAddToCart = () => {
-    addItemSilent(product, isAccessory ? quantity : 1);
-    toast.success('Dodano do koszyka', { description: `${quantity}x ${product.name}` });
+    const itemToAdd = getProductForCart();
+    addItemSilent(itemToAdd, isAccessory ? quantity : 1);
+    toast.success('Dodano do koszyka', { description: `${quantity}x ${itemToAdd.name} (${itemToAdd.size_eu})` });
   };
 
   const handleBuyNow = () => {
-    addItem(product, isAccessory ? quantity : 1);
+    const itemToAdd = getProductForCart();
+    addItem(itemToAdd, isAccessory ? quantity : 1);
     navigate({ to: '/checkout' });
   };
 
@@ -160,9 +183,7 @@ function ProductPage() {
             <div
               className="relative aspect-square rounded-xl sm:rounded-2xl overflow-hidden bg-[#141414] border border-neutral-800 cursor-zoom-in group"
               onClick={() => {
-                if (images[activeImage]) {
-                  setLightboxOpen(true);
-                }
+                if (images[activeImage]) setLightboxOpen(true);
               }}
             >
               {images[activeImage] ? (
@@ -180,7 +201,6 @@ function ProductPage() {
                 <div className="w-full h-full flex items-center justify-center text-neutral-700">Brak zdjęcia</div>
               )}
 
-              {/* Przycisk polubienia */}
               <button
                 type="button"
                 onClick={(e) => {
@@ -188,18 +208,10 @@ function ProductPage() {
                   toggleFavorite(product);
                 }}
                 className="absolute top-3 left-3 z-10 p-3 rounded-2xl bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/10 text-white transition-all active:scale-90 shadow-lg"
-                title={favorited ? 'Usuń z ulubionych' : 'Dodaj do ulubionych'}
-                aria-label="Ulubione"
               >
-                <Heart
-                  className={cn(
-                    'w-5 h-5 transition-colors',
-                    favorited ? 'text-red-500 fill-red-500 scale-110' : 'text-neutral-300 hover:text-white'
-                  )}
-                />
+                <Heart className={cn('w-5 h-5 transition-colors', favorited ? 'text-red-500 fill-red-500 scale-110' : 'text-neutral-300 hover:text-white')} />
               </button>
 
-              {/* Przycisk Udostępnij */}
               <div className="absolute top-3 right-3 z-10">
                 <ShareButton title={product.name} />
               </div>
@@ -241,18 +253,16 @@ function ProductPage() {
               </div>
               <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-white leading-tight uppercase tracking-tight">{product.name}</h1>
 
-              {/* Status magazynowy + Licznik Live */}
               {!isSold && (
                 <div className="flex flex-col sm:flex-row sm:items-center gap-3 mt-4 mb-3">
                   <div className="flex items-center gap-2 bg-[#FF6B00]/10 border border-[#FF6B00]/20 backdrop-blur-md rounded-xl px-4 py-2 flex-1">
                     <AlertCircle className="w-4 h-4 text-[#FF6B00] flex-shrink-0" />
                     <span className="text-xs sm:text-sm font-semibold text-[#FF6B00]">
                       {isAccessory
-                        ? `Dostępne w magazynie: ${maxStock} szt.`
+                        ? `Dostępne w wybranym wariancie: ${maxStock} szt.`
                         : 'Tylko 1 sztuka w magazynie — unikat!'}
                     </span>
                   </div>
-
                   <LiveViewersCounter productId={product.id} />
                 </div>
               )}
@@ -265,8 +275,50 @@ function ProductPage() {
               </div>
             </div>
 
-            {/* Wybór ilości (Tylko dla akcesoriów) */}
-            {isAccessory && !isSold && (
+            {/* WYBÓR ROZMIARU (DLA PRODUKTÓW Z WARIANTAMI) */}
+            {variants.length > 0 && !isSold && (
+              <div className="bg-[#141414] border border-neutral-800 rounded-2xl p-4 space-y-3">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-neutral-300 uppercase tracking-wider">Wybierz rozmiar:</span>
+                  <span className="text-neutral-500">Wybrany: <strong className="text-[#FF6B00]">{selectedSize}</strong></span>
+                </div>
+                <div className="grid grid-cols-2 gap-2.5">
+                  {variants.map((v) => {
+                    const isSelected = selectedSize === v.size;
+                    const isOutOfStock = v.stock === 0;
+                    return (
+                      <button
+                        key={v.size}
+                        type="button"
+                        disabled={isOutOfStock}
+                        onClick={() => {
+                          setSelectedSize(v.size);
+                          setQuantity(1);
+                        }}
+                        className={cn(
+                          'flex items-center justify-between p-3 rounded-xl border transition-all text-left',
+                          isSelected
+                            ? 'border-[#FF6B00] bg-[#FF6B00]/10 text-white shadow-[0_0_15px_rgba(255,107,0,0.25)]'
+                            : 'border-neutral-800 bg-black/40 text-neutral-300 hover:border-neutral-700 hover:text-white',
+                          isOutOfStock && 'opacity-30 cursor-not-allowed'
+                        )}
+                      >
+                        <div className="min-w-0">
+                          <span className="font-black text-sm block truncate">{v.size}</span>
+                          <span className="text-[10px] text-neutral-400 block mt-0.5">
+                            {isOutOfStock ? 'Brak w magazynie' : `Stan: ${v.stock} szt.`}
+                          </span>
+                        </div>
+                        {isSelected && <Check className="w-4 h-4 text-[#FF6B00] flex-shrink-0 ml-2" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Wybór ilości */}
+            {isAccessory && !isSold && maxStock > 0 && (
               <div className="flex items-center gap-4 bg-[#141414] border border-neutral-800 rounded-2xl p-4">
                 <span className="text-sm text-neutral-400 font-medium">Wybierz ilość:</span>
                 <div className="flex items-center bg-black/40 border border-neutral-800 rounded-xl overflow-hidden">
@@ -287,7 +339,7 @@ function ProductPage() {
               </div>
             )}
 
-            {/* Specyfikacja z linkami */}
+            {/* Specyfikacja */}
             <div className="bg-[#141414] rounded-2xl border border-neutral-800/80 overflow-hidden">
               <div className="px-4 py-3 border-b border-neutral-800 flex items-center justify-between flex-wrap gap-2">
                 <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider">Specyfikacja</h3>
@@ -296,24 +348,16 @@ function ProductPage() {
                     <button
                       type="button"
                       onClick={() => setShowSizeChart(true)}
-                      className="flex items-center gap-1.5 font-bold text-[#FF6B00] hover:text-[#FF7A00] transition-colors active:scale-95"
+                      className="flex items-center gap-1.5 font-bold text-[#FF6B00] hover:text-[#FF7A00] transition-colors"
                     >
-                      <Ruler className="w-3.5 h-3.5" />
-                      Tabela rozmiarów
+                      <Ruler className="w-3.5 h-3.5" /> Tabela rozmiarów
                     </button>
-                    <span className="text-neutral-700">|</span>
-                    <Link
-                      to="/size-guide"
-                      className="text-neutral-400 hover:text-white transition-colors"
-                    >
-                      Jak zmierzyć stopę?
-                    </Link>
                   </div>
                 )}
               </div>
               <div className="divide-y divide-neutral-800/60">
                 {[
-                  { label: isAccessory ? 'Rozmiar' : 'Rozmiar EU', value: isAccessory ? product.size_eu : `EU ${product.size_eu}` },
+                  { label: 'Rozmiar', value: selectedSize || product.size_eu },
                   ...(!isAccessory && product.insole_length_cm ? [{ label: 'Długość wkładki', value: `${product.insole_length_cm} cm` }] : []),
                   ...(!isAccessory ? [
                     { label: 'Nawierzchnia', value: SURFACE_LABELS[product.surface_type] || product.surface_type },
@@ -330,7 +374,7 @@ function ProductPage() {
             </div>
 
             {/* Przyciski zakupu */}
-            {isSold ? (
+            {isSold || (isAccessory && maxStock === 0) ? (
               <div className="flex items-center justify-center gap-2 bg-white/5 border border-neutral-800 text-neutral-500 font-bold py-4 rounded-2xl">
                 <Package className="w-5 h-5" />
                 WYPRZEDANE
@@ -356,21 +400,16 @@ function ProductPage() {
           </div>
         </div>
 
-        {/* Recenzje produktu — tylko akcesoria */}
         {isAccessory && (
           <ProductReviews productId={product.id} productName={product.name} />
         )}
 
-        {/* Ostatnio oglądane */}
         {recentProducts.length > 0 && (
           <div className="mt-14 sm:mt-18 pt-10 border-t border-neutral-800/80 animate-fade-in">
             <div className="flex items-center gap-2.5 mb-6">
               <Eye className="w-5 h-5 text-[#FF6B00]" />
-              <h2 className="text-lg sm:text-xl font-black text-white uppercase tracking-tight">
-                Ostatnio oglądane
-              </h2>
+              <h2 className="text-lg sm:text-xl font-black text-white uppercase tracking-tight">Ostatnio oglądane</h2>
             </div>
-
             <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5">
               {recentProducts.map((p) => (
                 <ProductCard key={p.id} product={p} />
