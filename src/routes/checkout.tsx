@@ -80,29 +80,29 @@ function CheckoutPage() {
   const shippingCost = shippingCostFor(form.shippingMethod, discountedTotal);
   const orderTotal = discountedTotal + shippingCost;
 
-  // Bezpieczne sortowanie wyników wyszukiwania (zabezpieczone przed null/undefined)
+  // Inteligentne sortowanie trafień z priorytetem numeru i ulicy
   const sortPointsByRelevance = (itemsList: InPostPoint[], query: string): InPostPoint[] => {
     if (!Array.isArray(itemsList)) return [];
     const q = (query || '').trim().toLowerCase();
-    const cleanPostal = q.replace(/[^\d]/g, '');
+    const cleanNumbers = q.match(/\d+/)?.[0] || '';
+    const cleanWords = q.replace(/[^a-zA-ZąćęłńóśźżĄĆĘŁŃÓŚŹŻ]/g, ' ').trim().split(/\s+/).filter((w) => w.length > 2);
 
     return [...itemsList].sort((a, b) => {
-      const aPost = (a?.address_details?.post_code || '').replace(/[^\d]/g, '');
-      const bPost = (b?.address_details?.post_code || '').replace(/[^\d]/g, '');
       const aStreet = (a?.address_details?.street || '').toLowerCase();
       const bStreet = (b?.address_details?.street || '').toLowerCase();
+      const aBuilding = (a?.address_details?.building_number || '').toLowerCase();
+      const bBuilding = (b?.address_details?.building_number || '').toLowerCase();
 
-      // Priorytet kodu pocztowego
-      const aExactPostal = cleanPostal.length === 5 && aPost === cleanPostal;
-      const bExactPostal = cleanPostal.length === 5 && bPost === cleanPostal;
-      if (aExactPostal && !bExactPostal) return -1;
-      if (!aExactPostal && bExactPostal) return 1;
+      // Dopasowanie ulicy i numeru budynku
+      const aMatchesStreet = cleanWords.some((w) => aStreet.includes(w));
+      const bMatchesStreet = cleanWords.some((w) => bStreet.includes(w));
+      const aMatchesNumber = cleanNumbers ? aBuilding.includes(cleanNumbers) : false;
+      const bMatchesNumber = cleanNumbers ? bBuilding.includes(cleanNumbers) : false;
 
-      // Priorytet ulicy
-      const aHasStreet = aStreet && q && aStreet.includes(q);
-      const bHasStreet = bStreet && q && bStreet.includes(q);
-      if (aHasStreet && !bHasStreet) return -1;
-      if (!aHasStreet && bHasStreet) return 1;
+      if (aMatchesStreet && aMatchesNumber && !(bMatchesStreet && bMatchesNumber)) return -1;
+      if (!(aMatchesStreet && aMatchesNumber) && bMatchesStreet && bMatchesNumber) return 1;
+      if (aMatchesStreet && !bMatchesStreet) return -1;
+      if (!aMatchesStreet && bMatchesStreet) return 1;
 
       return 0;
     });
@@ -116,7 +116,7 @@ function CheckoutPage() {
     setSearchMessage('');
 
     try {
-      // 1. Sprawdzenie czy wpisano bezpośredni kod paczkomatu (np. KRA01M)
+      // 1. Sprawdzenie czy wpisano bezpośredni kod paczkomatu (np. WRO14H, KRA01M)
       const cleanCode = raw.toUpperCase().replace(/\s+/g, '');
       if (/^[A-Z]{3}[0-9]{2,}[A-Z0-9]*$/.test(cleanCode)) {
         const resCode = await fetch(`https://api-pl-points.easypack24.net/v1/points/${cleanCode}`);
@@ -135,59 +135,60 @@ function CheckoutPage() {
       if (postalMatch) {
         const pCode = postalMatch[0].includes('-') ? postalMatch[0] : `${postalMatch[0].slice(0, 2)}-${postalMatch[0].slice(2)}`;
         const resPost = await fetch(
-          `https://api-pl-points.easypack24.net/v1/points?type=parcel_locker&post_code=${encodeURIComponent(pCode)}&limit=25`
+          `https://api-pl-points.easypack24.net/v1/points?type=parcel_locker&post_code=${encodeURIComponent(pCode)}&limit=30`
         );
         const dataPost = await resPost.json();
-        if (dataPost && Array.isArray(dataPost.items) && dataPost.items.length > 0) {
+        if (dataPost?.items?.length > 0) {
           setPointsList(sortPointsByRelevance(dataPost.items, raw));
           setSearchingPoints(false);
           return;
         }
       }
 
-      // 3. Geokodowanie adresu
+      // 3. Wyszukiwanie po ulicy / adresie przez oficjalny parametr search_query
+      const normalizedQuery = raw.replace(/([a-zA-ZąćęłńóśźżĄĆĘŁŃÓŚŹŻ])(\d)/g, '$1 $2');
+      const resSearch = await fetch(
+        `https://api-pl-points.easypack24.net/v1/points?type=parcel_locker&search_query=${encodeURIComponent(normalizedQuery)}&limit=30`
+      );
+      const dataSearch = await resSearch.json();
+
+      if (dataSearch?.items?.length > 0) {
+        setPointsList(sortPointsByRelevance(dataSearch.items, normalizedQuery));
+        setSearchingPoints(false);
+        return;
+      }
+
+      // 4. Fallback: wyszukiwanie geolokalizacyjne w przypadku braku wyników tekstowych
       let coords: { lat: number; lng: number } | null = null;
       try {
         const geoRes = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&countrycodes=pl&limit=1&q=${encodeURIComponent(raw)}`
+          `https://nominatim.openstreetmap.org/search?format=json&countrycodes=pl&limit=1&q=${encodeURIComponent(normalizedQuery)}`
         );
         const geoData = await geoRes.json();
-        if (Array.isArray(geoData) && geoData.length > 0 && geoData[0]?.lat && geoData[0]?.lon) {
+        if (geoData?.[0]?.lat && geoData?.[0]?.lon) {
           coords = {
             lat: parseFloat(geoData[0].lat),
             lng: parseFloat(geoData[0].lon),
           };
         }
       } catch (err) {
-        console.warn('Geocoding fallback', err);
+        console.warn('Geocoding fallback failed', err);
       }
 
-      // 4. Wyszukiwanie w InPost po koordynatach
       if (coords && !isNaN(coords.lat) && !isNaN(coords.lng)) {
         const resNear = await fetch(
           `https://api-pl-points.easypack24.net/v1/points?type=parcel_locker&relative_point=${coords.lat},${coords.lng}&limit=25`
         );
         const dataNear = await resNear.json();
-        if (dataNear && Array.isArray(dataNear.items) && dataNear.items.length > 0) {
-          setPointsList(sortPointsByRelevance(dataNear.items, raw));
+        if (dataNear?.items?.length > 0) {
+          setPointsList(sortPointsByRelevance(dataNear.items, normalizedQuery));
           setSearchingPoints(false);
           return;
         }
       }
 
-      // 5. Fallback: wyszukiwanie tekstowe
-      const cleanStreet = raw.replace(/[0-9]/g, '').trim();
-      const resFallback = await fetch(
-        `https://api-pl-points.easypack24.net/v1/points?type=parcel_locker&query=${encodeURIComponent(cleanStreet || raw)}&limit=25`
-      );
-      const dataFallback = await resFallback.json();
-
-      if (dataFallback && Array.isArray(dataFallback.items) && dataFallback.items.length > 0) {
-        setPointsList(sortPointsByRelevance(dataFallback.items, raw));
-      } else {
-        setPointsList([]);
-        setSearchMessage('Nie znaleziono paczkomatów. Spróbuj dopisać miasto lub podać kod pocztowy.');
-      }
+      setPointsList([]);
+      setSearchMessage('Nie znaleziono paczkomatów. Spróbuj dopisać miasto lub podać kod pocztowy.');
     } catch (err) {
       setPointsList([]);
       setSearchMessage('Błąd połączenia. Możesz wpisać kod paczkomatu ręcznie w formularzu.');
@@ -730,12 +731,16 @@ function CheckoutPage() {
                 <div className="space-y-2">
                   {pointsList.map((pt) => {
                     const qClean = searchQuery.trim().toLowerCase();
-                    const qPostalClean = qClean.replace(/[^\d]/g, '');
+                    const qNumbers = qClean.match(/\d+/)?.[0] || '';
                     const ptPostal = (pt?.address_details?.post_code || '').replace(/[^\d]/g, '');
                     const ptStreet = (pt?.address_details?.street || '').toLowerCase();
+                    const ptBuilding = (pt?.address_details?.building_number || '').toLowerCase();
 
-                    const isExactPostal = qPostalClean.length === 5 && ptPostal === qPostalClean;
-                    const isExactStreet = qClean.length > 2 && ptStreet.includes(qClean);
+                    const isExactPostal = qClean.replace(/[^\d]/g, '').length === 5 && ptPostal === qClean.replace(/[^\d]/g, '');
+                    const isExactStreet = qClean.length > 2 && ptStreet.includes(qClean.replace(/[0-9]/g, '').trim());
+                    const isExactNumber = qNumbers ? ptBuilding.includes(qNumbers) : false;
+
+                    const isTopHit = isExactPostal || (isExactStreet && isExactNumber);
 
                     return (
                       <div
@@ -746,7 +751,7 @@ function CheckoutPage() {
                         }}
                         className={cn(
                           'p-3 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-3 group border',
-                          isExactPostal || isExactStreet
+                          isTopHit
                             ? 'bg-[#FF6B00]/10 border-[#FF6B00]/50 hover:bg-[#FF6B00]/15'
                             : 'bg-black/40 hover:bg-white/5 border-neutral-800 hover:border-neutral-700'
                         )}
@@ -759,7 +764,7 @@ function CheckoutPage() {
                             <span className="text-xs text-white font-semibold truncate">
                               {pt.address_details?.street || ''} {pt.address_details?.building_number || ''}
                             </span>
-                            {(isExactPostal || isExactStreet) && (
+                            {isTopHit && (
                               <span className="text-[10px] bg-[#FF6B00] text-black font-black px-1.5 py-0.2 rounded font-mono">
                                 NAJBLIŻSZY
                               </span>
