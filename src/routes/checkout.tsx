@@ -85,6 +85,33 @@ function CheckoutPage() {
   const shippingCost = shippingCostFor(form.shippingMethod, discountedTotal);
   const orderTotal = discountedTotal + shippingCost;
 
+  // Inteligentne sortowanie wyników wyszukiwania
+  const sortPointsByRelevance = (items: InPostPoint[], query: string): InPostPoint[] => {
+    const q = query.trim().toLowerCase();
+    const cleanPostal = q.replace(/[^\d]/g, '');
+
+    return [...items].sort((a, b) => {
+      const aPost = (a.address_details?.post_code || '').replace(/[^\d]/g, '');
+      const bPost = (b.address_details?.post_code || '').replace(/[^\d]/g, '');
+      const aStreet = (a.address_details?.street || '').toLowerCase();
+      const bStreet = (b.address_details?.street || '').toLowerCase();
+
+      // Dokładny kod pocztowy
+      const aExactPostal = cleanPostal.length === 5 && aPost === cleanPostal;
+      const bExactPostal = cleanPostal.length === 5 && bPost === cleanPostal;
+      if (aExactPostal && !bExactPostal) return -1;
+      if (!aExactPostal && bExactPostal) return 1;
+
+      // Dopasowanie ulicy
+      const aHasStreet = aStreet.includes(q);
+      const bHasStreet = bStreet.includes(q);
+      if (aHasStreet && !bHasStreet) return -1;
+      if (!aHasStreet && bHasStreet) return 1;
+
+      return 0;
+    });
+  };
+
   const handleSearchInpost = async (queryToSearch?: string) => {
     const raw = (queryToSearch ?? searchQuery).trim();
     if (!raw) return;
@@ -107,7 +134,22 @@ function CheckoutPage() {
         }
       }
 
-      // 2. Geokodowanie adresu (rozpoznaje "Kluczborska 5", miasta, kody pocztowe itp.)
+      // 2. Jeśli wpisano kod pocztowy (np. 50-323 lub 50323)
+      const postalMatch = raw.match(/\d{2}-?\d{3}/);
+      if (postalMatch) {
+        const pCode = postalMatch[0].includes('-') ? postalMatch[0] : `${postalMatch[0].slice(0, 2)}-${postalMatch[0].slice(2)}`;
+        const resPost = await fetch(
+          `https://api-pl-points.easypack24.net/v1/points?type=parcel_locker&post_code=${encodeURIComponent(pCode)}&limit=25`
+        );
+        const dataPost = await resPost.json();
+        if (dataPost && Array.isArray(dataPost.items) && dataPost.items.length > 0) {
+          setPointsList(sortPointsByRelevance(dataPost.items, raw));
+          setSearchingPoints(false);
+          return;
+        }
+      }
+
+      // 3. Geokodowanie adresu (rozpoznaje "Kluczborska 5", miasta, itp.)
       let coords: { lat: number; lng: number } | null = null;
       try {
         const geoRes = await fetch(
@@ -124,35 +166,35 @@ function CheckoutPage() {
         console.warn('Geocoding fallback', err);
       }
 
-      // 3. Wyszukiwanie w InPost po koordynatach geograficznych
+      // 4. Wyszukiwanie w InPost po koordynatach geograficznych
       if (coords) {
         const resNear = await fetch(
-          `https://api-pl-points.easypack24.net/v1/points?type=parcel_locker&relative_point=${coords.lat},${coords.lng}&limit=15`
+          `https://api-pl-points.easypack24.net/v1/points?type=parcel_locker&relative_point=${coords.lat},${coords.lng}&limit=25`
         );
         const dataNear = await resNear.json();
         if (dataNear && Array.isArray(dataNear.items) && dataNear.items.length > 0) {
-          setPointsList(dataNear.items);
+          setPointsList(sortPointsByRelevance(dataNear.items, raw));
           setSearchingPoints(false);
           return;
         }
       }
 
-      // 4. Fallback: wyszukiwanie tekstowe (sama ulica / miasto / kod)
+      // 5. Fallback: wyszukiwanie tekstowe (ulica / miasto)
       const cleanStreet = raw.replace(/[0-9]/g, '').trim();
       const resFallback = await fetch(
-        `https://api-pl-points.easypack24.net/v1/points?type=parcel_locker&query=${encodeURIComponent(cleanStreet || raw)}&limit=15`
+        `https://api-pl-points.easypack24.net/v1/points?type=parcel_locker&query=${encodeURIComponent(cleanStreet || raw)}&limit=25`
       );
       const dataFallback = await resFallback.json();
 
       if (dataFallback && Array.isArray(dataFallback.items) && dataFallback.items.length > 0) {
-        setPointsList(dataFallback.items);
+        setPointsList(sortPointsByRelevance(dataFallback.items, raw));
       } else {
         setPointsList([]);
-        setSearchMessage('Nie znaleziono paczkomatów. Spróbuj dopisać miasto (np. Kluczborska, Kraków) lub podać kod pocztowy.');
+        setSearchMessage('Nie znaleziono paczkomatów. Spróbuj podać dokładniejszy adres lub kod pocztowy.');
       }
     } catch (err) {
       setPointsList([]);
-      setSearchMessage('Błąd połączenia. Możesz wpisać kod paczkomatu ręcznie w polu formularza.');
+      setSearchMessage('Błąd połączenia. Możesz wpisać kod paczkomatu ręcznie w formularzu.');
     } finally {
       setSearchingPoints(false);
     }
@@ -624,7 +666,7 @@ function CheckoutPage() {
       <Header />
       <CartDrawer />
 
-      {/* WYSZUKIWARKA PACZKOMATÓW Z GEOKODOWANIEM */}
+      {/* WYSZUKIWARKA PACZKOMATÓW */}
       {showInpostModal && (
         <div className="fixed inset-0 z-[200] bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-fade-in">
           <div className="bg-[#141414] border border-neutral-800 rounded-2xl w-full max-w-xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden relative">
@@ -649,7 +691,7 @@ function CheckoutPage() {
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
                   <input
                     type="text"
-                    placeholder="Wpisz np. Kluczborska 5, Poznań lub kod..."
+                    placeholder="Wpisz miasto, ulicę lub kod pocztowy..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSearchInpost()}
@@ -684,44 +726,61 @@ function CheckoutPage() {
               {searchingPoints && (
                 <div className="py-12 text-center text-neutral-400 flex flex-col items-center gap-2">
                   <Loader2 className="w-6 h-6 text-[#FF6B00] animate-spin" />
-                  <span className="text-xs">Lokalizowanie adresu i paczkomatów w okolicy...</span>
+                  <span className="text-xs">Wyszukiwanie paczkomatów w okolicy...</span>
                 </div>
               )}
 
               {!searchingPoints && pointsList.length > 0 && (
                 <div className="space-y-2">
-                  {pointsList.map((pt) => (
-                    <div
-                      key={pt.name}
-                      onClick={() => {
-                        setForm({ ...form, paczkomatCode: pt.name });
-                        setShowInpostModal(false);
-                      }}
-                      className="p-3 bg-black/40 hover:bg-[#FF6B00]/10 border border-neutral-800 hover:border-[#FF6B00]/50 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-3 group"
-                    >
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono font-black text-sm text-[#FF6B00] group-hover:scale-105 transition-transform">
-                            {pt.name}
-                          </span>
-                          <span className="text-xs text-white font-semibold truncate">
-                            {pt.address_details?.street} {pt.address_details?.building_number}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-neutral-400 mt-0.5">
-                          {pt.address_details?.post_code} {pt.address_details?.city}
-                          {pt.location_description ? ` · ${pt.location_description}` : ''}
-                        </p>
-                      </div>
+                  {pointsList.map((pt) => {
+                    const isExactPostal = searchQuery.trim().replace(/[^\d]/g, '').length === 5 && 
+                      pt.address_details?.post_code?.replace(/[^\d]/g, '') === searchQuery.trim().replace(/[^\d]/g, '');
+                    const isExactStreet = searchQuery.trim().length > 3 && 
+                      pt.address_details?.street?.toLowerCase().includes(searchQuery.trim().toLowerCase());
 
-                      <button
-                        type="button"
-                        className="bg-white/10 group-hover:bg-[#FF6B00] group-hover:text-black text-white font-bold text-xs px-3 py-1.5 rounded-lg transition-all flex-shrink-0"
+                    return (
+                      <div
+                        key={pt.name}
+                        onClick={() => {
+                          setForm({ ...form, paczkomatCode: pt.name });
+                          setShowInpostModal(false);
+                        }}
+                        className={cn(
+                          'p-3 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-3 group border',
+                          isExactPostal || isExactStreet
+                            ? 'bg-[#FF6B00]/10 border-[#FF6B00]/50 hover:bg-[#FF6B00]/15'
+                            : 'bg-black/40 hover:bg-white/5 border-neutral-800 hover:border-neutral-700'
+                        )}
                       >
-                        Wybierz
-                      </button>
-                    </div>
-                  ))}
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-mono font-black text-sm text-[#FF6B00] group-hover:scale-105 transition-transform">
+                              {pt.name}
+                            </span>
+                            <span className="text-xs text-white font-semibold truncate">
+                              {pt.address_details?.street} {pt.address_details?.building_number}
+                            </span>
+                            {(isExactPostal || isExactStreet) && (
+                              <span className="text-[10px] bg-[#FF6B00] text-black font-black px-1.5 py-0.2 rounded font-mono">
+                                NAJBLIŻSZY
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-neutral-400 mt-0.5">
+                            {pt.address_details?.post_code} {pt.address_details?.city}
+                            {pt.location_description ? ` · ${pt.location_description}` : ''}
+                          </p>
+                        </div>
+
+                        <button
+                          type="button"
+                          className="bg-white/10 group-hover:bg-[#FF6B00] group-hover:text-black text-white font-bold text-xs px-3 py-1.5 rounded-lg transition-all flex-shrink-0"
+                        >
+                          Wybierz
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 
@@ -730,7 +789,7 @@ function CheckoutPage() {
                   {searchMessage ? (
                     <p className="text-xs text-amber-400/90">{searchMessage}</p>
                   ) : (
-                    <p className="text-xs">Wpisz ulicę z numerem lub miejscowość powyżej, aby znaleźć najbliższe paczkomaty.</p>
+                    <p className="text-xs">Wpisz miasto, ulicę lub kod pocztowy powyżej, aby znaleźć paczkomaty.</p>
                   )}
                 </div>
               )}
@@ -871,9 +930,10 @@ function CheckoutPage() {
                         type="button"
                         onClick={() => {
                           setShowInpostModal(true);
-                          if (form.city) {
-                            setSearchQuery(form.city);
-                            handleSearchInpost(form.city);
+                          const initialQuery = form.postalCode || form.city || '';
+                          if (initialQuery) {
+                            setSearchQuery(initialQuery);
+                            handleSearchInpost(initialQuery);
                           }
                         }}
                         className="px-4 py-2.5 bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-bold text-xs rounded-xl transition-all flex-shrink-0 active:scale-95 shadow-[0_2px_10px_rgba(255,107,0,0.2)] flex items-center gap-1.5"
