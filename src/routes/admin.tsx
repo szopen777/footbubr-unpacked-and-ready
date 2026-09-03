@@ -1858,23 +1858,31 @@ function AdminPage() {
                                 </p>
 
                                 {variantText ? (
-                                  <div className="space-y-1.5 pt-1">
-                                    <p className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
-                                      Skład zestawu do spakowania:
-                                    </p>
-                                    <div className="flex flex-wrap gap-1.5">
-                                      {variantText.split('|').map((part, idx) => (
-                                        <span
-                                          key={idx}
-                                          className="text-xs font-bold text-white bg-white/5 border border-neutral-700 px-2.5 py-1 rounded-lg flex items-center gap-1.5"
-                                        >
-                                          <span className="w-1.5 h-1.5 rounded-full bg-[#FF6B00]" />
-                                          {part.trim()}
-                                        </span>
-                                      ))}
-                                    </div>
-                                  </div>
-                                ) : selectedOrder.product?.size_eu ? (
+  <div className="space-y-1.5 pt-1.5">
+    <p className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
+      Skład zestawu do spakowania:
+    </p>
+    <div className="flex flex-wrap gap-1.5">
+      {/* Gwarancja wyświetlenia skarpet dla zestawu */}
+      {!variantText.toLowerCase().includes('skarpety') && (
+        <span className="text-xs font-bold text-white bg-white/5 border border-neutral-700 px-2.5 py-1 rounded-lg flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#FF6B00]" />
+          Skarpety: One Size (41-44)
+        </span>
+      )}
+
+      {variantText.split('|').map((part, idx) => (
+        <span
+          key={idx}
+          className="text-xs font-bold text-white bg-white/5 border border-neutral-700 px-2.5 py-1 rounded-lg flex items-center gap-1.5"
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-[#FF6B00]" />
+          {part.trim()}
+        </span>
+      ))}
+    </div>
+  </div>
+) : selectedOrder.product?.size_eu ? (
                                   <p className="text-xs text-neutral-400">
                                     Rozmiar: <span className="text-white font-semibold">{selectedOrder.product.size_eu}</span>
                                   </p>
