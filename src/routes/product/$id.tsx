@@ -35,6 +35,11 @@ function ProductPage() {
   const [showSizeChart, setShowSizeChart] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [selectedSize, setSelectedSize] = useState<string>('');
+
+  // Konfigurator zestawu boxa
+  const [bundleShinGuard, setBundleShinGuard] = useState<'S' | 'XS'>('S');
+  const [bundleTapeColor, setBundleTapeColor] = useState<'Czarna' | 'Biała'>('Czarna');
+
   const { addItem, addItemSilent } = useCart();
   const { isFavorite, toggleFavorite } = useFavorites();
 
@@ -119,6 +124,10 @@ function ProductPage() {
     pName.includes('zestaw') ||
     Boolean(product.accessory_type);
 
+  const isBundle =
+    product.accessory_type === 'Zestawy FOOTBUBR' ||
+    pName.includes('zestaw');
+
   let variants: Variant[] = [];
   try {
     if (product.condition_detail && product.condition_detail.startsWith('[')) {
@@ -130,6 +139,14 @@ function ProductPage() {
   const maxStock = currentVariant ? currentVariant.stock : (product.stock_quantity ?? 1);
 
   const getProductForCart = () => {
+    if (isBundle) {
+      const shinGuardLabel = bundleShinGuard === 'S' ? 'S (10x6 cm)' : 'XS (8x5 cm)';
+      return {
+        ...product,
+        size_eu: `Ochraniacze: ${shinGuardLabel} | Taśma: ${bundleTapeColor}`,
+      };
+    }
+
     return {
       ...product,
       size_eu: selectedSize || product.size_eu,
@@ -275,8 +292,105 @@ function ProductPage() {
               </div>
             </div>
 
-            {/* WYBÓR ROZMIARU (DLA PRODUKTÓW Z WARIANTAMI) */}
-            {variants.length > 0 && !isSold && (
+            {/* KONFIGURATOR ZESTAWU FOOTBUBR PRO */}
+            {isBundle && !isSold && (
+              <div className="bg-[#141414] border border-neutral-800 rounded-2xl p-4 sm:p-5 space-y-4">
+                <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
+                  <span className="text-xs font-bold text-neutral-300 uppercase tracking-wider">
+                    Zawartość Twojego zestawu:
+                  </span>
+                  <span className="text-[11px] text-[#FF6B00] font-bold">Komplet 3w1</span>
+                </div>
+
+                {/* 1. SKARPETY (STAŁE) */}
+                <div className="flex items-center justify-between p-3 rounded-xl bg-black/40 border border-neutral-800/80">
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-white uppercase">1. Skarpety antypoślizgowe</p>
+                    <p className="text-[11px] text-neutral-400 mt-0.5">Białe z gripem</p>
+                  </div>
+                  <span className="text-xs font-bold text-neutral-300 bg-white/5 border border-neutral-700 px-2.5 py-1 rounded-lg">
+                    One Size (41-44)
+                  </span>
+                </div>
+
+                {/* 2. WYBÓR OCHRANIACZY */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-neutral-400 font-bold uppercase">2. Wybierz rozmiar ochraniaczy:</span>
+                    <span className="text-[#FF6B00] font-bold text-[11px]">
+                      {bundleShinGuard === 'S' ? 'S (10x6 cm)' : 'XS (8x5 cm)'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setBundleShinGuard('S')}
+                      className={cn(
+                        'flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all',
+                        bundleShinGuard === 'S'
+                          ? 'border-[#FF6B00] bg-[#FF6B00]/10 text-white shadow-[0_0_12px_rgba(255,107,0,0.2)]'
+                          : 'border-neutral-800 bg-black/40 text-neutral-400 hover:text-white'
+                      )}
+                    >
+                      <span className="font-black text-sm">Rozmiar S</span>
+                      <span className="text-[10px] text-neutral-400 mt-0.5">10x6 cm (Klasyczny mini)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBundleShinGuard('XS')}
+                      className={cn(
+                        'flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all',
+                        bundleShinGuard === 'XS'
+                          ? 'border-[#FF6B00] bg-[#FF6B00]/10 text-white shadow-[0_0_12px_rgba(255,107,0,0.2)]'
+                          : 'border-neutral-800 bg-black/40 text-neutral-400 hover:text-white'
+                      )}
+                    >
+                      <span className="font-black text-sm">Rozmiar XS</span>
+                      <span className="text-[10px] text-neutral-400 mt-0.5">8x5 cm (Ultra micro)</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 3. WYBÓR KOLORU TAŚMY */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-neutral-400 font-bold uppercase">3. Wybierz kolor taśmy getrowej:</span>
+                    <span className="text-white font-bold text-[11px]">{bundleTapeColor}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setBundleTapeColor('Czarna')}
+                      className={cn(
+                        'flex items-center justify-center gap-2 p-2.5 rounded-xl border transition-all',
+                        bundleTapeColor === 'Czarna'
+                          ? 'border-[#FF6B00] bg-[#FF6B00]/10 text-white shadow-[0_0_12px_rgba(255,107,0,0.2)]'
+                          : 'border-neutral-800 bg-black/40 text-neutral-400 hover:text-white'
+                      )}
+                    >
+                      <span className="w-3.5 h-3.5 rounded-full bg-black border border-white/20" />
+                      <span className="font-bold text-xs">Czarna</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBundleTapeColor('Biała')}
+                      className={cn(
+                        'flex items-center justify-center gap-2 p-2.5 rounded-xl border transition-all',
+                        bundleTapeColor === 'Biała'
+                          ? 'border-[#FF6B00] bg-[#FF6B00]/10 text-white shadow-[0_0_12px_rgba(255,107,0,0.2)]'
+                          : 'border-neutral-800 bg-black/40 text-neutral-400 hover:text-white'
+                      )}
+                    >
+                      <span className="w-3.5 h-3.5 rounded-full bg-white border border-neutral-300" />
+                      <span className="font-bold text-xs">Biała</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* WYBÓR ROZMIARU DLA POJEDYNCZYCH PRODUKTÓW Z WARIANTAMI (np. Ochraniacze osobno) */}
+            {!isBundle && variants.length > 0 && !isSold && (
               <div className="bg-[#141414] border border-neutral-800 rounded-2xl p-4 space-y-3">
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-bold text-neutral-300 uppercase tracking-wider">Wybierz rozmiar:</span>
@@ -357,7 +471,12 @@ function ProductPage() {
               </div>
               <div className="divide-y divide-neutral-800/60">
                 {[
-                  { label: 'Rozmiar', value: selectedSize || product.size_eu },
+                  { 
+                    label: isBundle ? 'Wariant' : 'Rozmiar', 
+                    value: isBundle 
+                      ? `Ochraniacze: ${bundleShinGuard} • Taśma: ${bundleTapeColor}` 
+                      : (selectedSize || product.size_eu) 
+                  },
                   ...(!isAccessory && product.insole_length_cm ? [{ label: 'Długość wkładki', value: `${product.insole_length_cm} cm` }] : []),
                   ...(!isAccessory ? [
                     { label: 'Nawierzchnia', value: SURFACE_LABELS[product.surface_type] || product.surface_type },
