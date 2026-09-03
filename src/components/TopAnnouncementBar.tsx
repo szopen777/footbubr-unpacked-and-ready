@@ -44,7 +44,6 @@ export default function TopAnnouncementBar() {
         return;
       }
 
-      // Check for individual scheduled products
       const { data: prodData } = await supabase
         .from('products')
         .select('drop_scheduled_at')
@@ -80,17 +79,16 @@ export default function TopAnnouncementBar() {
   }, []);
 
   const items = buildItems(dropText);
-  // Duplicate items so the marquee loops seamlessly (translateX(-50%))
   const allItems = [...items, ...items];
 
   return (
-    <div className="w-full bg-[#FF6B00] text-black border-b-2 border-black overflow-hidden">
-      <div className="relative flex">
+    <div className="w-full max-w-full overflow-hidden overflow-x-clip bg-[#FF6B00] text-black border-b-2 border-black [contain:paint]">
+      <div className="relative flex w-full overflow-hidden">
         <div className="animate-marquee">
           {allItems.map((item, i) => (
             <span
               key={i}
-              className="inline-flex items-center gap-2 text-[10px] sm:text-[11px] font-black uppercase tracking-[0.14em] px-4 py-1.5"
+              className="inline-flex items-center gap-2 text-[10px] sm:text-[11px] font-black uppercase tracking-[0.14em] px-4 py-1.5 shrink-0"
             >
               <span className="inline-block w-1 h-1 rounded-full bg-black/60" />
               {item}
