@@ -34,16 +34,14 @@ function formatPhoneNumber(val: string): string {
   return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
 }
 
-// Precyzyjne dopasowanie rozmiaru ochraniacza: rozróżnia 'S' od 'XS'
 function isMatchingShinGuardSize(variantSizeName: string, chosenSize: 'S' | 'XS'): boolean {
   const clean = variantSizeName.toUpperCase().trim();
   if (chosenSize === 'XS') {
     return clean.startsWith('XS') || clean.includes(' XS') || clean.includes('XS ');
   }
-  // Gdy wybrano 'S' - upewniamy się, że to nie jest 'XS'
   const isXS = clean.startsWith('XS') || clean.includes(' XS') || clean.includes('XS ');
   if (isXS) return false;
-  return clean.startsWith('S') || clean.includes(' S') || clean.includes('S ') || clean.includes('S-') || clean.includes('S -');
+  return clean.startsWith('S') || clean.includes(' S') || clean.includes('S ') || clean.includes('S-') || clean.includes('S -') || clean.includes('S×') || clean.includes('S ×');
 }
 
 function CheckoutPage() {
@@ -198,7 +196,6 @@ function CheckoutPage() {
     const rollbacks: (() => Promise<any>)[] = [];
 
     try {
-      // 1. Rezerwacja produktów i bezpieczna synchronizacja
       for (const { product, quantity } of items) {
         const pName = (product.name || '').toLowerCase();
         const pBrand = (product.brand || '').toLowerCase();
@@ -215,7 +212,6 @@ function CheckoutPage() {
           product.accessory_type === 'Zestawy FOOTBUBR' ||
           pName.includes('zestaw');
 
-        // SCENARIUSZ A: Korki 1 of 1
         if (!isAccessory) {
           const { data: updatedProduct, error: updateError } = await supabase
             .from('products')
@@ -234,11 +230,7 @@ function CheckoutPage() {
           rollbacks.push(async () => {
             await supabase.from('products').update({ status: 'available', stock_quantity: 1 }).eq('id', product.id);
           });
-        }
-
-        // SCENARIUSZ B: Zestaw FOOTBUBR PRO (Box)
-        else if (isBundle) {
-          // 1. Zdejmij ze stanu Boxa
+        } else if (isBundle) {
           const { data: currentBox } = await supabase.from('products').select('*').eq('id', product.id).single();
           if (!currentBox || (currentBox.stock_quantity ?? 0) < quantity) {
             setGeneralError('Brak wystarczającej ilości zestawów w magazynie.');
@@ -256,12 +248,11 @@ function CheckoutPage() {
             await supabase.from('products').update({ stock_quantity: currentBox.stock_quantity, status: currentBox.status }).eq('id', product.id);
           });
 
-          // Wyciągnij warianty: "Ochraniacze: S (10x6 cm) | Taśma: Czarna"
           const configStr = product.size_eu || '';
           const chosenShinGuardSize: 'S' | 'XS' = configStr.toUpperCase().includes('XS') ? 'XS' : 'S';
-          const chosenTapeColor = configStr.toLowerCase().includes('biała') ? 'biała' : 'czarna';
+          const chosenTapeColorKey = configStr.toLowerCase().includes('biał') ? 'biał' : 'czarn';
 
-          // 2. Synchronizacja: Skarpety
+          // 1. Skarpety
           const { data: sockProd } = await supabase
             .from('products')
             .select('*')
@@ -283,7 +274,7 @@ function CheckoutPage() {
             });
           }
 
-          // 3. Synchronizacja: Ochraniacze (dokładnie ten jeden wariant S lub XS)
+          // 2. Ochraniacze
           const { data: shinProd } = await supabase
             .from('products')
             .select('*')
@@ -336,7 +327,7 @@ function CheckoutPage() {
             }
           }
 
-          // 4. Synchronizacja: Taśma (dokładnie dany kolor)
+          // 3. Taśma
           const { data: tapeProds } = await supabase
             .from('products')
             .select('*')
@@ -344,7 +335,7 @@ function CheckoutPage() {
             .neq('id', product.id);
 
           if (tapeProds && tapeProds.length > 0) {
-            const targetTape = tapeProds.find((t) => (t.name || '').toLowerCase().includes(chosenTapeColor)) || tapeProds[0];
+            const targetTape = tapeProds.find((t) => (t.name || '').toLowerCase().includes(chosenTapeColorKey)) || tapeProds[0];
             if (targetTape) {
               const oldTapeStock = targetTape.stock_quantity ?? 50;
               const newTapeStock = Math.max(0, oldTapeStock - quantity);
@@ -358,10 +349,7 @@ function CheckoutPage() {
               });
             }
           }
-        }
-
-        // SCENARIUSZ C: Pojedyncze akcesorium z wariantami (np. ochraniacze kupione osobno)
-        else {
+        } else {
           const { data: currentProd } = await supabase.from('products').select('*').eq('id', product.id).single();
           if (!currentProd || (currentProd.stock_quantity ?? 0) < quantity) {
             setGeneralError(`Niestety! Brak wystarczającej ilości produktu "${product.name}".`);
@@ -408,7 +396,6 @@ function CheckoutPage() {
         }
       }
 
-      // 2. Weryfikacja BLIK
       if (form.paymentMethod === 'blik') {
         setBlikStep('waiting');
         await new Promise((r) => setTimeout(r, 1800));
@@ -428,7 +415,6 @@ function CheckoutPage() {
         await new Promise((r) => setTimeout(r, 600));
       }
 
-      // 3. Zapis zamówienia
       const placedOrderIds: string[] = [];
       let firstRecord: Order | null = null;
       const cleanPhone = `+48${form.phone.replace(/\D/g, '')}`;
@@ -445,6 +431,7 @@ function CheckoutPage() {
         }
 
         const itemTotal = itemPrice * quantity + shippingCost;
+        const variantNote = product.size_eu ? ` [Wariant: ${product.size_eu}]` : '';
 
         const orderPayload = {
           product_id: product.id,
@@ -452,10 +439,10 @@ function CheckoutPage() {
           customer_email: form.email.trim().toLowerCase(),
           customer_phone: cleanPhone,
           shipping_method: form.shippingMethod,
-          paczkomat_code: form.shippingMethod === 'paczkomat' ? form.paczkomatCode.trim().toUpperCase() : null,
+          paczkomat_code: form.shippingMethod === 'paczkomat' ? `${form.paczkomatCode.trim().toUpperCase()}${variantNote}` : null,
           shipping_address:
             form.shippingMethod === 'kurier'
-              ? `${form.address.trim()}, ${form.postalCode.trim()} ${form.city.trim()}`
+              ? `${form.address.trim()}, ${form.postalCode.trim()} ${form.city.trim()}${variantNote}`
               : null,
           payment_method: form.paymentMethod,
           total_price: itemTotal,
