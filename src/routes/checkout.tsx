@@ -690,7 +690,7 @@ function CheckoutPage() {
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
                   <input
                     type="text"
-                    placeholder="Wpisz miasto, ulicę lub kod pocztowy..."
+                    placeholder="Wpisz miasto i ulicę lub kod pocztowy..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSearchInpost()}
@@ -795,7 +795,7 @@ function CheckoutPage() {
                   {searchMessage ? (
                     <p className="text-xs text-amber-400/90">{searchMessage}</p>
                   ) : (
-                    <p className="text-xs">Wpisz miasto, ulicę lub kod pocztowy powyżej, aby znaleźć paczkomaty.</p>
+                    <p className="text-xs">Wpisz miasto i ulicę lub kod pocztowy powyżej, aby znaleźć paczkomaty.</p>
                   )}
                 </div>
               )}
