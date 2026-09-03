@@ -10,13 +10,24 @@ import {
   ArrowLeft, Package, Truck, CreditCard, 
   Loader as Loader2, MapPin, Tag, X, Check, 
   CircleAlert as AlertCircle, Lock, ShieldCheck, 
-  PackageOpen, ArrowRight, ExternalLink
+  PackageOpen, ArrowRight, ExternalLink, Search
 } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 
 interface Variant {
   size: string;
   stock: number;
+}
+
+interface InPostPoint {
+  name: string;
+  address_details: {
+    city: string;
+    street: string;
+    building_number: string;
+    post_code: string;
+  };
+  location_description?: string;
 }
 
 function formatPhoneNumber(val: string): string {
@@ -42,7 +53,14 @@ function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [orderId, setOrderId] = useState('');
   const [orderRecord, setOrderRecord] = useState<Order | null>(null);
-  const [showInpostMap, setShowInpostMap] = useState(false);
+  
+  // Wyszukiwarka Paczkomatów
+  const [showInpostModal, setShowInpostModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchingPoints, setSearchingPoints] = useState(false);
+  const [pointsList, setPointsList] = useState<InPostPoint[]>([]);
+  const [searchMessage, setSearchMessage] = useState('');
+
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
@@ -66,6 +84,39 @@ function CheckoutPage() {
 
   const shippingCost = shippingCostFor(form.shippingMethod, discountedTotal);
   const orderTotal = discountedTotal + shippingCost;
+
+  const handleSearchInpost = async (queryToSearch?: string) => {
+    const q = (queryToSearch ?? searchQuery).trim();
+    if (!q) return;
+
+    setSearchingPoints(true);
+    setSearchMessage('');
+
+    try {
+      const res = await fetch(`https://api-pl-points.easypack24.net/v1/points?type=parcel_locker&relative_point=${encodeURIComponent(q)}&limit=15`);
+      const data = await res.json();
+
+      if (data && Array.isArray(data.items) && data.items.length > 0) {
+        setPointsList(data.items);
+      } else {
+        // Fallback: szukanie po nazwie lub mieście
+        const resCity = await fetch(`https://api-pl-points.easypack24.net/v1/points?type=parcel_locker&city=${encodeURIComponent(q)}&limit=15`);
+        const dataCity = await resCity.json();
+
+        if (dataCity && Array.isArray(dataCity.items) && dataCity.items.length > 0) {
+          setPointsList(dataCity.items);
+        } else {
+          setPointsList([]);
+          setSearchMessage('Nie znaleziono paczkomatów w tej lokalizacji. Spróbuj podać np. ulicę lub kod pocztowy.');
+        }
+      }
+    } catch (err) {
+      setPointsList([]);
+      setSearchMessage('Błąd połączenia z bazą InPost. Możesz wpisać kod paczkomatu ręcznie.');
+    } finally {
+      setSearchingPoints(false);
+    }
+  };
 
   const validate = () => {
     const e: Record<string, string> = {};
@@ -533,53 +584,116 @@ function CheckoutPage() {
       <Header />
       <CartDrawer />
 
-      {/* MODAL MAPY INPOST BEZ TOKENU (BEZPIECZNY DLA NIEREJESTROWANEJ) */}
-      {showInpostMap && (
-        <div className="fixed inset-0 z-[200] bg-black/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-6 animate-fade-in">
-          <div className="bg-[#141414] border border-neutral-800 rounded-2xl w-full max-w-4xl h-[85vh] flex flex-col shadow-2xl overflow-hidden relative">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800 bg-[#111]">
+      {/* WYSZUKIWARKA PACZKOMATÓW BEZ TOKENU */}
+      {showInpostModal && (
+        <div className="fixed inset-0 z-[200] bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-fade-in">
+          <div className="bg-[#141414] border border-neutral-800 rounded-2xl w-full max-w-xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden relative">
+            <div className="flex items-center justify-between px-4 py-3.5 border-b border-neutral-800 bg-[#111]">
               <div className="flex items-center gap-2">
                 <MapPin className="w-4 h-4 text-[#FF6B00]" />
                 <h3 className="text-white font-bold text-sm uppercase tracking-wider">
-                  Mapa Paczkomatów InPost
+                  Wyszukaj Paczkomat InPost
                 </h3>
               </div>
               <button
-                onClick={() => setShowInpostMap(false)}
+                onClick={() => setShowInpostModal(false)}
                 className="p-1.5 text-neutral-400 hover:text-white rounded-lg bg-white/5 transition-all"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-3 bg-[#1a1a1a] border-b border-neutral-800 flex items-center justify-between gap-2 flex-wrap">
-              <p className="text-xs text-neutral-300">
-                Wybierz swój Paczkomat na mapie, skopiuj jego kod (np. <span className="font-mono text-[#FF6B00] font-bold">WAW123M</span>) i wpisz go poniżej:
-              </p>
-              <div className="flex items-center gap-2 w-full sm:w-auto">
-                <input
-                  type="text"
-                  placeholder="Wpisz wybrany kod..."
-                  value={form.paczkomatCode}
-                  onChange={(e) => setForm({ ...form, paczkomatCode: e.target.value.toUpperCase() })}
-                  className="bg-black/60 border border-neutral-700 rounded-xl px-3 py-1.5 text-xs text-white font-mono uppercase tracking-wider focus:outline-none focus:border-[#FF6B00]"
-                />
+            <div className="p-4 border-b border-neutral-800 space-y-3 bg-[#161616]">
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
+                  <input
+                    type="text"
+                    placeholder="Wpisz miasto, ulicę lub kod (np. Poznań, Półwiejska)..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSearchInpost()}
+                    className={`${inp} pl-9 text-xs sm:text-sm`}
+                    autoFocus
+                  />
+                </div>
                 <button
                   type="button"
-                  onClick={() => setShowInpostMap(false)}
-                  className="bg-[#FF6B00] text-black font-bold text-xs px-3.5 py-1.5 rounded-xl transition-all active:scale-95"
+                  onClick={() => handleSearchInpost()}
+                  disabled={searchingPoints || !searchQuery.trim()}
+                  className="bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-black text-xs px-4 rounded-xl transition-all active:scale-95 disabled:opacity-40 flex items-center justify-center flex-shrink-0"
                 >
-                  Zatwierdź
+                  {searchingPoints ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Szukaj'}
                 </button>
+              </div>
+
+              <div className="flex items-center justify-between text-[11px] text-neutral-400">
+                <span>Szukasz na mapie?</span>
+                <a
+                  href="https://inpost.pl/znajdz-paczkomat"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[#FF6B00] hover:underline flex items-center gap-1 font-semibold"
+                >
+                  Otwórz oficjalną mapę InPost <ExternalLink className="w-3 h-3" />
+                </a>
               </div>
             </div>
 
-            <div className="flex-1 w-full bg-white relative">
-              <iframe
-                src="https://inpost.pl/znajdz-paczkomat"
-                title="Mapa Paczkomatów InPost"
-                className="w-full h-full border-0"
-              />
+            <div className="flex-1 overflow-y-auto p-3 space-y-2 max-h-[50vh]">
+              {searchingPoints && (
+                <div className="py-12 text-center text-neutral-400 flex flex-col items-center gap-2">
+                  <Loader2 className="w-6 h-6 text-[#FF6B00] animate-spin" />
+                  <span className="text-xs">Wyszukiwanie paczkomatów w bazie...</span>
+                </div>
+              )}
+
+              {!searchingPoints && pointsList.length > 0 && (
+                <div className="space-y-2">
+                  {pointsList.map((pt) => (
+                    <div
+                      key={pt.name}
+                      onClick={() => {
+                        setForm({ ...form, paczkomatCode: pt.name });
+                        setShowInpostModal(false);
+                      }}
+                      className="p-3 bg-black/40 hover:bg-[#FF6B00]/10 border border-neutral-800 hover:border-[#FF6B00]/50 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-3 group"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-black text-sm text-[#FF6B00] group-hover:scale-105 transition-transform">
+                            {pt.name}
+                          </span>
+                          <span className="text-xs text-white font-semibold truncate">
+                            {pt.address_details?.street} {pt.address_details?.building_number}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-neutral-400 mt-0.5">
+                          {pt.address_details?.post_code} {pt.address_details?.city}
+                          {pt.location_description ? ` · ${pt.location_description}` : ''}
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="bg-white/10 group-hover:bg-[#FF6B00] group-hover:text-black text-white font-bold text-xs px-3 py-1.5 rounded-lg transition-all flex-shrink-0"
+                      >
+                        Wybierz
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {!searchingPoints && pointsList.length === 0 && (
+                <div className="py-12 text-center text-neutral-500">
+                  {searchMessage ? (
+                    <p className="text-xs text-amber-400/90">{searchMessage}</p>
+                  ) : (
+                    <p className="text-xs">Wpisz miejscowość lub ulicę powyżej, aby zobaczyć listę paczkomatów.</p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -715,11 +829,17 @@ function CheckoutPage() {
                       </div>
                       <button
                         type="button"
-                        onClick={() => setShowInpostMap(true)}
+                        onClick={() => {
+                          setShowInpostModal(true);
+                          if (form.city) {
+                            setSearchQuery(form.city);
+                            handleSearchInpost(form.city);
+                          }
+                        }}
                         className="px-4 py-2.5 bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-bold text-xs rounded-xl transition-all flex-shrink-0 active:scale-95 shadow-[0_2px_10px_rgba(255,107,0,0.2)] flex items-center gap-1.5"
                       >
-                        <MapPin className="w-3.5 h-3.5" />
-                        Otwórz mapę
+                        <Search className="w-3.5 h-3.5" />
+                        Znajdź Paczkomat
                       </button>
                     </div>
                     {errors.paczkomatCode && <p className="text-red-400 text-xs mt-1">{errors.paczkomatCode}</p>}
