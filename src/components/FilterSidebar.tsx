@@ -34,11 +34,11 @@ const SIZES = [
 
 const BRANDS = ['Nike', 'Adidas', 'Puma', 'Mizuno', 'New Balance', 'Under Armour', 'Umbro', 'Lotto'];
 const SURFACES = [
-  { value: 'FG', label: 'FG — Lanki' },
-  { value: 'SG', label: 'SG — Wkręty/Mixy' },
-  { value: 'AG', label: 'AG — Sztuczna trawa' },
-  { value: 'TF', label: 'TF — Turfy' },
-  { value: 'IC', label: 'IC — Halówki' },
+  { value: 'FG', label: 'FG - Lanki' },
+  { value: 'SG', label: 'SG - Wkręty/Mixy' },
+  { value: 'AG', label: 'AG - Sztuczna trawa' },
+  { value: 'TF', label: 'TF - Turfy' },
+  { value: 'IC', label: 'IC - Halówki' },
 ];
 const CONDITIONS = [
   'Nowe z metką',
@@ -341,7 +341,7 @@ export default function FilterSidebar({ filters, onChange, sortBy, onSortChange 
             onChange={(e) => onChange({ ...filters, priceMin: e.target.value })}
             className="w-full bg-white/5 border border-neutral-800 rounded-lg px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-500 focus:outline-none focus:border-[#FF6B00]/60 transition-all"
           />
-          <span className="text-neutral-600 flex-shrink-0">—</span>
+          <span className="text-neutral-600 flex-shrink-0">-</span>
           <input
             type="number"
             placeholder="Max"
