@@ -313,6 +313,8 @@ function AdminPage() {
     if (!confirm('Czy na pewno chcesz usunąć to zamówienie?')) return;
     setDeletingOrder(true);
 
+    const targetOrder = orders.find((o) => o.id === orderId);
+
     const { error } = await supabase.from('orders').delete().eq('id', orderId);
 
     if (error) {
@@ -321,8 +323,8 @@ function AdminPage() {
       return;
     }
 
-    if (productId) {
-      const restore = confirm('Czy chcesz przywrócić ten produkt jako "Dostępny" w sklepie?');
+    if (productId && targetOrder) {
+      const restore = confirm('Czy chcesz przywrócić stan magazynowy tego zamówienia?');
       if (restore) {
         const prod = products.find((p) => p.id === productId);
         const pName = (prod?.name || '').toLowerCase();
@@ -336,12 +338,116 @@ function AdminPage() {
           pName.includes('zestaw') ||
           Boolean(prod?.accessory_type);
 
-        const updateData: ProductUpdate = { status: 'available' };
+        const isBundle =
+          prod?.accessory_type === 'Zestawy FOOTBUBR' ||
+          pName.includes('zestaw');
+
         if (!isAccessory) {
-          updateData.stock_quantity = 1;
+          // Korki 1 of 1
+          await supabase.from('products').update({ status: 'available', stock_quantity: 1 }).eq('id', productId);
+        } else if (isBundle) {
+          // Zestaw FOOTBUBR PRO: przywróć box + składowe
+          const newBoxStock = (prod?.stock_quantity ?? 0) + 1;
+          await supabase.from('products').update({
+            stock_quantity: newBoxStock,
+            status: 'available',
+          }).eq('id', productId);
+
+          // 1. Skarpety
+          const { data: sockProd } = await supabase
+            .from('products')
+            .select('*')
+            .or('accessory_type.eq.Skarpety antypoślizgowe,name.ilike.%skarpety%')
+            .neq('id', productId)
+            .limit(1)
+            .maybeSingle();
+
+          if (sockProd) {
+            await supabase.from('products').update({
+              stock_quantity: (sockProd.stock_quantity ?? 0) + 1,
+              status: 'available',
+            }).eq('id', sockProd.id);
+          }
+
+          // 2. Ochraniacze (wg wariantu zapisanego w zamówieniu)
+          const orderVariantStr = targetOrder.product?.size_eu || '';
+          const chosenSize = orderVariantStr.includes('XS') ? 'XS' : 'S';
+
+          const { data: shinProd } = await supabase
+            .from('products')
+            .select('*')
+            .or('accessory_type.eq.Mini ochraniacze,name.ilike.%ochraniacze%')
+            .neq('id', productId)
+            .limit(1)
+            .maybeSingle();
+
+          if (shinProd) {
+            try {
+              if (shinProd.condition_detail && shinProd.condition_detail.startsWith('[')) {
+                const shinVariants = JSON.parse(shinProd.condition_detail);
+                const updated = shinVariants.map((v: any) => {
+                  if (v.size.toUpperCase().includes(chosenSize)) {
+                    return { ...v, stock: v.stock + 1 };
+                  }
+                  return v;
+                });
+                const totalStock = updated.reduce((s: number, v: any) => s + v.stock, 0);
+                await supabase.from('products').update({
+                  condition_detail: JSON.stringify(updated),
+                  stock_quantity: totalStock,
+                  status: 'available',
+                }).eq('id', shinProd.id);
+              } else {
+                await supabase.from('products').update({
+                  stock_quantity: (shinProd.stock_quantity ?? 0) + 1,
+                  status: 'available',
+                }).eq('id', shinProd.id);
+              }
+            } catch {}
+          }
+
+          // 3. Taśma (wg koloru zapisanego w zamówieniu)
+          const chosenTapeColor = orderVariantStr.toLowerCase().includes('biała') ? 'biała' : 'czarna';
+          const { data: tapeProds } = await supabase
+            .from('products')
+            .select('*')
+            .or('accessory_type.ilike.%taśm%,accessory_type.ilike.%tape%,name.ilike.%taśma%,name.ilike.%tasma%')
+            .neq('id', productId);
+
+          if (tapeProds && tapeProds.length > 0) {
+            const targetTape = tapeProds.find((t) => (t.name || '').toLowerCase().includes(chosenTapeColor)) || tapeProds[0];
+            if (targetTape) {
+              await supabase.from('products').update({
+                stock_quantity: (targetTape.stock_quantity ?? 0) + 1,
+                status: 'available',
+              }).eq('id', targetTape.id);
+            }
+          }
+        } else {
+          // Pojedyncze akcesorium (np. same ochraniacze lub skarpety)
+          const orderVariantStr = targetOrder.product?.size_eu || '';
+          try {
+            if (prod?.condition_detail && prod.condition_detail.startsWith('[')) {
+              const parsed = JSON.parse(prod.condition_detail);
+              const updated = parsed.map((v: any) => {
+                if (v.size === orderVariantStr) return { ...v, stock: v.stock + 1 };
+                return v;
+              });
+              const totalStock = updated.reduce((s: number, v: any) => s + v.stock, 0);
+              await supabase.from('products').update({
+                condition_detail: JSON.stringify(updated),
+                stock_quantity: totalStock,
+                status: 'available',
+              }).eq('id', productId);
+            } else {
+              await supabase.from('products').update({
+                stock_quantity: (prod?.stock_quantity ?? 0) + 1,
+                status: 'available',
+              }).eq('id', productId);
+            }
+          } catch {}
         }
 
-        await supabase.from('products').update(updateData).eq('id', productId);
         await loadProducts();
       }
     }
@@ -349,9 +455,8 @@ function AdminPage() {
     setDeletingOrder(false);
     setSelectedOrder(null);
     await loadOrders();
-    showToast('Zamówienie zostało usunięte');
+    showToast('Zamówienie usunięte i stany zaktualizowane');
   };
-
   const openOrderDetail = (order: Order & { product?: Product }) => {
     setSelectedOrder(order);
     setOrderTrackingInput(order.tracking_number || '');
