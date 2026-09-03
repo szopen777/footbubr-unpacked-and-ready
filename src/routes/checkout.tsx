@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useState, useEffect, useRef } from 'react';
 import { useCart } from '@/lib/cart-context';
-import { supabase, formatOrderNumber, Order } from '@/lib/supabase';
+import { supabase, formatOrderNumber, Order, Product } from '@/lib/supabase';
 import { formatPrice, INPUT_CLASS } from '@/lib/utils';
 import { shippingCostFor, FREE_SHIPPING_THRESHOLD } from '@/lib/shipping';
 import Header from '@/components/Header';
@@ -20,6 +20,11 @@ declare global {
       'inpost-geowidget': any;
     }
   }
+}
+
+interface Variant {
+  size: string;
+  stock: number;
 }
 
 function formatPhoneNumber(val: string): string {
@@ -178,10 +183,12 @@ function CheckoutPage() {
     if (items.length === 0) return;
 
     setSubmitting(true);
-    const reservedProductIds: string[] = [];
+
+    // Historia do ewentualnego rollbacku
+    const rollbacks: (() => Promise<any>)[] = [];
 
     try {
-      // 1. Rezerwacja produktów
+      // 1. Rezerwacja produktów i aktualizacja powiązań
       for (const { product, quantity } of items) {
         const pName = (product.name || '').toLowerCase();
         const pBrand = (product.brand || '').toLowerCase();
@@ -197,6 +204,11 @@ function CheckoutPage() {
           pModel.includes('ochraniacze') ||
           Boolean(product.accessory_type);
 
+        const isBundle =
+          product.accessory_type === 'Zestawy FOOTBUBR' ||
+          pName.includes('zestaw');
+
+        // SCENARIUSZ A: Zwykłe Korki 1 of 1
         if (!isAccessory) {
           const { data: updatedProduct, error: updateError } = await supabase
             .from('products')
@@ -211,30 +223,182 @@ function CheckoutPage() {
             setSubmitting(false);
             return;
           }
-          reservedProductIds.push(product.id);
-        } else {
-          const { data: currentProd, error: checkError } = await supabase
-            .from('products')
-            .select('stock_quantity, status')
-            .eq('id', product.id)
-            .single();
 
-          if (checkError || !currentProd || (currentProd.stock_quantity ?? 0) < quantity) {
+          rollbacks.push(async () => {
+            await supabase.from('products').update({ status: 'available', stock_quantity: 1 }).eq('id', product.id);
+          });
+        }
+
+        // SCENARIUSZ B: Zestaw FOOTBUBR PRO (Box)
+        else if (isBundle) {
+          // 1. Odejmij z samego Boxa
+          const { data: currentBox } = await supabase.from('products').select('*').eq('id', product.id).single();
+          if (!currentBox || (currentBox.stock_quantity ?? 0) < quantity) {
+            setGeneralError('Brak wystarczającej ilości zestawów w magazynie.');
+            setSubmitting(false);
+            return;
+          }
+
+          const newBoxStock = Math.max(0, (currentBox.stock_quantity ?? 100) - quantity);
+          await supabase.from('products').update({ 
+            stock_quantity: newBoxStock,
+            status: newBoxStock === 0 ? 'sold' : 'available'
+          }).eq('id', product.id);
+
+          rollbacks.push(async () => {
+            await supabase.from('products').update({ stock_quantity: currentBox.stock_quantity, status: currentBox.status }).eq('id', product.id);
+          });
+
+          // 2. Wyciągnij wybrane warianty z konfiguracji:
+          // Format z product/$id: "Ochraniacze: S (10x6 cm) | Taśma: Czarna"
+          const configStr = product.size_eu || '';
+          const chosenShinGuardSize = configStr.includes('XS') ? 'XS' : 'S';
+          const chosenTapeColor = configStr.toLowerCase().includes('biała') ? 'biała' : 'czarna';
+
+          // 3. Synchronizacja: Odejmij ze Skarpet piłkarskich
+          const { data: sockProd } = await supabase
+            .from('products')
+            .select('*')
+            .or('accessory_type.eq.Skarpety antypoślizgowe,name.ilike.%skarpety%')
+            .neq('id', product.id)
+            .limit(1)
+            .maybeSingle();
+
+          if (sockProd) {
+            const oldSockStock = sockProd.stock_quantity ?? 100;
+            const newSockStock = Math.max(0, oldSockStock - quantity);
+            await supabase.from('products').update({
+              stock_quantity: newSockStock,
+              status: newSockStock === 0 ? 'sold' : 'available'
+            }).eq('id', sockProd.id);
+
+            rollbacks.push(async () => {
+              await supabase.from('products').update({ stock_quantity: oldSockStock, status: sockProd.status }).eq('id', sockProd.id);
+            });
+          }
+
+          // 4. Synchronizacja: Odejmij z Ochraniaczy (konkretny rozmiar w JSON)
+          const { data: shinProd } = await supabase
+            .from('products')
+            .select('*')
+            .or('accessory_type.eq.Mini ochraniacze,name.ilike.%ochraniacze%')
+            .neq('id', product.id)
+            .limit(1)
+            .maybeSingle();
+
+          if (shinProd) {
+            let shinVariants: Variant[] = [];
+            try {
+              if (shinProd.condition_detail && shinProd.condition_detail.startsWith('[')) {
+                shinVariants = JSON.parse(shinProd.condition_detail);
+              }
+            } catch {}
+
+            if (shinVariants.length > 0) {
+              const updatedVariants = shinVariants.map((v) => {
+                if (v.size.toUpperCase().includes(chosenShinGuardSize)) {
+                  return { ...v, stock: Math.max(0, v.stock - quantity) };
+                }
+                return v;
+              });
+
+              const totalShinStock = updatedVariants.reduce((s, v) => s + v.stock, 0);
+              await supabase.from('products').update({
+                condition_detail: JSON.stringify(updatedVariants),
+                stock_quantity: totalShinStock,
+                status: totalShinStock === 0 ? 'sold' : 'available'
+              }).eq('id', shinProd.id);
+
+              rollbacks.push(async () => {
+                await supabase.from('products').update({
+                  condition_detail: shinProd.condition_detail,
+                  stock_quantity: shinProd.stock_quantity,
+                  status: shinProd.status
+                }).eq('id', shinProd.id);
+              });
+            } else {
+              const oldShinStock = shinProd.stock_quantity ?? 100;
+              const newShinStock = Math.max(0, oldShinStock - quantity);
+              await supabase.from('products').update({
+                stock_quantity: newShinStock,
+                status: newShinStock === 0 ? 'sold' : 'available'
+              }).eq('id', shinProd.id);
+
+              rollbacks.push(async () => {
+                await supabase.from('products').update({ stock_quantity: oldShinStock, status: shinProd.status }).eq('id', shinProd.id);
+              });
+            }
+          }
+
+          // 5. Synchronizacja: Odejmij z Taśmy (wg koloru)
+          const { data: tapeProds } = await supabase
+            .from('products')
+            .select('*')
+            .or('accessory_type.ilike.%taśm%,accessory_type.ilike.%tape%,name.ilike.%taśma%,name.ilike.%tasma%')
+            .neq('id', product.id);
+
+          if (tapeProds && tapeProds.length > 0) {
+            const targetTape = tapeProds.find((t) => (t.name || '').toLowerCase().includes(chosenTapeColor)) || tapeProds[0];
+            if (targetTape) {
+              const oldTapeStock = targetTape.stock_quantity ?? 50;
+              const newTapeStock = Math.max(0, oldTapeStock - quantity);
+              await supabase.from('products').update({
+                stock_quantity: newTapeStock,
+                status: newTapeStock === 0 ? 'sold' : 'available'
+              }).eq('id', targetTape.id);
+
+              rollbacks.push(async () => {
+                await supabase.from('products').update({ stock_quantity: oldTapeStock, status: targetTape.status }).eq('id', targetTape.id);
+              });
+            }
+          }
+        }
+
+        // SCENARIUSZ C: Pojedyncze akcesorium z wariantami (np. Ochraniacze osobno)
+        else {
+          const { data: currentProd } = await supabase.from('products').select('*').eq('id', product.id).single();
+          if (!currentProd || (currentProd.stock_quantity ?? 0) < quantity) {
             setGeneralError(`Niestety! Brak wystarczającej ilości produktu "${product.name}".`);
             setSubmitting(false);
             return;
           }
 
-          const newStock = Math.max(0, (currentProd.stock_quantity ?? 100) - quantity);
-          await supabase
-            .from('products')
-            .update({ 
-              stock_quantity: newStock, 
-              status: newStock === 0 ? 'sold' : 'available' 
-            })
-            .eq('id', product.id);
-            
-          reservedProductIds.push(product.id);
+          let prodVariants: Variant[] = [];
+          try {
+            if (currentProd.condition_detail && currentProd.condition_detail.startsWith('[')) {
+              prodVariants = JSON.parse(currentProd.condition_detail);
+            }
+          } catch {}
+
+          if (prodVariants.length > 0) {
+            const updatedVariants = prodVariants.map((v) => {
+              if (v.size === product.size_eu) {
+                return { ...v, stock: Math.max(0, v.stock - quantity) };
+              }
+              return v;
+            });
+
+            const newTotal = updatedVariants.reduce((s, v) => s + v.stock, 0);
+            await supabase.from('products').update({
+              condition_detail: JSON.stringify(updatedVariants),
+              stock_quantity: newTotal,
+              status: newTotal === 0 ? 'sold' : 'available'
+            }).eq('id', product.id);
+          } else {
+            const newStock = Math.max(0, (currentProd.stock_quantity ?? 100) - quantity);
+            await supabase.from('products').update({
+              stock_quantity: newStock,
+              status: newStock === 0 ? 'sold' : 'available'
+            }).eq('id', product.id);
+          }
+
+          rollbacks.push(async () => {
+            await supabase.from('products').update({
+              condition_detail: currentProd.condition_detail,
+              stock_quantity: currentProd.stock_quantity,
+              status: currentProd.status
+            }).eq('id', product.id);
+          });
         }
       }
 
@@ -244,16 +408,13 @@ function CheckoutPage() {
         await new Promise((r) => setTimeout(r, 1800));
 
         if (form.blikCode === '222222') {
-          for (const prodId of reservedProductIds) {
-            await supabase
-              .from('products')
-              .update({ status: 'available', stock_quantity: 1 })
-              .eq('id', prodId);
+          for (const rollback of rollbacks) {
+            await rollback();
           }
 
           setBlikStep('idle');
           setSubmitting(false);
-          setGeneralError('Płatność BLIK została odrzucona przez bank (błędny kod lub brak potwierdzenia w aplikacji). Przedmiot wrócił do oferty - możesz spróbować ponownie.');
+          setGeneralError('Płatność BLIK została odrzucona przez bank. Przedmioty wróciły do oferty.');
           return;
         }
 
@@ -327,11 +488,8 @@ function CheckoutPage() {
       }
     } catch (err: any) {
       console.error('Unexpected order error:', err);
-      for (const prodId of reservedProductIds) {
-        await supabase
-          .from('products')
-          .update({ status: 'available', stock_quantity: 1 })
-          .eq('id', prodId);
+      for (const rollback of rollbacks) {
+        await rollback();
       }
       setGeneralError(err?.message || 'Błąd połączenia. Spróbuj ponownie.');
     } finally {
@@ -353,13 +511,11 @@ function CheckoutPage() {
     );
   }
 
-  // WIDOK SUKCESU Z ANIMACJĄ I KONFETTI
   if (step === 'success') {
     return (
       <div className="min-h-screen flex flex-col bg-[#090909] overflow-hidden relative">
         <Header />
         
-        {/* CSS-owe konfetti */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden z-20">
           {[...Array(40)].map((_, i) => (
             <div
@@ -384,7 +540,6 @@ function CheckoutPage() {
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-[#FF6B00]/10 blur-[100px] rounded-full pointer-events-none" />
 
           <div className="max-w-md w-full bg-[#141414] border border-neutral-800 rounded-3xl p-8 sm:p-10 text-center relative z-10 animate-scale-in shadow-2xl">
-            {/* Animowana ikona sukcesu */}
             <div className="relative w-20 h-20 mx-auto mb-6">
               <div 
                 className="absolute inset-0 bg-[#FF6B00]/20 rounded-full animate-ping" 
@@ -722,7 +877,7 @@ function CheckoutPage() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-white truncate">{product.name}</p>
                       <p className="text-xs text-neutral-500">
-                        {quantity > 1 ? `Ilość: ${quantity} szt. · ` : ''}EU {product.size_eu}
+                        {quantity > 1 ? `Ilość: ${quantity} szt. · ` : ''}{product.size_eu}
                       </p>
                       <p className="text-sm font-bold text-[#FF6B00] mt-0.5">{formatPrice(product.price * quantity)}</p>
                     </div>
@@ -785,7 +940,7 @@ function CheckoutPage() {
                 {discountAmount > 0 && appliedPromo && (
                   <div className="flex justify-between text-sm">
                     <span className="text-emerald-400 flex items-center gap-1.5">
-                      <Check className="w-3 h-3 stroke-[3]" />
+                      <Check className="w-3.5 h-3.5 stroke-[3]" />
                       Rabat {appliedPromo.discount_type === 'percentage' ? `-${appliedPromo.discount_value}%` : `-${appliedPromo.discount_value} PLN`}
                     </span>
                     <span className="text-emerald-400 font-medium">-{formatPrice(discountAmount)}</span>
