@@ -100,7 +100,7 @@ function isMatchingShinGuardSize(variantSizeName: string, chosenSize: 'S' | 'XS'
   }
   const isXS = clean.startsWith('XS') || clean.includes(' XS') || clean.includes('XS ');
   if (isXS) return false;
-  return clean.startsWith('S') || clean.includes(' S') || clean.includes('S ') || clean.includes('S-') || clean.includes('S -');
+  return clean.startsWith('S') || clean.includes(' S') || clean.includes('S ') || clean.includes('S-') || clean.includes('S -') || clean.includes('S×') || clean.includes('S ×');
 }
 
 interface ProductForm {
@@ -375,10 +375,12 @@ function AdminPage() {
             }).eq('id', sockProd.id);
           }
 
-          // 2. Ochraniacze (z użyciem precyzyjnego dopasowania)
-          const orderVariantStr = targetOrder.product?.size_eu || '';
-          const chosenSize: 'S' | 'XS' = orderVariantStr.toUpperCase().includes('XS') ? 'XS' : 'S';
+          // Odczyt wariantu z notatki zamówienia
+          const rawNote = targetOrder.paczkomat_code || targetOrder.shipping_address || targetOrder.product?.size_eu || '';
+          const chosenSize: 'S' | 'XS' = rawNote.toUpperCase().includes('XS') ? 'XS' : 'S';
+          const chosenTapeColorKey = rawNote.toLowerCase().includes('biał') ? 'biał' : 'czarn';
 
+          // 2. Ochraniacze (z użyciem isMatchingShinGuardSize)
           const { data: shinProd } = await supabase
             .from('products')
             .select('*')
@@ -412,8 +414,7 @@ function AdminPage() {
             } catch {}
           }
 
-          // 3. Taśma
-          const chosenTapeColor = orderVariantStr.toLowerCase().includes('biała') ? 'biała' : 'czarna';
+          // 3. Taśma (dopasowanie po rdzeniu 'biał' lub 'czarn')
           const { data: tapeProds } = await supabase
             .from('products')
             .select('*')
@@ -421,7 +422,7 @@ function AdminPage() {
             .neq('id', productId);
 
           if (tapeProds && tapeProds.length > 0) {
-            const targetTape = tapeProds.find((t) => (t.name || '').toLowerCase().includes(chosenTapeColor)) || tapeProds[0];
+            const targetTape = tapeProds.find((t) => (t.name || '').toLowerCase().includes(chosenTapeColorKey)) || tapeProds[0];
             if (targetTape) {
               await supabase.from('products').update({
                 stock_quantity: (targetTape.stock_quantity ?? 0) + 1,
@@ -430,12 +431,12 @@ function AdminPage() {
             }
           }
         } else {
-          const orderVariantStr = targetOrder.product?.size_eu || '';
+          const rawNote = targetOrder.paczkomat_code || targetOrder.shipping_address || targetOrder.product?.size_eu || '';
           try {
             if (prod?.condition_detail && prod.condition_detail.startsWith('[')) {
               const parsed = JSON.parse(prod.condition_detail);
               const updated = parsed.map((v: any) => {
-                if (v.size === orderVariantStr) return { ...v, stock: v.stock + 1 };
+                if (rawNote.includes(v.size)) return { ...v, stock: v.stock + 1 };
                 return v;
               });
               const totalStock = updated.reduce((s: number, v: any) => s + v.stock, 0);
@@ -1021,7 +1022,7 @@ function AdminPage() {
                   disabled={publishing || dropProducts.length === 0}
                   className="flex-1 bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-bold py-3 rounded-xl transition-all active:scale-95 disabled:opacity-40 shadow-[0_4px_15px_rgba(255,107,0,0.25)]"
                 >
-                  {publishing ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Opublikuj teraz'}
+                  {publishing ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Opublikuj teraz'}
                 </button>
                 <button
                   onClick={() => setShowPublishModal(false)}
@@ -1239,6 +1240,7 @@ function AdminPage() {
                     <button
                       onClick={() => { setShowProductModal(false); setForm(EMPTY_BOOT_FORM); setEditingId(null); }}
                       className="p-2 text-neutral-500 hover:text-white bg-white/5 rounded-xl transition-all active:scale-90"
+                      aria-label="Zamknij"
                     >
                       <X className="w-5 h-5" />
                     </button>
