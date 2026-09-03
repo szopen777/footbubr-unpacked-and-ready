@@ -111,9 +111,16 @@ export default function ProductCard({ product }: ProductCardProps) {
           />
         </button>
 
-        {/* Badge rozmiaru */}
-        <div className="absolute top-3 right-3 z-10 bg-[#FF6B00] text-black font-black text-[10px] sm:text-xs uppercase px-2.5 py-1 rounded-xl shadow-lg">
-          {isAccessory ? (product.size_eu || 'ONE SIZE') : `EU ${product.size_eu}`}
+        {/* Badge rozmiaru oraz nawierzchni na zdjęciu */}
+        <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5">
+          {!isAccessory && product.surface_type && (
+            <span className="bg-black/60 backdrop-blur-md text-white border border-white/15 font-black text-[10px] sm:text-xs uppercase px-2 py-1 rounded-xl shadow-lg tracking-wider">
+              {product.surface_type}
+            </span>
+          )}
+          <div className="bg-[#FF6B00] text-black font-black text-[10px] sm:text-xs uppercase px-2.5 py-1 rounded-xl shadow-lg">
+            {isAccessory ? (product.size_eu || 'ONE SIZE') : `EU ${product.size_eu}`}
+          </div>
         </div>
 
         {isSold && (
@@ -147,7 +154,8 @@ export default function ProductCard({ product }: ProductCardProps) {
             {product.name}
           </h3>
 
-          <div className="pt-0.5">
+          {/* Stan obuwia oraz nawierzchnia w dolnej belce opisu */}
+          <div className="flex items-center gap-1.5 pt-0.5 flex-wrap">
             <span
               className={cn(
                 'text-[10px] font-medium px-2 py-0.5 rounded-full border',
@@ -156,6 +164,12 @@ export default function ProductCard({ product }: ProductCardProps) {
             >
               {product.condition}
             </span>
+
+            {!isAccessory && product.surface_type && (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border border-neutral-700 bg-white/5 text-neutral-300 uppercase">
+                {product.surface_type}
+              </span>
+            )}
           </div>
         </div>
 
