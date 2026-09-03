@@ -10,17 +10,9 @@ import {
   ArrowLeft, Package, Truck, CreditCard, 
   Loader as Loader2, MapPin, Tag, X, Check, 
   CircleAlert as AlertCircle, Lock, ShieldCheck, 
-  PackageOpen, ArrowRight 
+  PackageOpen, ArrowRight, ExternalLink
 } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
-
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      'inpost-geowidget': any;
-    }
-  }
-}
 
 interface Variant {
   size: string;
@@ -35,7 +27,7 @@ function formatPhoneNumber(val: string): string {
 }
 
 function isMatchingShinGuardSize(variantSizeName: string, chosenSize: 'S' | 'XS'): boolean {
-  const clean = variantSizeName.toUpperCase().trim();
+  const clean = (variantSizeName || '').toUpperCase().trim();
   if (chosenSize === 'XS') {
     return clean.startsWith('XS') || clean.includes(' XS') || clean.includes('XS ');
   }
@@ -51,8 +43,6 @@ function CheckoutPage() {
   const [orderId, setOrderId] = useState('');
   const [orderRecord, setOrderRecord] = useState<Order | null>(null);
   const [showInpostMap, setShowInpostMap] = useState(false);
-  const [mapLoaded, setMapLoaded] = useState(false);
-  const mapContainerRef = useRef<HTMLDivElement>(null);
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
@@ -76,64 +66,6 @@ function CheckoutPage() {
 
   const shippingCost = shippingCostFor(form.shippingMethod, discountedTotal);
   const orderTotal = discountedTotal + shippingCost;
-
-  useEffect(() => {
-    if (!document.getElementById('inpost-geowidget-css')) {
-      const link = document.createElement('link');
-      link.id = 'inpost-geowidget-css';
-      link.rel = 'stylesheet';
-      link.type = 'text/css';
-      link.href = 'https://geowidget.inpost.pl/inpost-geowidget.css';
-      document.head.appendChild(link);
-    }
-
-    if (!document.getElementById('inpost-geowidget-js')) {
-      const script = document.createElement('script');
-      script.id = 'inpost-geowidget-js';
-      script.src = 'https://geowidget.inpost.pl/inpost-geowidget.js';
-      script.defer = true;
-      document.head.appendChild(script);
-    }
-
-    (window as any).onInpostPointSelected = (point: any) => {
-      const code = point?.name || point?.id || point?.address_details?.name;
-      if (code) {
-        setForm((prev) => ({ ...prev, paczkomatCode: String(code).toUpperCase() }));
-        setShowInpostMap(false);
-      }
-    };
-
-    const handlePointEvent = (e: any) => {
-      const code = e.detail?.name || e.detail?.id || e.name;
-      if (code) {
-        setForm((prev) => ({ ...prev, paczkomatCode: String(code).toUpperCase() }));
-        setShowInpostMap(false);
-      }
-    };
-
-    document.addEventListener('onpointselect', handlePointEvent);
-    document.addEventListener('inpost.geowidget.point_selected', handlePointEvent);
-
-    return () => {
-      document.removeEventListener('onpointselect', handlePointEvent);
-      document.removeEventListener('inpost.geowidget.point_selected', handlePointEvent);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (showInpostMap && mapContainerRef.current) {
-      mapContainerRef.current.innerHTML = `
-        <inpost-geowidget 
-          id="inpost-geowidget" 
-          onpoint="onInpostPointSelected" 
-          config="parcelCollect" 
-          language="pl" 
-          style="width: 100%; height: 100%; display: block;">
-        </inpost-geowidget>
-      `;
-      setMapLoaded(true);
-    }
-  }, [showInpostMap]);
 
   const validate = () => {
     const e: Record<string, string> = {};
@@ -601,13 +533,17 @@ function CheckoutPage() {
       <Header />
       <CartDrawer />
 
+      {/* MODAL MAPY INPOST BEZ TOKENU (BEZPIECZNY DLA NIEREJESTROWANEJ) */}
       {showInpostMap && (
         <div className="fixed inset-0 z-[200] bg-black/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-6 animate-fade-in">
           <div className="bg-[#141414] border border-neutral-800 rounded-2xl w-full max-w-4xl h-[85vh] flex flex-col shadow-2xl overflow-hidden relative">
             <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800 bg-[#111]">
-              <h3 className="text-white font-bold text-sm uppercase tracking-wider flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-[#FF6B00]" /> Wybierz Paczkomat InPost z mapy
-              </h3>
+              <div className="flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-[#FF6B00]" />
+                <h3 className="text-white font-bold text-sm uppercase tracking-wider">
+                  Mapa Paczkomatów InPost
+                </h3>
+              </div>
               <button
                 onClick={() => setShowInpostMap(false)}
                 className="p-1.5 text-neutral-400 hover:text-white rounded-lg bg-white/5 transition-all"
@@ -615,8 +551,35 @@ function CheckoutPage() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="flex-1 w-full bg-[#1c1c1c] relative overflow-hidden">
-              <div ref={mapContainerRef} className="w-full h-full" />
+
+            <div className="p-3 bg-[#1a1a1a] border-b border-neutral-800 flex items-center justify-between gap-2 flex-wrap">
+              <p className="text-xs text-neutral-300">
+                Wybierz swój Paczkomat na mapie, skopiuj jego kod (np. <span className="font-mono text-[#FF6B00] font-bold">WAW123M</span>) i wpisz go poniżej:
+              </p>
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <input
+                  type="text"
+                  placeholder="Wpisz wybrany kod..."
+                  value={form.paczkomatCode}
+                  onChange={(e) => setForm({ ...form, paczkomatCode: e.target.value.toUpperCase() })}
+                  className="bg-black/60 border border-neutral-700 rounded-xl px-3 py-1.5 text-xs text-white font-mono uppercase tracking-wider focus:outline-none focus:border-[#FF6B00]"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowInpostMap(false)}
+                  className="bg-[#FF6B00] text-black font-bold text-xs px-3.5 py-1.5 rounded-xl transition-all active:scale-95"
+                >
+                  Zatwierdź
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 w-full bg-white relative">
+              <iframe
+                src="https://inpost.pl/znajdz-paczkomat"
+                title="Mapa Paczkomatów InPost"
+                className="w-full h-full border-0"
+              />
             </div>
           </div>
         </div>
@@ -753,9 +716,10 @@ function CheckoutPage() {
                       <button
                         type="button"
                         onClick={() => setShowInpostMap(true)}
-                        className="px-4 py-2.5 bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-bold text-xs rounded-xl transition-all flex-shrink-0 active:scale-95 shadow-[0_2px_10px_rgba(255,107,0,0.2)]"
+                        className="px-4 py-2.5 bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-bold text-xs rounded-xl transition-all flex-shrink-0 active:scale-95 shadow-[0_2px_10px_rgba(255,107,0,0.2)] flex items-center gap-1.5"
                       >
-                        Wybierz z mapy
+                        <MapPin className="w-3.5 h-3.5" />
+                        Otwórz mapę
                       </button>
                     </div>
                     {errors.paczkomatCode && <p className="text-red-400 text-xs mt-1">{errors.paczkomatCode}</p>}
@@ -865,11 +829,11 @@ function CheckoutPage() {
                 {items.map(({ product, quantity }) => (
                   <div key={product.id} className="flex gap-3">
                     <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden bg-white/5 border border-neutral-800 flex-shrink-0">
-                      {product.images[0] && <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" />}
+                      {product.images && product.images[0] && <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-white truncate">{product.name}</p>
-                      <p className="text-xs text-neutral-500">
+                      <p className="text-xs text-neutral-500 truncate">
                         {quantity > 1 ? `Ilość: ${quantity} szt. · ` : ''}{product.size_eu}
                       </p>
                       <p className="text-sm font-bold text-[#FF6B00] mt-0.5">{formatPrice(product.price * quantity)}</p>
