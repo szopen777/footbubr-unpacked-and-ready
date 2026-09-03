@@ -1,8 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { useCart } from '@/lib/cart-context';
-import { supabase, formatOrderNumber, Order, Product } from '@/lib/supabase';
-import { formatPrice, INPUT_CLASS } from '@/lib/utils';
+import { supabase, formatOrderNumber, Order } from '@/lib/supabase';
+import { formatPrice, INPUT_CLASS, cn } from '@/lib/utils';
 import { shippingCostFor, FREE_SHIPPING_THRESHOLD } from '@/lib/shipping';
 import Header from '@/components/Header';
 import CartDrawer from '@/components/CartDrawer';
@@ -14,18 +14,13 @@ import {
 } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 
-interface Variant {
-  size: string;
-  stock: number;
-}
-
 interface InPostPoint {
   name: string;
-  address_details: {
-    city: string;
-    street: string;
-    building_number: string;
-    post_code: string;
+  address_details?: {
+    city?: string;
+    street?: string;
+    building_number?: string;
+    post_code?: string;
   };
   location_description?: string;
 }
@@ -48,7 +43,7 @@ function isMatchingShinGuardSize(variantSizeName: string, chosenSize: 'S' | 'XS'
 }
 
 function CheckoutPage() {
-  const { items, total, discountedTotal, discountAmount, promoCode, appliedPromo, applyPromo, removePromo, clearCart } = useCart();
+  const { items, total, discountedTotal, discountAmount, appliedPromo, applyPromo, removePromo, clearCart } = useCart();
   const [step, setStep] = useState<'summary' | 'success'>('summary');
   const [submitting, setSubmitting] = useState(false);
   const [orderId, setOrderId] = useState('');
@@ -85,26 +80,27 @@ function CheckoutPage() {
   const shippingCost = shippingCostFor(form.shippingMethod, discountedTotal);
   const orderTotal = discountedTotal + shippingCost;
 
-  // Inteligentne sortowanie wyników wyszukiwania
-  const sortPointsByRelevance = (items: InPostPoint[], query: string): InPostPoint[] => {
-    const q = query.trim().toLowerCase();
+  // Bezpieczne sortowanie wyników wyszukiwania (zabezpieczone przed null/undefined)
+  const sortPointsByRelevance = (itemsList: InPostPoint[], query: string): InPostPoint[] => {
+    if (!Array.isArray(itemsList)) return [];
+    const q = (query || '').trim().toLowerCase();
     const cleanPostal = q.replace(/[^\d]/g, '');
 
-    return [...items].sort((a, b) => {
-      const aPost = (a.address_details?.post_code || '').replace(/[^\d]/g, '');
-      const bPost = (b.address_details?.post_code || '').replace(/[^\d]/g, '');
-      const aStreet = (a.address_details?.street || '').toLowerCase();
-      const bStreet = (b.address_details?.street || '').toLowerCase();
+    return [...itemsList].sort((a, b) => {
+      const aPost = (a?.address_details?.post_code || '').replace(/[^\d]/g, '');
+      const bPost = (b?.address_details?.post_code || '').replace(/[^\d]/g, '');
+      const aStreet = (a?.address_details?.street || '').toLowerCase();
+      const bStreet = (b?.address_details?.street || '').toLowerCase();
 
-      // Dokładny kod pocztowy
+      // Priorytet kodu pocztowego
       const aExactPostal = cleanPostal.length === 5 && aPost === cleanPostal;
       const bExactPostal = cleanPostal.length === 5 && bPost === cleanPostal;
       if (aExactPostal && !bExactPostal) return -1;
       if (!aExactPostal && bExactPostal) return 1;
 
-      // Dopasowanie ulicy
-      const aHasStreet = aStreet.includes(q);
-      const bHasStreet = bStreet.includes(q);
+      // Priorytet ulicy
+      const aHasStreet = aStreet && q && aStreet.includes(q);
+      const bHasStreet = bStreet && q && bStreet.includes(q);
       if (aHasStreet && !bHasStreet) return -1;
       if (!aHasStreet && bHasStreet) return 1;
 
@@ -126,7 +122,7 @@ function CheckoutPage() {
         const resCode = await fetch(`https://api-pl-points.easypack24.net/v1/points/${cleanCode}`);
         if (resCode.ok) {
           const singlePoint = await resCode.json();
-          if (singlePoint && singlePoint.name) {
+          if (singlePoint?.name) {
             setPointsList([singlePoint]);
             setSearchingPoints(false);
             return;
@@ -149,14 +145,14 @@ function CheckoutPage() {
         }
       }
 
-      // 3. Geokodowanie adresu (rozpoznaje "Kluczborska 5", miasta, itp.)
+      // 3. Geokodowanie adresu
       let coords: { lat: number; lng: number } | null = null;
       try {
         const geoRes = await fetch(
           `https://nominatim.openstreetmap.org/search?format=json&countrycodes=pl&limit=1&q=${encodeURIComponent(raw)}`
         );
         const geoData = await geoRes.json();
-        if (Array.isArray(geoData) && geoData.length > 0) {
+        if (Array.isArray(geoData) && geoData.length > 0 && geoData[0]?.lat && geoData[0]?.lon) {
           coords = {
             lat: parseFloat(geoData[0].lat),
             lng: parseFloat(geoData[0].lon),
@@ -166,8 +162,8 @@ function CheckoutPage() {
         console.warn('Geocoding fallback', err);
       }
 
-      // 4. Wyszukiwanie w InPost po koordynatach geograficznych
-      if (coords) {
+      // 4. Wyszukiwanie w InPost po koordynatach
+      if (coords && !isNaN(coords.lat) && !isNaN(coords.lng)) {
         const resNear = await fetch(
           `https://api-pl-points.easypack24.net/v1/points?type=parcel_locker&relative_point=${coords.lat},${coords.lng}&limit=25`
         );
@@ -179,7 +175,7 @@ function CheckoutPage() {
         }
       }
 
-      // 5. Fallback: wyszukiwanie tekstowe (ulica / miasto)
+      // 5. Fallback: wyszukiwanie tekstowe
       const cleanStreet = raw.replace(/[0-9]/g, '').trim();
       const resFallback = await fetch(
         `https://api-pl-points.easypack24.net/v1/points?type=parcel_locker&query=${encodeURIComponent(cleanStreet || raw)}&limit=25`
@@ -190,7 +186,7 @@ function CheckoutPage() {
         setPointsList(sortPointsByRelevance(dataFallback.items, raw));
       } else {
         setPointsList([]);
-        setSearchMessage('Nie znaleziono paczkomatów. Spróbuj podać dokładniejszy adres lub kod pocztowy.');
+        setSearchMessage('Nie znaleziono paczkomatów. Spróbuj dopisać miasto lub podać kod pocztowy.');
       }
     } catch (err) {
       setPointsList([]);
@@ -349,7 +345,7 @@ function CheckoutPage() {
             .maybeSingle();
 
           if (shinProd) {
-            let shinVariants: Variant[] = [];
+            let shinVariants: { size: string; stock: number }[] = [];
             try {
               if (shinProd.condition_detail && shinProd.condition_detail.startsWith('[')) {
                 shinVariants = JSON.parse(shinProd.condition_detail);
@@ -359,12 +355,12 @@ function CheckoutPage() {
             if (shinVariants.length > 0) {
               const updatedVariants = shinVariants.map((v) => {
                 if (isMatchingShinGuardSize(v.size, chosenShinGuardSize)) {
-                  return { ...v, stock: Math.max(0, v.stock - quantity) };
+                  return { ...v, stock: Math.max(0, (v.stock || 0) - quantity) };
                 }
                 return v;
               });
 
-              const totalShinStock = updatedVariants.reduce((s, v) => s + v.stock, 0);
+              const totalShinStock = updatedVariants.reduce((s, v) => s + (v.stock || 0), 0);
               await supabase.from('products').update({
                 condition_detail: JSON.stringify(updatedVariants),
                 stock_quantity: totalShinStock,
@@ -422,7 +418,7 @@ function CheckoutPage() {
             return;
           }
 
-          let prodVariants: Variant[] = [];
+          let prodVariants: { size: string; stock: number }[] = [];
           try {
             if (currentProd.condition_detail && currentProd.condition_detail.startsWith('[')) {
               prodVariants = JSON.parse(currentProd.condition_detail);
@@ -432,12 +428,12 @@ function CheckoutPage() {
           if (prodVariants.length > 0) {
             const updatedVariants = prodVariants.map((v) => {
               if (v.size === product.size_eu) {
-                return { ...v, stock: Math.max(0, v.stock - quantity) };
+                return { ...v, stock: Math.max(0, (v.stock || 0) - quantity) };
               }
               return v;
             });
 
-            const newTotal = updatedVariants.reduce((s, v) => s + v.stock, 0);
+            const newTotal = updatedVariants.reduce((s, v) => s + (v.stock || 0), 0);
             await supabase.from('products').update({
               condition_detail: JSON.stringify(updatedVariants),
               stock_quantity: newTotal,
@@ -666,7 +662,7 @@ function CheckoutPage() {
       <Header />
       <CartDrawer />
 
-      {/* WYSZUKIWARKA PACZKOMATÓW */}
+      {/* MODAL WYSZUKIWARKI PACZKOMATÓW */}
       {showInpostModal && (
         <div className="fixed inset-0 z-[200] bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-fade-in">
           <div className="bg-[#141414] border border-neutral-800 rounded-2xl w-full max-w-xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden relative">
@@ -733,10 +729,13 @@ function CheckoutPage() {
               {!searchingPoints && pointsList.length > 0 && (
                 <div className="space-y-2">
                   {pointsList.map((pt) => {
-                    const isExactPostal = searchQuery.trim().replace(/[^\d]/g, '').length === 5 && 
-                      pt.address_details?.post_code?.replace(/[^\d]/g, '') === searchQuery.trim().replace(/[^\d]/g, '');
-                    const isExactStreet = searchQuery.trim().length > 3 && 
-                      pt.address_details?.street?.toLowerCase().includes(searchQuery.trim().toLowerCase());
+                    const qClean = searchQuery.trim().toLowerCase();
+                    const qPostalClean = qClean.replace(/[^\d]/g, '');
+                    const ptPostal = (pt?.address_details?.post_code || '').replace(/[^\d]/g, '');
+                    const ptStreet = (pt?.address_details?.street || '').toLowerCase();
+
+                    const isExactPostal = qPostalClean.length === 5 && ptPostal === qPostalClean;
+                    const isExactStreet = qClean.length > 2 && ptStreet.includes(qClean);
 
                     return (
                       <div
@@ -758,7 +757,7 @@ function CheckoutPage() {
                               {pt.name}
                             </span>
                             <span className="text-xs text-white font-semibold truncate">
-                              {pt.address_details?.street} {pt.address_details?.building_number}
+                              {pt.address_details?.street || ''} {pt.address_details?.building_number || ''}
                             </span>
                             {(isExactPostal || isExactStreet) && (
                               <span className="text-[10px] bg-[#FF6B00] text-black font-black px-1.5 py-0.2 rounded font-mono">
@@ -767,7 +766,7 @@ function CheckoutPage() {
                             )}
                           </div>
                           <p className="text-[11px] text-neutral-400 mt-0.5">
-                            {pt.address_details?.post_code} {pt.address_details?.city}
+                            {pt.address_details?.post_code || ''} {pt.address_details?.city || ''}
                             {pt.location_description ? ` · ${pt.location_description}` : ''}
                           </p>
                         </div>
