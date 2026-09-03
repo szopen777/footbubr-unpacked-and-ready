@@ -20,6 +20,11 @@ type CustomProductStatus = 'available' | 'draft' | 'drop' | 'sold';
 type DropTypeChoice = 'global' | 'custom';
 type ProductTypeChoice = 'boot' | 'accessory';
 
+export interface AccessoryVariant {
+  size: string;
+  stock: number;
+}
+
 interface DiscountCode {
   id: string;
   code: string;
@@ -111,6 +116,7 @@ interface ProductForm {
   status: CustomProductStatus;
   drop_type: DropTypeChoice;
   drop_scheduled_at: string;
+  variants: AccessoryVariant[];
 }
 
 const EMPTY_BOOT_FORM: ProductForm = {
@@ -120,15 +126,20 @@ const EMPTY_BOOT_FORM: ProductForm = {
   condition: 'Nowe z metką', condition_detail: '', images: '',
   box_included: false, bag_included: false, extras_description: '',
   status: 'available', drop_type: 'global', drop_scheduled_at: '',
+  variants: [],
 };
 
 const EMPTY_ACCESSORY_FORM: ProductForm = {
   productType: 'accessory',
-  name: 'Skarpety piłkarskie FOOTBUBR v1 Białe', brand: 'FOOTBUBR', model: 'Skarpety', size_eu: 'One Size (41-45)', accessory_type: 'Skarpety antypoślizgowe', insole_length_cm: '',
+  name: 'Mini ochraniacze piłkarskie FOOTBUBR', brand: 'FOOTBUBR', model: 'Mini ochraniacze', size_eu: 'S / XS', accessory_type: 'Mini ochraniacze', insole_length_cm: '',
   price: '49', original_price: '59', stock_quantity: '100', surface_type: 'FG', level: 'Amatorski',
-  condition: 'Nowe z metką', condition_detail: 'Rozmiar uniwersalny', images: '',
+  condition: 'Nowe z metką', condition_detail: '', images: '',
   box_included: false, bag_included: false, extras_description: '',
   status: 'available', drop_type: 'global', drop_scheduled_at: '',
+  variants: [
+    { size: 'S (10x6 cm)', stock: 50 },
+    { size: 'XS (8x5 cm)', stock: 50 },
+  ],
 };
 
 function AdminPage() {
@@ -415,6 +426,32 @@ function AdminPage() {
     showToast('Zdjęcie usunięte');
   };
 
+  const handleAddVariant = () => {
+    setForm((prev) => ({
+      ...prev,
+      variants: [...prev.variants, { size: '', stock: 50 }],
+    }));
+  };
+
+  const handleRemoveVariant = (index: number) => {
+    setForm((prev) => ({
+      ...prev,
+      variants: prev.variants.filter((_, i) => i !== index),
+    }));
+  };
+
+  const handleVariantChange = (index: number, field: 'size' | 'stock', value: string) => {
+    setForm((prev) => {
+      const updated = [...prev.variants];
+      if (field === 'size') {
+        updated[index].size = value;
+      } else {
+        updated[index].stock = parseInt(value, 10) || 0;
+      }
+      return { ...prev, variants: updated };
+    });
+  };
+
   const ORDER_STATUS_LABELS: Record<string, string> = {
     pending: 'Nowe',
     paid: 'Opłacone',
@@ -538,7 +575,7 @@ function AdminPage() {
   };
 
   const handleSave = async () => {
-    if (!form.name || !form.price || !form.size_eu) return;
+    if (!form.name || !form.price) return;
     setSaving(true);
 
     let dbStatus: 'available' | 'draft' | 'sold' = 'available';
@@ -579,22 +616,36 @@ function AdminPage() {
       }
     }
 
+    let finalSizeEu = form.size_eu;
+    let finalStock = parseInt(form.stock_quantity, 10) || 1;
+    let finalConditionDetail = form.condition_detail;
+
+    if (isAcc) {
+      if (form.variants.length > 0) {
+        finalSizeEu = form.variants.map((v) => v.size.split(' ')[0]).join(' / ') || form.size_eu;
+        finalStock = form.variants.reduce((sum, v) => sum + v.stock, 0);
+        finalConditionDetail = JSON.stringify(form.variants);
+      }
+    } else {
+      finalStock = dbStatus === 'sold' ? 0 : 1;
+    }
+
     const bootStock = dbStatus === 'sold' ? 0 : 1;
 
     const payload: ProductInsert = {
       name: accName,
       brand: isAcc ? 'FOOTBUBR' : form.brand,
       model: isAcc ? form.accessory_type : (form.model || form.name),
-      size_eu: form.size_eu as any,
+      size_eu: finalSizeEu as any,
       accessory_type: isAcc ? form.accessory_type : null,
       insole_length_cm: isAcc ? null : (form.insole_length_cm ? parseFloat(form.insole_length_cm) : null),
       price: parseFloat(form.price),
       original_price: form.original_price ? parseFloat(form.original_price) : null,
-      stock_quantity: isAcc ? (form.stock_quantity ? parseInt(form.stock_quantity, 10) : 100) : bootStock,
+      stock_quantity: isAcc ? finalStock : bootStock,
       surface_type: isAcc ? 'FG' : form.surface_type as any,
       level: isAcc ? 'Amatorski' : form.level as any,
       condition: form.condition as any,
-      condition_detail: form.condition_detail || null,
+      condition_detail: finalConditionDetail || null,
       images: form.images.split('\n').map((s) => s.trim()).filter(Boolean),
       box_included: isAcc ? false : form.box_included,
       bag_included: isAcc ? false : form.bag_included,
@@ -647,6 +698,15 @@ function AdminPage() {
 
     const isAcc = p.brand?.toLowerCase() === 'footbubr' || p.name?.toLowerCase().includes('skarpety') || p.name?.toLowerCase().includes('ochraniacze');
 
+    let parsedVariants: AccessoryVariant[] = [];
+    try {
+      if (p.condition_detail && p.condition_detail.startsWith('[')) {
+        parsedVariants = JSON.parse(p.condition_detail);
+      }
+    } catch {
+      parsedVariants = [];
+    }
+
     setForm({
       productType: isAcc ? 'accessory' : 'boot',
       name: p.name, 
@@ -661,7 +721,7 @@ function AdminPage() {
       surface_type: p.surface_type, 
       level: p.level, 
       condition: p.condition, 
-      condition_detail: p.condition_detail || '', 
+      condition_detail: p.condition_detail && !p.condition_detail.startsWith('[') ? p.condition_detail : '', 
       images: p.images.join('\n'), 
       box_included: p.box_included, 
       bag_included: p.bag_included, 
@@ -669,6 +729,7 @@ function AdminPage() {
       status: customStatus, 
       drop_type: dType, 
       drop_scheduled_at: toLocalDatetimeInput(p.drop_scheduled_at), 
+      variants: parsedVariants,
     });
     setEditingId(p.id);
     setShowProductModal(true);
@@ -1154,13 +1215,13 @@ function AdminPage() {
                         <input className={inp} placeholder="np. Nike Mercurial Elite 1 of 1" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
                       </div>
                       
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">
-                            {form.productType === 'boot' ? 'Rozmiar EU (Korki) *' : 'Rozmiar akcesorium *'}
-                          </label>
-
-                          {form.productType === 'boot' ? (
+                      {/* SEKCJA ROZMIARU I WARIANTÓW */}
+                      {form.productType === 'boot' ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">
+                              Rozmiar EU (Korki) *
+                            </label>
                             <div className="relative">
                               <select
                                 className={sel}
@@ -1174,26 +1235,71 @@ function AdminPage() {
                               </select>
                               <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none" />
                             </div>
-                          ) : (
-                            <input
-                              className={inp}
-                              placeholder="np. One Size (41-45)"
-                              type="text"
-                              value={form.size_eu}
-                              onChange={(e) => setForm({ ...form, size_eu: e.target.value })}
-                            />
-                          )}
-                        </div>
-
-                        {form.productType === 'boot' && (
+                          </div>
                           <div>
                             <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Długość wkładki (cm)</label>
                             <input className={inp} placeholder="27.0" type="number" step="0.5" value={form.insole_length_cm} onChange={(e) => setForm({ ...form, insole_length_cm: e.target.value })} />
                           </div>
-                        )}
-                      </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-3 pt-2">
+                          <div className="flex items-center justify-between">
+                            <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
+                              Warianty rozmiarów i stany magazynowe:
+                            </label>
+                            <button
+                              type="button"
+                              onClick={handleAddVariant}
+                              className="flex items-center gap-1 text-xs font-bold text-[#FF6B00] hover:text-[#FF7A00] bg-[#FF6B00]/10 hover:bg-[#FF6B00]/20 px-2.5 py-1 rounded-lg transition-all"
+                            >
+                              <Plus className="w-3.5 h-3.5" /> Dodaj kolejny rozmiar
+                            </button>
+                          </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {form.variants.map((variant, idx) => (
+                            <div key={idx} className="flex items-center gap-2 bg-black/40 border border-neutral-800 p-2.5 rounded-xl">
+                              <div className="flex-1">
+                                <label className="text-[10px] font-bold text-neutral-500 uppercase block mb-1">Rozmiar / Wymiary</label>
+                                <input
+                                  className={cn(inp, 'text-xs')}
+                                  placeholder="np. S (10x6 cm)"
+                                  value={variant.size}
+                                  onChange={(e) => handleVariantChange(idx, 'size', e.target.value)}
+                                  required
+                                />
+                              </div>
+                              <div className="w-28 sm:w-32">
+                                <label className="text-[10px] font-bold text-neutral-500 uppercase block mb-1">Ilość sztuk</label>
+                                <input
+                                  className={cn(inp, 'text-xs text-center')}
+                                  type="number"
+                                  min="0"
+                                  placeholder="50"
+                                  value={variant.stock}
+                                  onChange={(e) => handleVariantChange(idx, 'stock', e.target.value)}
+                                  required
+                                />
+                              </div>
+                              {form.variants.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveVariant(idx)}
+                                  className="mt-5 p-2 text-neutral-500 hover:text-red-400 rounded-lg transition-colors"
+                                  title="Usuń wariant"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+
+                          <p className="text-[11px] text-neutral-500">
+                            Łączny stan magazynowy: <span className="font-bold text-white">{form.variants.reduce((acc, v) => acc + v.stock, 0)} sztuk</span>.
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                         <div>
                           <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Cena PLN *</label>
                           <input className={inp} placeholder="399" type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
@@ -1203,13 +1309,6 @@ function AdminPage() {
                           <input className={inp} placeholder="799" type="number" value={form.original_price} onChange={(e) => setForm({ ...form, original_price: e.target.value })} />
                         </div>
                       </div>
-
-                      {form.productType === 'accessory' && (
-                        <div>
-                          <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Ilość sztuk w magazynie *</label>
-                          <input className={inp} placeholder="100" type="number" min="1" value={form.stock_quantity} onChange={(e) => setForm({ ...form, stock_quantity: e.target.value })} />
-                        </div>
-                      )}
                     </div>
 
                     {form.productType === 'boot' && (
@@ -1424,7 +1523,7 @@ function AdminPage() {
                     <div className="flex gap-3">
                       <button
                         onClick={handleSave}
-                        disabled={saving || !form.name || !form.price || !form.size_eu}
+                        disabled={saving || !form.name || !form.price}
                         className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-black px-6 py-3 rounded-xl transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shadow-[0_4px_15px_rgba(255,107,0,0.25)]"
                       >
                         {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
