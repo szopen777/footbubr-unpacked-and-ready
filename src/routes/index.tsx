@@ -12,6 +12,16 @@ import ReviewsBanner from '@/components/ReviewsBanner';
 import HeroRainEffect from '@/components/HeroRainEffect';
 import { Zap, Package2, ShieldCheck, ChevronDown } from 'lucide-react';
 
+function formatujProdukty(count: number): string {
+  if (count === 1) return `${count} produkt`;
+  const r10 = count % 10;
+  const r100 = count % 100;
+  if (r10 >= 2 && r10 <= 4 && (r100 < 10 || r100 >= 20)) {
+    return `${count} produkty`;
+  }
+  return `${count} produktów`;
+}
+
 const DEFAULT_FILTERS: FilterState = {
   category: 'all',
   sizes: [],
@@ -264,7 +274,7 @@ function HomePage() {
               </div>
               <div className="flex items-center gap-1.5">
                 <Zap className="w-4 h-4 text-[#FF6B00]" />
-                {visibleProducts.length} produktów w ofercie
+                {formatujProdukty(visibleProducts.length)} w ofercie
               </div>
             </div>
           </div>
@@ -291,7 +301,7 @@ function HomePage() {
             {/* Sort bar desktop */}
             <div className="hidden lg:flex items-center justify-between mb-6 gap-4">
               <p className="text-sm text-neutral-500">
-                {loading ? 'Ładowanie...' : `${allShown.length} ${allShown.length === 1 ? 'produkt' : 'produktów'}`}
+                {loading ? 'Ładowanie...' : formatujProdukty(allShown.length)}
               </p>
               <div className="relative">
                 <select
@@ -314,7 +324,7 @@ function HomePage() {
 
             {/* Mobile count */}
             <p className="lg:hidden text-sm text-neutral-500 mb-4 mt-3">
-              {loading ? 'Ładowanie...' : `${allShown.length} ${allShown.length === 1 ? 'produkt' : 'produktów'}`}
+              {loading ? 'Ładowanie...' : formatujProdukty(allShown.length)}
             </p>
 
             {loading ? (
