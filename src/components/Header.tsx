@@ -19,19 +19,19 @@ export default function Header({ searchValue = '', onSearchChange }: HeaderProps
 
   return (
     <header className="sticky top-0 z-40 bg-[#0a0a0a]/95 backdrop-blur-xl border-b border-neutral-800/80">
-      <div className="max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20 sm:h-20 md:h-22 gap-1.5 sm:gap-6 py-1">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16 sm:h-20 gap-2 sm:gap-6">
           
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 sm:gap-3.5 flex-shrink-0 group py-1">
-            <div className="w-16 h-16 sm:w-16 sm:h-16 md:w-16 md:h-16 flex items-center justify-center transition-transform group-hover:scale-105 duration-200 flex-shrink-0">
+          {/* Logo i Nazwa (zoptymalizowane pod mobile) */}
+          <Link to="/" className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0 group">
+            <div className="w-9 h-9 sm:w-12 sm:h-12 md:w-14 md:h-14 flex items-center justify-center transition-transform group-hover:scale-105 duration-200 flex-shrink-0">
               <img 
                 src={logoPng} 
                 alt="FootBubr Logo" 
-                className="w-full h-full object-contain invert brightness-200 scale-115 sm:scale-100"
+                className="w-full h-full object-contain invert brightness-200"
               />
             </div>
-            <span className="font-black text-3xl sm:text-2xl md:text-3xl lg:text-4xl tracking-tight text-white uppercase leading-none select-none">
+            <span className="font-black text-xl sm:text-2xl md:text-3xl lg:text-4xl tracking-tight text-white uppercase leading-none select-none">
               Foot<span className="text-[#FF6B00]">Bubr</span>
             </span>
           </Link>
@@ -50,15 +50,16 @@ export default function Header({ searchValue = '', onSearchChange }: HeaderProps
             </div>
           </div>
 
-          {/* Przyciski akcji */}
+          {/* Przyciski akcji (nigdy się nie zwężają) */}
           <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
             {/* Przycisk wyszukiwarki na telefonie */}
             <button
+              type="button"
               onClick={() => setSearchOpenMobile(!searchOpenMobile)}
-              className="md:hidden flex items-center justify-center w-9 h-9 text-neutral-300 hover:text-white rounded-xl bg-white/5 border border-neutral-800/80 active:scale-95 transition-all"
+              className="md:hidden flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 text-neutral-300 hover:text-white rounded-lg sm:rounded-xl bg-white/5 border border-neutral-800/80 active:scale-95 transition-all flex-shrink-0"
               aria-label="Szukaj"
             >
-              <Search className="w-4 h-4 text-neutral-400" />
+              <Search className="w-3.5 h-3.5 text-neutral-400" />
             </button>
 
             {/* Śledzenie zamówienia (Desktop) */}
@@ -70,7 +71,7 @@ export default function Header({ searchValue = '', onSearchChange }: HeaderProps
               Śledź zamówienie
             </Link>
 
-            {/* Archiwum */}
+            {/* Archiwum (Desktop) */}
             <Link
               to="/archive"
               className="hidden sm:flex items-center gap-1.5 text-neutral-300 hover:text-[#FF6B00] transition-colors px-2.5 py-2 font-bold tracking-wide uppercase text-xs sm:text-sm"
@@ -82,13 +83,13 @@ export default function Header({ searchValue = '', onSearchChange }: HeaderProps
             {/* Ulubione (Serduszko z licznikiem) */}
             <Link
               to="/favorites"
-              className="relative flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 text-neutral-300 hover:text-white transition-colors rounded-xl bg-white/5 border border-neutral-800/80 hover:border-neutral-700 active:scale-95"
+              className="relative flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 text-neutral-300 hover:text-white transition-colors rounded-lg sm:rounded-xl bg-white/5 border border-neutral-800/80 hover:border-neutral-700 active:scale-95 flex-shrink-0"
               title="Ulubione"
               aria-label="Ulubione"
             >
-              <Heart className={cn("w-4 h-4 sm:w-5 sm:h-5 transition-colors", favoritesCount > 0 && "text-red-500 fill-red-500")} />
+              <Heart className={cn("w-3.5 h-3.5 sm:w-4 sm:h-4 transition-colors", favoritesCount > 0 && "text-red-500 fill-red-500")} />
               {favoritesCount > 0 && (
-                <span className="absolute -top-1 -right-1 sm:-top-1.5 sm:-right-1.5 w-4 h-4 sm:w-5 sm:h-5 bg-red-500 text-white font-black text-[10px] sm:text-xs rounded-full flex items-center justify-center animate-scale-in">
+                <span className="absolute -top-1 -right-1 sm:-top-1.5 sm:-right-1.5 w-4 h-4 bg-red-500 text-white font-black text-[9px] sm:text-xs rounded-full flex items-center justify-center animate-scale-in">
                   {favoritesCount}
                 </span>
               )}
@@ -101,27 +102,29 @@ export default function Header({ searchValue = '', onSearchChange }: HeaderProps
               Panel
             </Link>
 
-            {/* Przycisk koszyka */}
+            {/* Koszyk */}
             <button
+              type="button"
               onClick={openCart}
               className={cn(
-                'relative flex items-center justify-center gap-1.5 bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-black text-xs sm:text-sm h-9 sm:h-10 px-3 sm:px-4 rounded-xl transition-all hover:scale-105 active:scale-95 shadow-[0_4px_15px_rgba(255,107,0,0.25)]',
+                'relative flex items-center justify-center gap-1 bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-black text-xs sm:text-sm h-8 sm:h-9 md:h-10 px-2.5 sm:px-4 rounded-lg sm:rounded-xl transition-all hover:scale-105 active:scale-95 shadow-[0_4px_15px_rgba(255,107,0,0.25)] flex-shrink-0',
                 cartPulse && 'animate-cart-pulse'
               )}
               aria-label="Koszyk"
             >
-              <ShoppingBag className="w-4 h-4" />
+              <ShoppingBag className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span className="hidden sm:inline">Koszyk</span>
               {items.length > 0 && (
-                <span className="absolute -top-1 -right-1 sm:-top-1.5 sm:-right-1.5 w-4 h-4 sm:w-5 sm:h-5 bg-black text-[#FF6B00] text-[10px] sm:text-xs font-black rounded-full flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 sm:-top-1.5 sm:-right-1.5 w-4 h-4 bg-black text-[#FF6B00] text-[9px] sm:text-xs font-black rounded-full flex items-center justify-center">
                   {items.length}
                 </span>
               )}
             </button>
 
-            {/* Przycisk menu mobilnego */}
+            {/* Burger Menu na telefon */}
             <button
-              className="md:hidden flex items-center justify-center w-9 h-9 text-neutral-300 hover:text-white transition-colors rounded-xl bg-white/5 border border-neutral-800/80 active:scale-95"
+              type="button"
+              className="md:hidden flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 text-neutral-300 hover:text-white transition-colors rounded-lg sm:rounded-xl bg-white/5 border border-neutral-800/80 active:scale-95 flex-shrink-0"
               onClick={() => setMenuOpen(!menuOpen)}
               aria-label="Menu"
             >
@@ -130,7 +133,7 @@ export default function Header({ searchValue = '', onSearchChange }: HeaderProps
           </div>
         </div>
 
-        {/* Wyszukiwarka rozwijana na telefonie */}
+        {/* Wyszukiwarka mobile */}
         {searchOpenMobile && (
           <div className="md:hidden pb-3 pt-1 animate-fade-in">
             <div className="relative">
@@ -147,7 +150,7 @@ export default function Header({ searchValue = '', onSearchChange }: HeaderProps
           </div>
         )}
 
-        {/* Menu rozwijane na telefonie */}
+        {/* Rozwijana lista mobilna */}
         {menuOpen && (
           <div className="md:hidden py-3 border-t border-neutral-800 animate-fade-in flex flex-col gap-1">
             <Link
