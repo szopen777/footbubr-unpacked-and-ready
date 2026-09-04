@@ -12,15 +12,14 @@ import ReviewsBanner from '@/components/ReviewsBanner';
 import HeroRainEffect from '@/components/HeroRainEffect';
 import { Zap, Package2, ShieldCheck, ChevronDown } from 'lucide-react';
 
-function formatujProdukty(count: number = 0): string {
-  const c = Math.max(0, count || 0);
-  if (c === 1) return `${c} produkt`;
-  const r10 = c % 10;
-  const r100 = c % 100;
+function formatujProdukty(count: number): string {
+  if (count === 1) return `${count} produkt`;
+  const r10 = count % 10;
+  const r100 = count % 100;
   if (r10 >= 2 && r10 <= 4 && (r100 < 10 || r100 >= 20)) {
-    return `${c} produkty`;
+    return `${count} produkty`;
   }
-  return `${c} produktów`;
+  return `${count} produktów`;
 }
 
 const DEFAULT_FILTERS: FilterState = {
@@ -58,54 +57,43 @@ function HomePage() {
     setLoading(true);
     const nowIso = new Date().toISOString();
 
-    try {
-      await supabase
-        .from('products')
-        .update({ status: 'available', drop_scheduled_at: null })
-        .eq('status', 'draft')
-        .lte('drop_scheduled_at', nowIso);
+    await supabase
+      .from('products')
+      .update({ status: 'available', drop_scheduled_at: null })
+      .eq('status', 'draft')
+      .lte('drop_scheduled_at', nowIso);
 
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .in('status', ['available', 'draft'])
-        .order('created_at', { ascending: false });
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .in('status', ['available', 'draft'])
+      .order('created_at', { ascending: false });
 
-      if (!error && data) {
-        setProducts(data as Product[]);
-      }
-    } catch (err) {
-      console.error('Błąd pobierania produktów:', err);
-    } finally {
-      setLoading(false);
-    }
+    if (!error && data) setProducts(data as Product[]);
+    setLoading(false);
   }, []);
 
   const fetchDropSettings = useCallback(async () => {
-    try {
-      const { data } = await supabase
-        .from('drop_settings')
-        .select('*')
-        .eq('id', 1)
-        .maybeSingle();
+    const { data } = await supabase
+      .from('drop_settings')
+      .select('*')
+      .eq('id', 1)
+      .maybeSingle();
 
-      if (data) {
-        const s = data as DropSettings;
-        setDropSettings(s);
+    if (data) {
+      const s = data as DropSettings;
+      setDropSettings(s);
 
-        if (s.featured_product_id) {
-          const { data: prod } = await supabase
-            .from('products')
-            .select('*')
-            .eq('id', s.featured_product_id)
-            .maybeSingle();
-          setFeaturedProduct((prod as Product) || null);
-        } else {
-          setFeaturedProduct(null);
-        }
+      if (s.featured_product_id) {
+        const { data: prod } = await supabase
+          .from('products')
+          .select('*')
+          .eq('id', s.featured_product_id)
+          .maybeSingle();
+        setFeaturedProduct(prod as Product | null);
+      } else {
+        setFeaturedProduct(null);
       }
-    } catch (err) {
-      console.error('Błąd drop_settings:', err);
     }
   }, []);
 
@@ -144,20 +132,11 @@ function HomePage() {
       } else {
         setCountdown(null);
         
-        let alreadyCelebrated = false;
-        try {
-          alreadyCelebrated = sessionStorage.getItem(celebrationKey) === 'true';
-        } catch {
-          // ignore sessionStorage restrictions
-        }
+        const alreadyCelebrated = sessionStorage.getItem(celebrationKey) === 'true';
 
         if (diff > -10000 && !celebrationTriggeredRef.current && !alreadyCelebrated) {
           celebrationTriggeredRef.current = true;
-          try {
-            sessionStorage.setItem(celebrationKey, 'true');
-          } catch {
-            // ignore
-          }
+          sessionStorage.setItem(celebrationKey, 'true');
           setShowCelebration(true);
           fetchProducts();
         }
@@ -169,8 +148,7 @@ function HomePage() {
     return () => clearInterval(interval);
   }, [countdownTarget, fetchProducts]);
 
-  const visibleProducts = (products || []).filter((p) => {
-    if (!p) return false;
+  const visibleProducts = products.filter((p) => {
     if (p.status === 'available') return true;
     if (p.status === 'draft' && p.drop_scheduled_at) {
       const dropTime = new Date(p.drop_scheduled_at).getTime();
@@ -181,7 +159,6 @@ function HomePage() {
 
   const filtered = visibleProducts
     .filter((p: any) => {
-      if (!p) return false;
       const pName = (p.name || '').toLowerCase();
       const pBrand = (p.brand || '').toLowerCase();
       const pModel = (p.model || '').toLowerCase();
@@ -217,7 +194,7 @@ function HomePage() {
 
         if (filters.accessoryTypes?.length) {
           const matchesType = filters.accessoryTypes.some((type) => {
-            const target = (type || '').toLowerCase();
+            const target = type.toLowerCase();
             if (target.includes('skarpety') && (pAccType.includes('skarpety') || pName.includes('skarpety') || pModel.includes('skarpety'))) return true;
             if (target.includes('ochraniacze') && (pAccType.includes('ochraniacze') || pName.includes('ochraniacze') || pModel.includes('ochraniacze'))) return true;
             if (target.includes('taśmy') && (pAccType.includes('taśm') || pName.includes('taśm') || pName.includes('tasm') || pName.includes('tape'))) return true;
@@ -239,16 +216,14 @@ function HomePage() {
       }
 
       // 5. Filtry cenowe
-      if (filters.priceMin && Number(p.price) < Number(filters.priceMin)) return false;
-      if (filters.priceMax && Number(p.price) > Number(filters.priceMax)) return false;
+      if (filters.priceMin && p.price < Number(filters.priceMin)) return false;
+      if (filters.priceMax && p.price > Number(filters.priceMax)) return false;
 
       return true;
     })
     .sort((a, b) => {
-      const priceA = Number(a.price) || 0;
-      const priceB = Number(b.price) || 0;
-      if (sortBy === 'price_asc') return priceA - priceB;
-      if (sortBy === 'price_desc') return priceB - priceA;
+      if (sortBy === 'price_asc') return a.price - b.price;
+      if (sortBy === 'price_desc') return b.price - a.price;
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
 
@@ -299,7 +274,7 @@ function HomePage() {
               </div>
               <div className="flex items-center gap-1.5">
                 <Zap className="w-4 h-4 text-[#FF6B00]" />
-                {formatujProdukty(visibleProducts?.length || 0)} w ofercie
+                {formatujProdukty(visibleProducts.length)} w ofercie
               </div>
             </div>
           </div>
@@ -326,7 +301,7 @@ function HomePage() {
             {/* Sort bar desktop */}
             <div className="hidden lg:flex items-center justify-between mb-6 gap-4">
               <p className="text-sm text-neutral-500">
-                {loading ? 'Ładowanie...' : formatujProdukty(allShown?.length || 0)}
+                {loading ? 'Ładowanie...' : formatujProdukty(allShown.length)}
               </p>
               <div className="relative">
                 <select
@@ -349,7 +324,7 @@ function HomePage() {
 
             {/* Mobile count */}
             <p className="lg:hidden text-sm text-neutral-500 mb-4 mt-3">
-              {loading ? 'Ładowanie...' : formatujProdukty(allShown?.length || 0)}
+              {loading ? 'Ładowanie...' : formatujProdukty(allShown.length)}
             </p>
 
             {loading ? (
