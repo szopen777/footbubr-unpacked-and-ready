@@ -55,7 +55,7 @@ export default function Header({ searchValue = '', onSearchChange }: HeaderProps
             {/* Przycisk wyszukiwarki na telefonie */}
             <button
               onClick={() => setSearchOpenMobile(!searchOpenMobile)}
-              className="md:hidden p-2 text-neutral-300 hover:text-white rounded-xl bg-white/5 border border-neutral-800/80 active:scale-95 transition-all"
+              className="md:hidden flex items-center justify-center w-9 h-9 text-neutral-300 hover:text-white rounded-xl bg-white/5 border border-neutral-800/80 active:scale-95 transition-all"
               aria-label="Szukaj"
             >
               <Search className="w-4 h-4 text-neutral-400" />
@@ -82,7 +82,7 @@ export default function Header({ searchValue = '', onSearchChange }: HeaderProps
             {/* Ulubione (Serduszko z licznikiem) */}
             <Link
               to="/favorites"
-              className="relative p-2 sm:p-2.5 text-neutral-300 hover:text-white transition-colors rounded-xl bg-white/5 border border-neutral-800/80 hover:border-neutral-700 active:scale-95"
+              className="relative flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 text-neutral-300 hover:text-white transition-colors rounded-xl bg-white/5 border border-neutral-800/80 hover:border-neutral-700 active:scale-95"
               title="Ulubione"
               aria-label="Ulubione"
             >
@@ -105,7 +105,7 @@ export default function Header({ searchValue = '', onSearchChange }: HeaderProps
             <button
               onClick={openCart}
               className={cn(
-                'relative flex items-center justify-center gap-1.5 bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-black text-xs sm:text-sm px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl transition-all hover:scale-105 active:scale-95 shadow-[0_4px_15px_rgba(255,107,0,0.25)]',
+                'relative flex items-center justify-center gap-1.5 bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-black text-xs sm:text-sm h-9 sm:h-10 px-3 sm:px-4 rounded-xl transition-all hover:scale-105 active:scale-95 shadow-[0_4px_15px_rgba(255,107,0,0.25)]',
                 cartPulse && 'animate-cart-pulse'
               )}
               aria-label="Koszyk"
@@ -121,11 +121,11 @@ export default function Header({ searchValue = '', onSearchChange }: HeaderProps
 
             {/* Przycisk menu mobilnego */}
             <button
-              className="md:hidden p-2 text-neutral-300 hover:text-white transition-colors rounded-xl bg-white/5 border border-neutral-800/80 active:scale-95"
+              className="md:hidden flex items-center justify-center w-9 h-9 text-neutral-300 hover:text-white transition-colors rounded-xl bg-white/5 border border-neutral-800/80 active:scale-95"
               onClick={() => setMenuOpen(!menuOpen)}
               aria-label="Menu"
             >
-              {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              {menuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
             </button>
           </div>
         </div>
