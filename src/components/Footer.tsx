@@ -4,6 +4,7 @@ import {
   Footprints, Mail, ArrowRight, Check, Sparkles, Loader2 
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/lib/supabase';
 import logoPng from '/logoPNG.png';
 
 function InstagramIcon({ className }: { className?: string }) {
@@ -57,12 +58,22 @@ export default function Footer() {
     setLoading(true);
 
     try {
+      // Wyciągamy klucz publiczny projektu bezpośrednio z zainicjalizowanego klienta
+      const anonKey =
+        (supabase as any).supabaseKey ||
+        (supabase as any).rest?.headers?.apikey ||
+        '';
+
       const response = await fetch(
         'https://kwumqkqnwqbfvpzavclv.supabase.co/functions/v1/send-drop-email',
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            ...(anonKey && {
+              'apikey': anonKey,
+              'Authorization': `Bearer ${anonKey}`,
+            }),
           },
           body: JSON.stringify({
             type: 'welcome_code',
@@ -73,7 +84,8 @@ export default function Footer() {
       );
 
       if (!response.ok) {
-        throw new Error(`Błąd serwera: ${response.status}`);
+        const errorText = await response.text();
+        throw new Error(errorText || `Błąd serwera: ${response.status}`);
       }
 
       const data = await response.json();
