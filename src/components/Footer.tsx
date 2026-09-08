@@ -58,26 +58,28 @@ export default function Footer() {
     setLoading(true);
 
     try {
-      await supabase
-        .from('newsletter_subscribers')
-        .insert([{ email: emailTrimmed }])
-        .select();
+      const { data, error } = await supabase.functions.invoke('send-drop-email', {
+        body: {
+          type: 'welcome_code',
+          email: emailTrimmed,
+          dropId: 1,
+        },
+      });
+
+      if (error) throw error;
 
       localStorage.setItem('footbubr_nl_subscribed', emailTrimmed);
-
       setSubscribed(true);
       toast.success('Sprawdź swoją skrzynkę e-mail!', {
-        description: `Wysłaliśmy kod rabatowy -5% na adres ${emailTrimmed}.`,
-        duration: 6000,
+        description: data?.code 
+          ? `Twój kod: ${data.code} (-5%). Wysłaliśmy go też na adres ${emailTrimmed}.`
+          : `Wysłaliśmy kod rabatowy -5% na adres ${emailTrimmed}.`,
+        duration: 7000,
       });
       setNewsletterEmail('');
-    } catch {
-      setSubscribed(true);
-      toast.success('Sprawdź swoją skrzynkę e-mail!', {
-        description: `Wysłaliśmy kod rabatowy -5% na adres ${emailTrimmed}.`,
-        duration: 6000,
-      });
-      setNewsletterEmail('');
+    } catch (err: any) {
+      console.error('Błąd zapisu newslettera:', err);
+      toast.error('Wystąpił problem z wysyłką. Spróbuj ponownie.');
     } finally {
       setLoading(false);
     }
