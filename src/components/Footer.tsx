@@ -78,14 +78,25 @@ export default function Footer() {
 
       const data = await response.json();
 
-      localStorage.setItem('footbubr_nl_subscribed', emailTrimmed);
-      setSubscribed(true);
-      toast.success('Sprawdź swoją skrzynkę e-mail!', {
-        description: data?.code 
-          ? `Twój kod: ${data.code} (-5%). Wysłaliśmy go też na adres ${emailTrimmed}.`
-          : `Wysłaliśmy kod rabatowy -5% na adres ${emailTrimmed}.`,
-        duration: 7000,
-      });
+      if (data?.alreadySubscribed) {
+        toast.info('Jesteś już w BubrClub!', {
+          description: data?.code 
+            ? `Twój wcześniejszy kod to: ${data.code}` 
+            : `Ten adres e-mail już odebrał swój kod rabatowy.`,
+          duration: 7000,
+        });
+        setSubscribed(true);
+      } else {
+        localStorage.setItem('footbubr_nl_subscribed', emailTrimmed);
+        setSubscribed(true);
+        toast.success('Sprawdź swoją skrzynkę e-mail!', {
+          description: data?.code 
+            ? `Twój kod: ${data.code} (-5%). Wysłaliśmy go też na adres ${emailTrimmed}.`
+            : `Wysłaliśmy kod rabatowy -5% na adres ${emailTrimmed}.`,
+          duration: 7000,
+        });
+      }
+
       setNewsletterEmail('');
     } catch (err: any) {
       console.error('Błąd zapisu newslettera:', err);
@@ -135,7 +146,7 @@ export default function Footer() {
                   <Loader2 className="w-3.5 h-3.5 animate-spin text-black" />
                 ) : subscribed ? (
                   <>
-                    <Check className="w-3.5 h-3.5" /> Wysłano
+                    <Check className="w-3.5 h-3.5" /> Zapisano
                   </>
                 ) : (
                   <>
