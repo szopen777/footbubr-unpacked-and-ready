@@ -4,7 +4,6 @@ import {
   Footprints, Mail, ArrowRight, Check, Sparkles, Loader2 
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { supabase } from '@/lib/supabase';
 import logoPng from '/logoPNG.png';
 
 function InstagramIcon({ className }: { className?: string }) {
@@ -58,15 +57,26 @@ export default function Footer() {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('send-drop-email', {
-        body: {
-          type: 'welcome_code',
-          email: emailTrimmed,
-          dropId: 1,
-        },
-      });
+      const response = await fetch(
+        'https://kwumqkqnwqbfvpzavclv.supabase.co/functions/v1/send-drop-email',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            type: 'welcome_code',
+            email: emailTrimmed,
+            dropId: 1,
+          }),
+        }
+      );
 
-      if (error) throw error;
+      if (!response.ok) {
+        throw new Error(`Błąd serwera: ${response.status}`);
+      }
+
+      const data = await response.json();
 
       localStorage.setItem('footbubr_nl_subscribed', emailTrimmed);
       setSubscribed(true);
