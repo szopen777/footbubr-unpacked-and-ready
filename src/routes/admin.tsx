@@ -703,6 +703,8 @@ function AdminPage() {
       featured_product_id: settingsForm.featured_product_id !== 'none' ? settingsForm.featured_product_id : null,
       title: settingsForm.title || 'Nowy drop',
       subtitle: settingsForm.subtitle || '',
+      reminder_1h_sent: false,
+      announcement_sent: false,
       updated_at: new Date().toISOString(),
     };
 
@@ -2298,7 +2300,7 @@ function AdminPage() {
             </div>
           )}
 
-          {/* NOWA ZAKŁADKA: NEWSLETTER I POWIADOMIENIA O DROPACH */}
+          {/* ZAKŁADKA NEWSLETTER */}
           {view === 'newsletter' && (
             <div className="animate-fade-in max-w-5xl space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-800/80 pb-6">
