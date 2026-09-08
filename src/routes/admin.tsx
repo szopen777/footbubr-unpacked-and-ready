@@ -7,7 +7,8 @@ import {
   Package, ShoppingCart, LogOut, Eye, EyeOff, Loader as Loader2, Trash2, 
   CreditCard as Edit2, X, Check, CircleAlert as AlertCircle, ArrowLeft, 
   ChevronDown, Zap, Sparkles, Truck, Plus, Minus, FileText, Clock, Layers, 
-  Upload, Footprints, Tag, MessageSquare, Star, CheckCircle2, Volume2, Menu, Mail, Lock
+  Upload, Footprints, Tag, MessageSquare, Star, CheckCircle2, Volume2, Menu, Mail, Lock,
+  Users, Send
 } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 import type { Database } from '@/integrations/supabase/types';
@@ -15,7 +16,7 @@ import type { Database } from '@/integrations/supabase/types';
 type ProductInsert = Database['public']['Tables']['products']['Insert'];
 type ProductUpdate = Database['public']['Tables']['products']['Update'];
 
-type View = 'products' | 'orders' | 'drop-settings' | 'discounts' | 'reviews';
+type View = 'products' | 'orders' | 'drop-settings' | 'discounts' | 'reviews' | 'newsletter';
 type CustomProductStatus = 'available' | 'draft' | 'drop' | 'sold';
 type DropTypeChoice = 'global' | 'custom';
 type ProductTypeChoice = 'boot' | 'accessory';
@@ -31,6 +32,13 @@ interface DiscountCode {
   discount_type: 'percentage' | 'fixed';
   discount_value: number;
   uses_left: number;
+  created_at: string;
+}
+
+interface Subscriber {
+  id: string;
+  email: string;
+  discount_code: string | null;
   created_at: string;
 }
 
@@ -80,7 +88,7 @@ function playOrderChime() {
     gain.connect(ctx.destination);
     osc.start();
     osc.stop(ctx.currentTime + 0.6);
-  } catch (err) {
+  } catch {
     console.log('Audio disabled or blocked by browser');
   }
 }
@@ -165,7 +173,10 @@ function AdminPage() {
   const [orders, setOrders] = useState<(Order & { product?: Product })[]>([]);
   const [discounts, setDiscounts] = useState<DiscountCode[]>([]);
   const [reviews, setReviews] = useState<AdminReview[]>([]);
+  const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
   const [loading, setLoading] = useState(false);
+  const [sendingDropEmail, setSendingDropEmail] = useState(false);
+
   const [form, setForm] = useState<ProductForm>(EMPTY_BOOT_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -247,6 +258,58 @@ function AdminPage() {
       console.error('Błąd ładowania opinii:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadSubscribers = async () => {
+    setLoading(true);
+    try {
+      const { data } = await supabase.from('drop_subscribers').select('*').order('created_at', { ascending: false });
+      if (data) setSubscribers(data as Subscriber[]);
+    } catch (err) {
+      console.error('Błąd ładowania subskrybentów:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSendDropAnnouncement = async () => {
+    if (subscribers.length === 0) {
+      showToast('Brak zapisanych subskrybentów');
+      return;
+    }
+
+    const confirmSend = window.confirm(
+      `Czy na pewno chcesz wysłać alert o nowym dropie do wszystkich ${subscribers.length} subskrybentów?`
+    );
+    if (!confirmSend) return;
+
+    setSendingDropEmail(true);
+
+    try {
+      const response = await fetch(
+        'https://kwumqkqnwqbfvpzavclv.supabase.co/functions/v1/send-drop-email',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'text/plain',
+          },
+          body: JSON.stringify({
+            type: 'drop_created',
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Błąd serwera: ${response.status}`);
+      }
+
+      showToast(`Powiadomienia wysłane do ${subscribers.length} osób!`);
+    } catch (err: any) {
+      console.error('Błąd wysyłki alertu dropu:', err);
+      showToast('Nie udało się wysłać powiadomień.');
+    } finally {
+      setSendingDropEmail(false);
     }
   };
 
@@ -369,7 +432,6 @@ function AdminPage() {
             status: 'available',
           }).eq('id', productId);
 
-          // 1. Skarpety
           const { data: sockProd } = await supabase
             .from('products')
             .select('*')
@@ -385,7 +447,6 @@ function AdminPage() {
             }).eq('id', sockProd.id);
           }
 
-          // 2. Ochraniacze
           const rawNote = targetOrder.paczkomat_code || targetOrder.shipping_address || targetOrder.product?.size_eu || '';
           const chosenSize: 'S' | 'XS' = rawNote.toUpperCase().includes('XS') ? 'XS' : 'S';
           const chosenTapeColorKey = rawNote.toLowerCase().includes('biał') ? 'biał' : 'czarn';
@@ -423,7 +484,6 @@ function AdminPage() {
             } catch {}
           }
 
-          // 3. Taśma
           const { data: tapeProds } = await supabase
             .from('products')
             .select('*')
@@ -661,7 +721,14 @@ function AdminPage() {
   useEffect(() => {
     if (!authed) return;
     const boot = async () => {
-      await Promise.all([loadProducts(), loadOrders(), loadDropSettings(), loadDiscounts(), loadReviews()]);
+      await Promise.all([
+        loadProducts(),
+        loadOrders(),
+        loadDropSettings(),
+        loadDiscounts(),
+        loadReviews(),
+        loadSubscribers()
+      ]);
     };
     boot();
 
@@ -1080,6 +1147,7 @@ function AdminPage() {
               ordersCount={orders.length}
               discountsCount={discounts.length}
               reviewsCount={reviews.length}
+              subscribersCount={subscribers.length}
               onLogout={handleLogout} 
             />
           </aside>
@@ -1103,6 +1171,7 @@ function AdminPage() {
             ordersCount={orders.length}
             discountsCount={discounts.length}
             reviewsCount={reviews.length}
+            subscribersCount={subscribers.length}
             onLogout={handleLogout} 
           />
         </aside>
@@ -1858,31 +1927,30 @@ function AdminPage() {
                                 </p>
 
                                 {variantText ? (
-  <div className="space-y-1.5 pt-1.5">
-    <p className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
-      Skład zestawu do spakowania:
-    </p>
-    <div className="flex flex-wrap gap-1.5">
-      {/* Gwarancja wyświetlenia skarpet dla zestawu */}
-      {!variantText.toLowerCase().includes('skarpety') && (
-        <span className="text-xs font-bold text-white bg-white/5 border border-neutral-700 px-2.5 py-1 rounded-lg flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#FF6B00]" />
-          Skarpety: One Size (41-44)
-        </span>
-      )}
+                                  <div className="space-y-1.5 pt-1.5">
+                                    <p className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
+                                      Skład zestawu do spakowania:
+                                    </p>
+                                    <div className="flex flex-wrap gap-1.5">
+                                      {!variantText.toLowerCase().includes('skarpety') && (
+                                        <span className="text-xs font-bold text-white bg-white/5 border border-neutral-700 px-2.5 py-1 rounded-lg flex items-center gap-1.5">
+                                          <span className="w-1.5 h-1.5 rounded-full bg-[#FF6B00]" />
+                                          Skarpety: One Size (41-44)
+                                        </span>
+                                      )}
 
-      {variantText.split('|').map((part, idx) => (
-        <span
-          key={idx}
-          className="text-xs font-bold text-white bg-white/5 border border-neutral-700 px-2.5 py-1 rounded-lg flex items-center gap-1.5"
-        >
-          <span className="w-1.5 h-1.5 rounded-full bg-[#FF6B00]" />
-          {part.trim()}
-        </span>
-      ))}
-    </div>
-  </div>
-) : selectedOrder.product?.size_eu ? (
+                                      {variantText.split('|').map((part, idx) => (
+                                        <span
+                                          key={idx}
+                                          className="text-xs font-bold text-white bg-white/5 border border-neutral-700 px-2.5 py-1 rounded-lg flex items-center gap-1.5"
+                                        >
+                                          <span className="w-1.5 h-1.5 rounded-full bg-[#FF6B00]" />
+                                          {part.trim()}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                ) : selectedOrder.product?.size_eu ? (
                                   <p className="text-xs text-neutral-400">
                                     Rozmiar: <span className="text-white font-semibold">{selectedOrder.product.size_eu}</span>
                                   </p>
@@ -2229,6 +2297,104 @@ function AdminPage() {
               )}
             </div>
           )}
+
+          {/* NOWA ZAKŁADKA: NEWSLETTER I POWIADOMIENIA O DROPACH */}
+          {view === 'newsletter' && (
+            <div className="animate-fade-in max-w-5xl space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-800/80 pb-6">
+                <div>
+                  <div className="flex items-center gap-2 text-xs font-bold text-[#FF6B00] uppercase tracking-wider mb-1">
+                    <Users className="w-4 h-4" />
+                    BubrClub & Newsletter
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">
+                    Subskrybenci ({subscribers.length})
+                  </h2>
+                  <p className="text-xs sm:text-sm text-neutral-400">
+                    Baza osób oczekujących na alerty i kody rabatowe.
+                  </p>
+                </div>
+
+                <button
+                  onClick={handleSendDropAnnouncement}
+                  disabled={sendingDropEmail || loading || subscribers.length === 0}
+                  className="bg-[#FF6B00] hover:bg-[#FF7A00] disabled:opacity-50 text-black font-black px-5 py-3 rounded-xl flex items-center justify-center gap-2 text-xs sm:text-sm uppercase tracking-wider transition-all active:scale-95 shadow-[0_4px_16px_rgba(255,107,0,0.25)] flex-shrink-0"
+                >
+                  {sendingDropEmail ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-black" />
+                      Wysyłanie powiadomień...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4" />
+                      Wyślij alert: Nowy drop utworzony
+                    </>
+                  )}
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-xs text-neutral-400">
+                  <span>Zapisane adresy e-mail:</span>
+                  <button 
+                    onClick={loadSubscribers} 
+                    className="hover:text-white transition-colors underline"
+                  >
+                    Odśwież listę
+                  </button>
+                </div>
+
+                {loading ? (
+                  <div className="py-16 flex flex-col items-center justify-center text-neutral-500 gap-2">
+                    <Loader2 className="w-6 h-6 animate-spin text-[#FF6B00]" />
+                    <span className="text-xs">Ładowanie bazy subskrybentów...</span>
+                  </div>
+                ) : subscribers.length === 0 ? (
+                  <div className="py-16 border border-dashed border-neutral-800 rounded-2xl text-center text-neutral-500 text-xs">
+                    Brak zapisanych osób w bazie.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto rounded-2xl border border-neutral-800">
+                    <table className="w-full text-left border-collapse text-xs sm:text-sm">
+                      <thead>
+                        <tr className="bg-[#1a1a1a] text-neutral-400 border-b border-neutral-800">
+                          <th className="p-3.5 font-semibold">Adres e-mail</th>
+                          <th className="p-3.5 font-semibold">Przypisany kod -5%</th>
+                          <th className="p-3.5 font-semibold">Data zapisu</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-neutral-800/60 bg-[#141414]">
+                        {subscribers.map((sub) => (
+                          <tr key={sub.id} className="hover:bg-neutral-900/50 transition-colors">
+                            <td className="p-3.5 font-medium text-white flex items-center gap-2">
+                              <Mail className="w-3.5 h-3.5 text-[#FF6B00]" />
+                              {sub.email}
+                            </td>
+                            <td className="p-3.5">
+                              {sub.discount_code ? (
+                                <span className="inline-block bg-[#FF6B00]/10 border border-[#FF6B00]/30 text-[#FF6B00] font-mono text-xs font-bold px-2.5 py-0.5 rounded-md">
+                                  {sub.discount_code}
+                                </span>
+                              ) : (
+                                <span className="text-neutral-600">—</span>
+                              )}
+                            </td>
+                            <td className="p-3.5 text-neutral-400 font-mono text-xs">
+                              {new Date(sub.created_at).toLocaleString('pl-PL', {
+                                dateStyle: 'short',
+                                timeStyle: 'short',
+                              })}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </main>
       </div>
     </div>
@@ -2236,7 +2402,7 @@ function AdminPage() {
 }
 
 function AdminNav({
-  view, setView, setForm, setEditingId, productsCount, ordersCount, discountsCount, reviewsCount, onLogout,
+  view, setView, setForm, setEditingId, productsCount, ordersCount, discountsCount, reviewsCount, subscribersCount, onLogout,
 }: {
   view: View;
   setView: (v: View) => void;
@@ -2246,6 +2412,7 @@ function AdminNav({
   ordersCount: number;
   discountsCount: number;
   reviewsCount: number;
+  subscribersCount: number;
   onLogout: () => void;
 }) {
   return (
@@ -2270,6 +2437,13 @@ function AdminNav({
           className={cn('flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-medium transition-all active:scale-95', view === 'drop-settings' ? 'bg-[#FF6B00]/15 text-[#FF6B00]' : 'text-neutral-400 hover:text-white hover:bg-white/5')}
         >
           <Sparkles className="w-4 h-4" /> Ustawienia dropu
+        </button>
+        <button
+          onClick={() => setView('newsletter')}
+          className={cn('flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-medium transition-all active:scale-95', view === 'newsletter' ? 'bg-[#FF6B00]/15 text-[#FF6B00]' : 'text-neutral-400 hover:text-white hover:bg-white/5')}
+        >
+          <Users className="w-4 h-4" /> Newsletter & Alerty
+          <span className="ml-auto text-xs bg-[#FF6B00]/20 text-[#FF6B00] font-bold px-1.5 py-0.5 rounded-full">{subscribersCount}</span>
         </button>
         <button
           onClick={() => setView('discounts')}
