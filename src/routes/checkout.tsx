@@ -88,7 +88,6 @@ function CheckoutPage() {
   const shippingCost = shippingCostFor(form.shippingMethod, discountedTotal);
   const orderTotal = discountedTotal + shippingCost;
 
-  // Ładowanie WSZYSTKICH dostępnych akcesoriów do sekcji "Dobierz do zestawu"
   useEffect(() => {
     const fetchAccessories = async () => {
       const { data } = await supabase
@@ -100,7 +99,6 @@ function CheckoutPage() {
 
       if (data && data.length > 0) {
         setBundleAccessories(data as Product[]);
-        // Losujemy indeks startowy, żeby za każdym razem mogło pokazać się coś innego
         setCurrentBundleIndex(Math.floor(Math.random() * data.length));
       }
     };
@@ -516,7 +514,7 @@ function CheckoutPage() {
       let firstRecord: Order | null = null;
       const cleanPhone = `+48${form.phone.replace(/\D/g, '')}`;
 
-      for (const { product, quantity } of items) {
+      for (const { product, quantity, variant } of items) {
         let itemPrice = product.price;
         if (appliedPromo) {
           if (appliedPromo.discount_type === 'percentage') {
@@ -528,7 +526,7 @@ function CheckoutPage() {
         }
 
         const itemTotal = itemPrice * quantity + shippingCost;
-        const variantNote = product.size_eu ? ` [Wariant: ${product.size_eu}]` : '';
+        const variantNote = variant ? ` [Wariant: ${variant}]` : (product.size_eu ? ` [Wariant: ${product.size_eu}]` : '');
 
         const orderPayload = {
           product_id: product.id,
@@ -1085,11 +1083,10 @@ function CheckoutPage() {
             <div className="bg-[#141414] rounded-2xl border border-neutral-800/80 p-4 sm:p-6 lg:sticky lg:top-24 animate-fade-in-up">
               <h2 className="font-bold text-white mb-4 uppercase tracking-wider text-sm">Podsumowanie</h2>
               
-              {/* Lista produktów z możliwością usunięcia i kliknięcia */}
               <div className="space-y-3 mb-4 max-h-56 overflow-y-auto pr-1">
-                {items.map(({ product, quantity }) => {
+                {items.map(({ product, quantity, variant }) => {
                   return (
-                    <div key={product.id} className="flex items-center gap-3 bg-black/40 border border-neutral-800/80 rounded-xl p-2.5 group">
+                    <div key={`${product.id}-${variant || ''}`} className="flex items-center gap-3 bg-black/40 border border-neutral-800/80 rounded-xl p-2.5 group">
                       <Link 
                         to="/product/$id" 
                         params={{ id: product.id }}
@@ -1104,12 +1101,12 @@ function CheckoutPage() {
                       >
                         <p className="text-xs font-semibold text-white truncate hover:text-[#FF6B00] transition-colors">{product.name}</p>
                         <p className="text-[11px] text-neutral-500 truncate">
-                          {quantity > 1 ? `Ilość: ${quantity} szt. · ` : ''}{product.size_eu || ''}
+                          {quantity > 1 ? `Ilość: ${quantity} szt. · ` : ''}{variant || product.size_eu || ''}
                         </p>
                         <p className="text-xs font-bold text-[#FF6B00] mt-0.5">{formatPrice(product.price * quantity)}</p>
                       </Link>
                       <button
-                        onClick={() => removeItem(product.id)}
+                        onClick={() => removeItem(product.id, variant)}
                         className="text-neutral-600 hover:text-red-400 p-1.5 rounded-lg transition-colors flex-shrink-0"
                         title="Usuń produkt"
                       >
@@ -1120,7 +1117,6 @@ function CheckoutPage() {
                 })}
               </div>
 
-              {/* Sekcja "Dobierz do zestawu" w kasie z obsługą rozmiarów */}
               {currentAccessory && (
                 <div className="border border-neutral-800 bg-white/[0.02] rounded-xl p-3 mb-4">
                   <div className="flex items-center justify-between mb-2.5">
@@ -1150,7 +1146,6 @@ function CheckoutPage() {
                     </div>
                   </div>
 
-                  {/* Wybór rozmiaru dla akcesoriów które go wymagają (np. ochraniacze) */}
                   {isShinGuards && (
                     <div className="flex items-center justify-between bg-black/40 border border-neutral-800 rounded-lg p-2 mb-2.5">
                       <span className="text-[11px] text-neutral-400 font-medium">Rozmiar:</span>
