@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCart } from '@/lib/cart-context';
-import { supabase, formatOrderNumber, Order } from '@/lib/supabase';
+import { supabase, formatOrderNumber, Order, Product } from '@/lib/supabase';
 import { formatPrice, INPUT_CLASS, cn } from '@/lib/utils';
 import { shippingCostFor, FREE_SHIPPING_THRESHOLD } from '@/lib/shipping';
 import Header from '@/components/Header';
@@ -10,9 +10,9 @@ import {
   ArrowLeft, Package, Truck, CreditCard, 
   Loader as Loader2, MapPin, Tag, X, Check, 
   CircleAlert as AlertCircle, Lock, ShieldCheck, 
-  PackageOpen, ArrowRight, ExternalLink, Search
+  PackageOpen, ArrowRight, ExternalLink, Search, Trash2, Plus, Zap
 } from 'lucide-react';
-import { Link } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 
 interface InPostPoint {
   name: string;
@@ -43,11 +43,20 @@ function isMatchingShinGuardSize(variantSizeName: string, chosenSize: 'S' | 'XS'
 }
 
 function CheckoutPage() {
-  const { items, total, discountedTotal, discountAmount, appliedPromo, applyPromo, removePromo, clearCart } = useCart();
+  const navigate = useNavigate();
+  const { items, total, discountedTotal, discountAmount, appliedPromo, applyPromo, removePromo, clearCart, removeItem, addItem } = useCart();
+  
   const [step, setStep] = useState<'summary' | 'success'>('summary');
   const [submitting, setSubmitting] = useState(false);
   const [orderId, setOrderId] = useState('');
   const [orderRecord, setOrderRecord] = useState<Order | null>(null);
+  
+  // Stan do sekcji "Dobierz do zestawu" w kasie
+  const [bundleAccessory, setBundleAccessory] = useState<Product | null>(null);
+  const [bundleLoading, setBundleLoading] = useState(false);
+  const [selectedBundleSize, setSelectedBundleSize] = useState<'S' | 'XS'>('S');
+  const [selectedBundleColor, setSelectedBundleColor] = useState<'białe' | 'czarne'>('czarne');
+  const [bundleAdded, setBundleAdded] = useState(false);
   
   // Wyszukiwarka Paczkomatów
   const [showInpostModal, setShowInpostModal] = useState(false);
@@ -79,6 +88,38 @@ function CheckoutPage() {
 
   const shippingCost = shippingCostFor(form.shippingMethod, discountedTotal);
   const orderTotal = discountedTotal + shippingCost;
+
+  // Ładowanie akcesorium do sekcji "Dobierz do zestawu"
+  useEffect(() => {
+    const fetchAccessory = async () => {
+      const { data } = await supabase
+        .from('products')
+        .select('*')
+        .or('brand.eq.footbubr,accessory_type.not.is.null')
+        .eq('status', 'available')
+        .gt('stock_quantity', 0)
+        .limit(1)
+        .maybeSingle();
+
+      if (data) {
+        setBundleAccessory(data as Product);
+      }
+    };
+    fetchAccessory();
+  }, []);
+
+  const handleAddBundleAccessory = () => {
+    if (!bundleAccessory) return;
+    setBundleLoading(true);
+    
+    const isShinGuards = (bundleAccessory.name || '').toLowerCase().includes('ochraniacze') || bundleAccessory.accessory_type === 'Mini ochraniacze';
+    const configVariant = isShinGuards ? `Rozmiar: ${selectedBundleSize} · ${selectedBundleColor}` : undefined;
+
+    addItem(bundleAccessory, 1, configVariant);
+    setBundleAdded(true);
+    setBundleLoading(false);
+    setTimeout(() => setBundleAdded(false), 2500);
+  };
 
   // Inteligentne sortowanie trafień z priorytetem numeru i ulicy
   const sortPointsByRelevance = (itemsList: InPostPoint[], query: string): InPostPoint[] => {
@@ -115,7 +156,6 @@ function CheckoutPage() {
     setSearchMessage('');
 
     try {
-      // 1. Sprawdzenie czy wpisano bezpośredni kod paczkomatu (np. WRO14H, KRA01M)
       const cleanCode = raw.toUpperCase().replace(/\s+/g, '');
       if (/^[A-Z]{3}[0-9]{2,}[A-Z0-9]*$/.test(cleanCode)) {
         const resCode = await fetch(`https://api-pl-points.easypack24.net/v1/points/${cleanCode}`);
@@ -129,7 +169,6 @@ function CheckoutPage() {
         }
       }
 
-      // 2. Jeśli wpisano kod pocztowy (np. 50-323 lub 50323)
       const postalMatch = raw.match(/\d{2}-?\d{3}/);
       if (postalMatch) {
         const pCode = postalMatch[0].includes('-') ? postalMatch[0] : `${postalMatch[0].slice(0, 2)}-${postalMatch[0].slice(2)}`;
@@ -144,7 +183,6 @@ function CheckoutPage() {
         }
       }
 
-      // 3. Sprawdzenie czy to samo miasto (brak cyfr, jedno słowo)
       const isJustCity = !/\d/.test(raw) && raw.split(/\s+/).length <= 2;
       if (isJustCity) {
         const resCity = await fetch(
@@ -158,7 +196,6 @@ function CheckoutPage() {
         }
       }
 
-      // 4. Geokodowanie (działa precyzyjnie dla ulic, np. "Kluczborska", "Kluczborska 5", "Kluczborska Wrocław")
       let coords: { lat: number; lng: number } | null = null;
       try {
         const normalizedQuery = raw.replace(/([a-zA-ZąćęłńóśźżĄĆĘŁŃÓŚŹŻ])(\d)/g, '$1 $2');
@@ -176,7 +213,6 @@ function CheckoutPage() {
         console.warn('Geocoding fallback', err);
       }
 
-      // 5. Wyszukiwanie w InPost po koordynatach
       if (coords && !isNaN(coords.lat) && !isNaN(coords.lng)) {
         const resNear = await fetch(
           `https://api-pl-points.easypack24.net/v1/points?type=parcel_locker&relative_point=${coords.lat},${coords.lng}&limit=30`
@@ -316,7 +352,6 @@ function CheckoutPage() {
           const chosenShinGuardSize: 'S' | 'XS' = configStr.toUpperCase().includes('XS') ? 'XS' : 'S';
           const chosenTapeColorKey = configStr.toLowerCase().includes('biał') ? 'biał' : 'czarn';
 
-          // 1. Skarpety
           const { data: sockProd } = await supabase
             .from('products')
             .select('*')
@@ -338,7 +373,6 @@ function CheckoutPage() {
             });
           }
 
-          // 2. Ochraniacze
           const { data: shinProd } = await supabase
             .from('products')
             .select('*')
@@ -391,7 +425,6 @@ function CheckoutPage() {
             }
           }
 
-          // 3. Taśma
           const { data: tapeProds } = await supabase
             .from('products')
             .select('*')
@@ -784,10 +817,10 @@ function CheckoutPage() {
                         >
                           Wybierz
                         </button>
-                      </div>
-                    );
-                  })}
-                </div>
+                    </div>
+                  );
+                })}
+              </div>
               )}
 
               {!searchingPoints && pointsList.length === 0 && (
@@ -1051,22 +1084,78 @@ function CheckoutPage() {
           <div className="lg:col-span-2">
             <div className="bg-[#141414] rounded-2xl border border-neutral-800/80 p-4 sm:p-6 lg:sticky lg:top-24 animate-fade-in-up">
               <h2 className="font-bold text-white mb-4 uppercase tracking-wider text-sm">Podsumowanie</h2>
-              <div className="space-y-3 mb-4 max-h-48 overflow-y-auto">
-                {items.map(({ product, quantity }) => (
-                  <div key={product.id} className="flex gap-3">
-                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden bg-white/5 border border-neutral-800 flex-shrink-0">
-                      {product.images && product.images[0] && <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" />}
+              
+              {/* Lista produktów z możliwością usunięcia i kliknięcia */}
+              <div className="space-y-3 mb-4 max-h-56 overflow-y-auto pr-1">
+                {items.map(({ product, quantity }) => {
+                  const isShinGuards = (product.name || '').toLowerCase().includes('ochraniacze') || product.accessory_type === 'Mini ochraniacze';
+                  const isSocks = (product.name || '').toLowerCase().includes('skarpety') || product.accessory_type === 'Skarpety antypoślizgowe';
+                  const isBundle = product.accessory_type === 'Zestawy FOOTBUBR' || (product.name || '').toLowerCase().includes('zestaw');
+
+                  return (
+                    <div key={product.id} className="flex items-center gap-3 bg-black/40 border border-neutral-800/80 rounded-xl p-2.5 group">
+                      <div 
+                        onClick={() => navigate({ to: '/product/$id', params: { id: product.id } })}
+                        className="w-12 h-12 sm:w-13 sm:h-13 rounded-lg overflow-hidden bg-white/5 border border-neutral-800 flex-shrink-0 cursor-pointer relative"
+                      >
+                        {product.images && product.images[0] && <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />}
+                      </div>
+                      <div 
+                        onClick={() => navigate({ to: '/product/$id', params: { id: product.id } })}
+                        className="flex-1 min-w-0 cursor-pointer"
+                      >
+                        <p className="text-xs font-semibold text-white truncate hover:text-[#FF6B00] transition-colors">{product.name}</p>
+                        <p className="text-[11px] text-neutral-500 truncate">
+                          {quantity > 1 ? `Ilość: ${quantity} szt. · ` : ''}{product.size_eu || ''}
+                        </p>
+                        <p className="text-xs font-bold text-[#FF6B00] mt-0.5">{formatPrice(product.price * quantity)}</p>
+                      </div>
+                      <button
+                        onClick={() => removeItem(product.id)}
+                        className="text-neutral-600 hover:text-red-400 p-1.5 rounded-lg transition-colors flex-shrink-0"
+                        title="Usuń produkt"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Sekcja "Dobierz do zestawu" w kasie */}
+              {bundleAccessory && (
+                <div className="border border-neutral-800 bg-white/[0.02] rounded-xl p-3 mb-4">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-[#FF6B00] uppercase tracking-wider mb-2.5">
+                    <Zap className="w-3.5 h-3.5" />
+                    Dobierz do zestawu
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-lg overflow-hidden bg-white/5 border border-neutral-800 flex-shrink-0">
+                      {bundleAccessory.images && bundleAccessory.images[0] && (
+                        <img src={bundleAccessory.images[0]} alt={bundleAccessory.name} className="w-full h-full object-cover" />
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-white truncate">{product.name}</p>
-                      <p className="text-xs text-neutral-500 truncate">
-                        {quantity > 1 ? `Ilość: ${quantity} szt. · ` : ''}{product.size_eu}
-                      </p>
-                      <p className="text-sm font-bold text-[#FF6B00] mt-0.5">{formatPrice(product.price * quantity)}</p>
+                      <p className="text-xs font-medium text-white truncate">{bundleAccessory.name}</p>
+                      <p className="text-xs font-bold text-[#FF6B00]">{formatPrice(bundleAccessory.price)}</p>
                     </div>
+                    <button
+                      onClick={handleAddBundleAccessory}
+                      disabled={bundleLoading}
+                      className={cn(
+                        'px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 flex-shrink-0',
+                        bundleAdded 
+                          ? 'bg-emerald-500 text-black' 
+                          : 'bg-white/10 hover:bg-[#FF6B00] hover:text-black text-white'
+                      )}
+                    >
+                      {bundleAdded ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : <Plus className="w-3.5 h-3.5" />}
+                      {bundleAdded ? 'Dodano' : 'Dodaj'}
+                    </button>
                   </div>
-                ))}
-              </div>
+                </div>
+              )}
 
               <div className="border-t border-neutral-800 pt-4 space-y-3">
                 {appliedPromo ? (
@@ -1095,110 +1184,109 @@ function CheckoutPage() {
                           onChange={(e) => { setPromoInput(e.target.value.toUpperCase()); setPromoErrorMsg(''); }}
                           onKeyDown={(e) => e.key === 'Enter' && handleApplyPromo()}
                           className="w-full bg-white/5 border border-neutral-800 rounded-xl pl-9 pr-3 py-2.5 text-sm text-neutral-100 placeholder:text-neutral-500 focus:outline-none focus:border-[#FF6B00]/60 uppercase font-mono transition-all"
-                        />
-                      </div>
-                      <button
-                        onClick={handleApplyPromo}
-                        disabled={promoLoading || !promoInput.trim()}
-                        className="px-4 py-2.5 bg-white/10 hover:bg-white/15 text-white text-sm font-semibold rounded-xl transition-all active:scale-95 flex-shrink-0 disabled:opacity-40"
-                      >
-                        {promoLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Zastosuj'}
-                      </button>
+                      />
                     </div>
-                    {promoErrorMsg && (
-                      <p className="text-red-400 text-xs flex items-center gap-1.5 animate-fade-in">
-                        <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
-                        {promoErrorMsg}
-                      </p>
-                    )}
+                    <button
+                      onClick={handleApplyPromo}
+                      disabled={promoLoading || !promoInput.trim()}
+                      className="px-4 py-2.5 bg-white/10 hover:bg-white/15 text-white text-sm font-semibold rounded-xl transition-all active:scale-95 flex-shrink-0 disabled:opacity-40"
+                    >
+                      {promoLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Zastosuj'}
+                    </button>
                   </div>
-                )}
-              </div>
-
-              <div className="border-t border-neutral-800 mt-4 pt-4 space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-neutral-500">Produkty</span>
-                  <span className="text-white">{formatPrice(total)}</span>
-                </div>
-                {discountAmount > 0 && appliedPromo && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-emerald-400 flex items-center gap-1.5">
-                      <Check className="w-3.5 h-3.5 stroke-[3]" />
-                      Rabat {appliedPromo.discount_type === 'percentage' ? `-${appliedPromo.discount_value}%` : `-${appliedPromo.discount_value} PLN`}
-                    </span>
-                    <span className="text-emerald-400 font-medium">-{formatPrice(discountAmount)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between text-sm">
-                  <span className="text-neutral-500">Wysyłka</span>
-                  <span className="text-white">{shippingCost === 0 ? <span className="text-emerald-400 font-bold">DARMOWA</span> : formatPrice(shippingCost)}</span>
-                </div>
-                {discountedTotal < FREE_SHIPPING_THRESHOLD && (
-                  <p className="text-xs text-neutral-600 pt-1">
-                    Darmowa dostawa od {formatPrice(FREE_SHIPPING_THRESHOLD)} - brakuje {formatPrice(FREE_SHIPPING_THRESHOLD - discountedTotal)}
-                  </p>
-                )}
-                <div className="flex justify-between font-bold mt-3 pt-3 border-t border-neutral-800">
-                  <span className="text-white">Razem</span>
-                  <div className="text-right">
-                    {discountAmount > 0 && (
-                      <span className="text-xs text-neutral-600 line-through block">{formatPrice(total + shippingCost)}</span>
-                    )}
-                    <span className="text-[#FF6B00] text-lg">{formatPrice(orderTotal)}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-4 mt-4 border-t border-neutral-800">
-                <label className="flex items-start gap-3 cursor-pointer group select-none">
-                  <input
-                    type="checkbox"
-                    checked={acceptTerms}
-                    onChange={(e) => {
-                      setAcceptTerms(e.target.checked);
-                      if (errors.acceptTerms) setErrors({ ...errors, acceptTerms: '' });
-                    }}
-                    className="mt-0.5 w-4 h-4 rounded border-neutral-700 bg-black/40 text-[#FF6B00] focus:ring-[#FF6B00] focus:ring-offset-0 cursor-pointer accent-[#FF6B00]"
-                  />
-                  <span className="text-xs text-neutral-400 leading-snug group-hover:text-neutral-300">
-                    Oświadczam, że znam i akceptuję postanowienia{' '}
-                    <Link to="/terms" target="_blank" className="text-[#FF6B00] underline hover:text-[#FF7A00]">
-                      Regulaminu
-                    </Link>{' '}
-                    oraz{' '}
-                    <Link to="/privacy" target="_blank" className="text-[#FF6B00] underline hover:text-[#FF7A00]">
-                      Polityki Prywatności
-                    </Link>
-                    . *
-                  </span>
-                </label>
-                {errors.acceptTerms && <p className="text-red-400 text-xs mt-1.5">{errors.acceptTerms}</p>}
-              </div>
-
-              {generalError && (
-                <div className="mt-4 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-xs flex items-center gap-2 animate-fade-in">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                  <span>{generalError}</span>
+                  {promoErrorMsg && (
+                    <p className="text-red-400 text-xs flex items-center gap-1.5 animate-fade-in">
+                      <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                      {promoErrorMsg}
+                    </p>
+                  )}
                 </div>
               )}
+            </div>
 
-              <button
-                onClick={handleSubmit}
-                disabled={submitting}
-                className="flex items-center justify-center gap-2 w-full bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-black py-3.5 rounded-xl mt-4 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_4px_15px_rgba(255,107,0,0.25)]"
-              >
-                {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Lock className="w-4 h-4 text-black" />}
-                {submitting ? 'Przetwarzanie...' : 'Złóż zamówienie i zapłać'}
-              </button>
-
-              <div className="mt-3 flex items-center justify-center gap-3 text-[11px] text-neutral-500">
-                <span className="flex items-center gap-1">
-                  <ShieldCheck className="w-3.5 h-3.5 text-[#FF6B00]" /> 100% Oryginalne
-                </span>
-                <span>•</span>
-                <span>14 dni na zwrot</span>
+            <div className="border-t border-neutral-800 mt-4 pt-4 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-neutral-500">Produkty</span>
+                <span className="text-white">{formatPrice(total)}</span>
+              </div>
+              {discountAmount > 0 && appliedPromo && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-emerald-400 flex items-center gap-1.5">
+                    <Check className="w-3.5 h-3.5 stroke-[3]" />
+                    Rabat {appliedPromo.discount_type === 'percentage' ? `-${appliedPromo.discount_value}%` : `-${appliedPromo.discount_value} PLN`}
+                  </span>
+                  <span className="text-emerald-400 font-medium">-{formatPrice(discountAmount)}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-sm">
+                <span className="text-neutral-500">Wysyłka</span>
+                <span className="text-white">{shippingCost === 0 ? <span className="text-emerald-400 font-bold">DARMOWA</span> : formatPrice(shippingCost)}</span>
+              </div>
+              {discountedTotal < FREE_SHIPPING_THRESHOLD && (
+                <p className="text-xs text-neutral-600 pt-1">
+                  Darmowa dostawa od {formatPrice(FREE_SHIPPING_THRESHOLD)} - brakuje {formatPrice(FREE_SHIPPING_THRESHOLD - discountedTotal)}
+                </p>
+              )}
+              <div className="flex justify-between font-bold mt-3 pt-3 border-t border-neutral-800">
+                <span className="text-white">Razem</span>
+                <div className="text-right">
+                  {discountAmount > 0 && (
+                    <span className="text-xs text-neutral-600 line-through block">{formatPrice(total + shippingCost)}</span>
+                  )}
+                  <span className="text-[#FF6B00] text-lg">{formatPrice(orderTotal)}</span>
+                </div>
               </div>
             </div>
+
+            <div className="pt-4 mt-4 border-t border-neutral-800">
+              <label className="flex items-start gap-3 cursor-pointer group select-none">
+                <input
+                  type="checkbox"
+                  checked={acceptTerms}
+                  onChange={(e) => {
+                    setAcceptTerms(e.target.checked);
+                    if (errors.acceptTerms) setErrors({ ...errors, acceptTerms: '' });
+                  }}
+                  className="mt-0.5 w-4 h-4 rounded border-neutral-700 bg-black/40 text-[#FF6B00] focus:ring-[#FF6B00] focus:ring-offset-0 cursor-pointer accent-[#FF6B00]"
+                />
+                <span className="text-xs text-neutral-400 leading-snug group-hover:text-neutral-300">
+                  Oświadczam, że znam i akceptuję postanowienia{' '}
+                  <Link to="/terms" target="_blank" className="text-[#FF6B00] underline hover:text-[#FF7A00]">
+                    Regulaminu
+                  </Link>{' '}
+                  oraz{' '}
+                  <Link to="/privacy" target="_blank" className="text-[#FF6B00] underline hover:text-[#FF7A00]">
+                    Polityki Prywatności
+                  </Link>
+                  . *
+                </span>
+              </label>
+              {errors.acceptTerms && <p className="text-red-400 text-xs mt-1.5">{errors.acceptTerms}</p>}
+            </div>
+
+            {generalError && (
+              <div className="mt-4 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-xs flex items-center gap-2 animate-fade-in">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{generalError}</span>
+            </div>
+          )}
+
+          <button
+            onClick={handleSubmit}
+            disabled={submitting}
+            className="flex items-center justify-center gap-2 w-full bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-black py-3.5 rounded-xl mt-4 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_4px_15px_rgba(255,107,0,0.25)]"
+          >
+            {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Lock className="w-4 h-4 text-black" />}
+            {submitting ? 'Przetwarzanie...' : 'Złóż zamówienie i zapłać'}
+          </button>
+
+          <div className="mt-3 flex items-center justify-center gap-3 text-[11px] text-neutral-500">
+            <span className="flex items-center gap-1">
+              <ShieldCheck className="w-3.5 h-3.5 text-[#FF6B00]" /> 100% Oryginalne
+            </span>
+            <span>•</span>
+            <span>14 dni na zwrot</span>
+          </div>
           </div>
         </div>
       </div>
