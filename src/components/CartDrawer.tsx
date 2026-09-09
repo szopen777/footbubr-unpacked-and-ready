@@ -48,7 +48,7 @@ export default function CartDrawer() {
             </div>
           ) : (
             <>
-              {items.map(({ product, quantity }) => {
+              {items.map(({ product, quantity, variant }) => {
                 const pName = (product.name || '').toLowerCase();
                 const pBrand = (product.brand || '').toLowerCase();
                 const pModel = (product.model || '').toLowerCase();
@@ -64,7 +64,7 @@ export default function CartDrawer() {
                   Boolean(product.accessory_type);
 
                 return (
-                  <div key={product.id} className="flex gap-3 bg-white/5 rounded-xl p-3 border border-neutral-800/80 group hover:border-neutral-700 transition-all">
+                  <div key={`${product.id}-${variant || ''}`} className="flex gap-3 bg-white/5 rounded-xl p-3 border border-neutral-800/80 group hover:border-neutral-700 transition-all">
                     <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg overflow-hidden flex-shrink-0 bg-white/5">
                       {product.images[0] ? (
                         <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" />
@@ -76,24 +76,24 @@ export default function CartDrawer() {
                       <div>
                         <p className="font-semibold text-sm text-white leading-tight truncate">{product.name}</p>
                         <p className="text-neutral-500 text-xs mt-0.5">
-                          {product.brand} · {isAccessory ? `Rozmiar: ${product.size_eu}` : `EU ${product.size_eu}`}
+                          {product.brand} · {variant ? variant : (isAccessory ? `Rozmiar: ${product.size_eu}` : `EU ${product.size_eu}`)}
                         </p>
                         <p className="text-[#FF6B00] font-bold text-sm mt-1">{formatPrice(product.price)}</p>
                       </div>
 
-                      {/* Sterowanie ilością (dla akcesoriów z magazynem > 1) */}
+                      {/* Sterowanie ilością */}
                       {isAccessory && (product.stock_quantity ?? 1) > 1 ? (
                         <div className="flex items-center gap-2 mt-2">
                           <div className="flex items-center bg-black/40 border border-neutral-800 rounded-lg overflow-hidden">
                             <button
-                              onClick={() => updateQuantity(product.id, quantity - 1)}
+                              onClick={() => updateQuantity(product.id, quantity - 1, variant)}
                               className="p-1 text-neutral-400 hover:text-white hover:bg-white/5 transition-colors"
                             >
                               <Minus className="w-3.5 h-3.5" />
                             </button>
                             <span className="w-8 text-center font-bold text-white text-xs">{quantity}</span>
                             <button
-                              onClick={() => updateQuantity(product.id, quantity + 1)}
+                              onClick={() => updateQuantity(product.id, quantity + 1, variant)}
                               disabled={quantity >= (product.stock_quantity ?? 1)}
                               className="p-1 text-neutral-400 hover:text-white hover:bg-white/5 transition-colors disabled:opacity-30"
                             >
@@ -107,8 +107,9 @@ export default function CartDrawer() {
                       )}
                     </div>
                     <button
-                      onClick={() => removeItem(product.id)}
+                      onClick={() => removeItem(product.id, variant)}
                       className="p-1.5 text-neutral-700 hover:text-red-400 transition-colors self-start active:scale-90"
+                      title="Usuń produkt"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -125,7 +126,6 @@ export default function CartDrawer() {
         {/* Footer */}
         {items.length > 0 && (
           <div className="px-4 sm:px-6 py-4 border-t border-neutral-800 space-y-3">
-            {/* Pasek postępu darmowej dostawy */}
             <div className="bg-white/5 border border-neutral-800 rounded-xl px-3 py-2.5">
               {discountedTotal >= FREE_SHIPPING_THRESHOLD ? (
                 <p className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
