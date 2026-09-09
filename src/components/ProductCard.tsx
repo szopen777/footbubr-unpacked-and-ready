@@ -136,7 +136,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           )}
           <div className="bg-[#FF6B00] text-black font-black text-[10px] sm:text-xs uppercase px-2.5 py-1 rounded-xl shadow-lg truncate">
             {isAccessory 
-              ? ((product.size_eu || '').length > 10 ? 'S / XS' : (product.size_eu || 'ONE SIZE')) 
+              ? ((product as any).badge_label || product.size_eu || 'ONE SIZE') 
               : `EU ${product.size_eu}`}
           </div>
         </div>
