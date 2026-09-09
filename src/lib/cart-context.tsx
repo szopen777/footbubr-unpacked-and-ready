@@ -4,6 +4,7 @@ import { supabase, Product } from '@/lib/supabase';
 export interface CartItem {
   product: Product;
   quantity: number;
+  variant?: string; // Opcjonalny wariant/rozmiar (np. S, XS, białe/czarne)
 }
 
 export interface AppliedPromo {
@@ -16,10 +17,10 @@ export interface AppliedPromo {
 
 interface CartContextValue {
   items: CartItem[];
-  addItem: (product: Product, quantity?: number) => void;
-  addItemSilent: (product: Product, quantity?: number) => void;
-  removeItem: (productId: string) => void;
-  updateQuantity: (productId: string, quantity: number) => void;
+  addItem: (product: Product, quantity?: number, selectedVariant?: string) => void;
+  addItemSilent: (product: Product, quantity?: number, selectedVariant?: string) => void;
+  removeItem: (productId: string, variant?: string) => void;
+  updateQuantity: (productId: string, quantity: number, variant?: string) => void;
   clearCart: () => void;
   isOpen: boolean;
   openCart: () => void;
@@ -41,7 +42,6 @@ const CART_STORAGE_KEY = 'footbubr_cart';
 const PROMO_STORAGE_KEY = 'footbubr_promo';
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
-  // Inicjalizacja koszyka z localStorage
   const [items, setItems] = useState<CartItem[]>(() => {
     if (typeof window === 'undefined') return [];
     try {
@@ -54,7 +54,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const [isOpen, setIsOpen] = useState(false);
 
-  // Inicjalizacja kodu rabatowego z localStorage
   const [appliedPromo, setAppliedPromo] = useState<AppliedPromo | null>(() => {
     if (typeof window === 'undefined') return null;
     try {
@@ -67,7 +66,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const [cartPulse, setCartPulse] = useState(false);
 
-  // Automatyczny zapis koszyka
   useEffect(() => {
     try {
       localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
@@ -76,7 +74,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   }, [items]);
 
-  // Automatyczny zapis kodu promocyjnego
   useEffect(() => {
     try {
       if (appliedPromo) {
@@ -94,9 +91,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setTimeout(() => setCartPulse(false), 600);
   }, []);
 
-  const addItem = useCallback((product: Product, quantity = 1) => {
+  const addItem = useCallback((product: Product, quantity = 1, selectedVariant?: string) => {
     setItems((prev) => {
-      const existingIndex = prev.findIndex((i) => i.product.id === product.id);
+      const existingIndex = prev.findIndex(
+        (i) => i.product.id === product.id && (i.variant || '') === (selectedVariant || '')
+      );
       if (existingIndex > -1) {
         const updated = [...prev];
         const newQty = updated[existingIndex].quantity + quantity;
@@ -104,14 +103,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         updated[existingIndex].quantity = Math.min(newQty, maxStock);
         return updated;
       }
-      return [...prev, { product, quantity: Math.min(quantity, product.stock_quantity ?? 1) }];
+      return [...prev, { product, quantity: Math.min(quantity, product.stock_quantity ?? 1), variant: selectedVariant }];
     });
     setIsOpen(true);
   }, []);
 
-  const addItemSilent = useCallback((product: Product, quantity = 1) => {
+  const addItemSilent = useCallback((product: Product, quantity = 1, selectedVariant?: string) => {
     setItems((prev) => {
-      const existingIndex = prev.findIndex((i) => i.product.id === product.id);
+      const existingIndex = prev.findIndex(
+        (i) => i.product.id === product.id && (i.variant || '') === (selectedVariant || '')
+      );
       if (existingIndex > -1) {
         const updated = [...prev];
         const newQty = updated[existingIndex].quantity + quantity;
@@ -119,22 +120,22 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         updated[existingIndex].quantity = Math.min(newQty, maxStock);
         return updated;
       }
-      return [...prev, { product, quantity: Math.min(quantity, product.stock_quantity ?? 1) }];
+      return [...prev, { product, quantity: Math.min(quantity, product.stock_quantity ?? 1), variant: selectedVariant }];
     });
     triggerPulse();
   }, [triggerPulse]);
 
-  const removeItem = useCallback((productId: string) => {
-    setItems((prev) => prev.filter((i) => i.product.id !== productId));
+  const removeItem = useCallback((productId: string, variant?: string) => {
+    setItems((prev) => prev.filter((i) => !(i.product.id === productId && (i.variant || '') === (variant || ''))));
   }, []);
 
-  const updateQuantity = useCallback((productId: string, quantity: number) => {
+  const updateQuantity = useCallback((productId: string, quantity: number, variant?: string) => {
     setItems((prev) => {
       if (quantity <= 0) {
-        return prev.filter((i) => i.product.id !== productId);
+        return prev.filter((i) => !(i.product.id === productId && (i.variant || '') === (variant || '')));
       }
       return prev.map((item) => {
-        if (item.product.id === productId) {
+        if (item.product.id === productId && (item.variant || '') === (variant || '')) {
           const maxStock = item.product.stock_quantity ?? 1;
           return { ...item, quantity: Math.min(quantity, maxStock) };
         }
@@ -152,7 +153,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     } catch {}
   }, []);
 
-  // Odpytanie Supabase o kod rabatowy
   const applyPromo = useCallback(async (code: string): Promise<{ success: boolean; error?: string }> => {
     const upper = code.trim().toUpperCase();
     if (!upper) return { success: false, error: 'Wpisz kod rabatowy' };
