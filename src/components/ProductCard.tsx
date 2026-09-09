@@ -61,8 +61,6 @@ export default function ProductCard({ product }: ProductCardProps) {
     e.preventDefault();
     e.stopPropagation();
     
-    // Jeśli to ochraniacze lub produkt z wieloma wariantami, a użytkownik nie wybrał jeszcze rozmiaru z listy,
-    // najbezpieczniej i najwygodniej przekierować go na stronę produktu, żeby wybrał odpowiedni rozmiar S lub XS.
     const isShinGuards = (product.name || '').toLowerCase().includes('ochraniacze') || product.accessory_type === 'Mini ochraniacze';
     if (isShinGuards) {
       navigate({ to: '/product/$id', params: { id: product.id } });
@@ -130,14 +128,16 @@ export default function ProductCard({ product }: ProductCardProps) {
         </button>
 
         {/* Badge rozmiaru w lewym górnym rogu */}
-        <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 flex-wrap">
+        <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 flex-wrap max-w-[70%]">
           {!isAccessory && product.surface_type && (
-            <span className="bg-black/60 backdrop-blur-md text-white border border-white/15 font-black text-[10px] sm:text-xs uppercase px-2 py-1 rounded-xl shadow-lg tracking-wider">
+            <span className="bg-black/60 backdrop-blur-md text-white border border-white/15 font-black text-[10px] uppercase px-2 py-1 rounded-xl shadow-lg tracking-wider">
               {product.surface_type}
             </span>
           )}
-          <div className="bg-[#FF6B00] text-black font-black text-[10px] sm:text-xs uppercase px-2.5 py-1 rounded-xl shadow-lg">
-            {isAccessory ? (product.size_eu || 'ONE SIZE') : `EU ${product.size_eu}`}
+          <div className="bg-[#FF6B00] text-black font-black text-[10px] sm:text-xs uppercase px-2.5 py-1 rounded-xl shadow-lg truncate">
+            {isAccessory 
+              ? ((product.size_eu || '').length > 10 ? 'S / XS' : (product.size_eu || 'ONE SIZE')) 
+              : `EU ${product.size_eu}`}
           </div>
         </div>
 
