@@ -10,7 +10,7 @@ import FilterSidebar, { FilterState, SortOption } from '@/components/FilterSideb
 import DropCountdownBanner, { Countdown, calculateCountdown } from '@/components/DropCountdownBanner';
 import ReviewsBanner from '@/components/ReviewsBanner';
 import HeroRainEffect from '@/components/HeroRainEffect';
-import { Zap, Package2, ShieldCheck, ChevronDown } from 'lucide-react';
+import { Zap, Package2, ShieldCheck, ChevronDown, CheckCircle2, X } from 'lucide-react';
 
 function formatujProdukty(count: number): string {
   if (count === 1) return `${count} produkt`;
@@ -46,7 +46,20 @@ function HomePage() {
   const [currentTime, setCurrentTime] = useState(Date.now());
   const [showCelebration, setShowCelebration] = useState(false);
   
+  // Stan dla banera powiadamiającego o wypisaniu z newslettera
+  const [showUnsubscribedBanner, setShowUnsubscribedBanner] = useState(false);
+  
   const celebrationTriggeredRef = useRef(false);
+
+  // Nasłuchiwanie parametru ?unsubscribed=true w adresie URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('unsubscribed') === 'true') {
+      setShowUnsubscribedBanner(true);
+      // Czyszczenie adresu URL, żeby komunikat zniknął po ponownym odświeżeniu
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(Date.now()), 1000);
@@ -177,17 +190,14 @@ function HomePage() {
 
       const selectedCategory = filters.category || 'all';
 
-      // 1. Kategoria główna
       if (selectedCategory === 'boots' && isAccessory) return false;
       if (selectedCategory === 'accessories' && !isAccessory) return false;
 
-      // 2. Wyszukiwanie tekstowe
       if (search) {
         const q = search.toLowerCase();
         if (!pName.includes(q) && !pBrand.includes(q) && !pModel.includes(q)) return false;
       }
 
-      // 3. Jeśli to akcesorium:
       if (isAccessory) {
         if (filters.brands?.length > 0) return false;
         if (filters.sizes?.length || filters.levels?.length || filters.surfaces?.length || filters.conditions?.length) return false;
@@ -204,7 +214,6 @@ function HomePage() {
           if (!matchesType) return false;
         }
       } 
-      // 4. Jeśli to but (korki):
       else {
         if (filters.accessoryTypes?.length > 0) return false;
 
@@ -215,7 +224,6 @@ function HomePage() {
         if (filters.conditions?.length && !filters.conditions.includes(p.condition)) return false;
       }
 
-      // 5. Filtry cenowe
       if (filters.priceMin && p.price < Number(filters.priceMin)) return false;
       if (filters.priceMax && p.price > Number(filters.priceMax)) return false;
 
@@ -237,6 +245,25 @@ function HomePage() {
 
   return (
     <div className="min-h-screen">
+      {/* Powiadomienie (Toast) o pomyślnym wypisaniu z newslettera */}
+      {showUnsubscribedBanner && (
+        <div className="fixed top-5 right-5 z-50 bg-[#141414] border border-emerald-500/40 text-white px-5 py-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-fade-in-up">
+          <div className="w-8 h-8 bg-emerald-500/10 text-emerald-400 rounded-full flex items-center justify-center flex-shrink-0">
+            <CheckCircle2 className="w-5 h-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-bold uppercase tracking-wider text-emerald-400">Wypisano pomyślnie</p>
+            <p className="text-xs text-neutral-400">Twój adres został usunięty z powiadomień FootBubr.</p>
+          </div>
+          <button 
+            onClick={() => setShowUnsubscribedBanner(false)}
+            className="text-neutral-500 hover:text-white p-1 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       <Header searchValue={search} onSearchChange={setSearch} />
       <CartDrawer />
 
