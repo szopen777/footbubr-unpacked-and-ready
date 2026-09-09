@@ -11,11 +11,6 @@ interface ProductCardProps {
   product: Product;
 }
 
-interface Variant {
-  size: string;
-  stock: number;
-}
-
 export default function ProductCard({ product }: ProductCardProps) {
   const navigate = useNavigate();
   const { isFavorite, toggleFavorite } = useFavorites();
@@ -23,10 +18,6 @@ export default function ProductCard({ product }: ProductCardProps) {
   const favorited = isFavorite(product.id);
 
   const [ratingStats, setRatingStats] = useState<{ avg: string; count: number } | null>(null);
-
-  // Sprawdzanie wariantów (np. ochraniacze S/XS)
-  const [variants, setVariants] = useState<Variant[]>([]);
-  const [selectedVariant, setSelectedVariant] = useState<string>('');
 
   const pName = (product.name || '').toLowerCase();
   const pBrand = (product.brand || '').toLowerCase();
@@ -41,22 +32,6 @@ export default function ProductCard({ product }: ProductCardProps) {
     pModel.includes('skarpety') ||
     pModel.includes('ochraniacze') ||
     Boolean(product.accessory_type);
-
-  // Parsowanie wariantów z condition_detail jeśli istnieją
-  useEffect(() => {
-    try {
-      if (product.condition_detail && product.condition_detail.startsWith('[')) {
-        const parsed = JSON.parse(product.condition_detail);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const availableVariants = parsed.filter((v: Variant) => (v.stock ?? 0) > 0);
-          setVariants(availableVariants);
-          if (availableVariants.length > 0) {
-            setSelectedVariant(availableVariants[0].size);
-          }
-        }
-      }
-    } catch {}
-  }, [product.condition_detail]);
 
   useEffect(() => {
     if (!isAccessory) return;
@@ -85,15 +60,31 @@ export default function ProductCard({ product }: ProductCardProps) {
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    const variantLabel = variants.length > 0 ? selectedVariant : (product.size_eu ? `EU ${product.size_eu}` : undefined);
+    
+    // Jeśli to ochraniacze lub produkt z wieloma wariantami, a użytkownik nie wybrał jeszcze rozmiaru z listy,
+    // najbezpieczniej i najwygodniej przekierować go na stronę produktu, żeby wybrał odpowiedni rozmiar S lub XS.
+    const isShinGuards = (product.name || '').toLowerCase().includes('ochraniacze') || product.accessory_type === 'Mini ochraniacze';
+    if (isShinGuards) {
+      navigate({ to: '/product/$id', params: { id: product.id } });
+      return;
+    }
+
+    const variantLabel = product.size_eu ? `Rozmiar: ${product.size_eu}` : undefined;
     addItemSilent(product, 1, variantLabel);
-    toast.success('Dodano do koszyka', { description: `${product.name} ${variantLabel ? `(${variantLabel})` : ''}` });
+    toast.success('Dodano do koszyka', { description: product.name });
   };
 
   const handleBuyNow = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    const variantLabel = variants.length > 0 ? selectedVariant : (product.size_eu ? `EU ${product.size_eu}` : undefined);
+    
+    const isShinGuards = (product.name || '').toLowerCase().includes('ochraniacze') || product.accessory_type === 'Mini ochraniacze';
+    if (isShinGuards) {
+      navigate({ to: '/product/$id', params: { id: product.id } });
+      return;
+    }
+
+    const variantLabel = product.size_eu ? `Rozmiar: ${product.size_eu}` : undefined;
     addItem(product, 1, variantLabel);
     navigate({ to: '/checkout' });
   };
@@ -119,7 +110,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           </div>
         )}
 
-        {/* Ulubione - przeniesione na górny prawy róg / obok badge'a, w pełni klikalne */}
+        {/* Przycisk ulubione (serduszko) - zawsze dostępny w prawym górnym rogu */}
         <button
           type="button"
           onClick={(e) => {
@@ -127,7 +118,7 @@ export default function ProductCard({ product }: ProductCardProps) {
             e.stopPropagation();
             toggleFavorite(product);
           }}
-          className="absolute top-3 right-3 z-20 p-2 rounded-2xl bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/10 text-white transition-all active:scale-90 shadow-md"
+          className="absolute top-3 right-3 z-20 p-2.5 rounded-2xl bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/10 text-white transition-all active:scale-90 shadow-md"
           title={favorited ? 'Usuń z ulubionych' : 'Dodaj do ulubionych'}
         >
           <Heart
@@ -138,7 +129,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           />
         </button>
 
-        {/* Badge rozmiaru oraz nawierzchni na zdjęciu (przeniesione w lewy róg lub podział) */}
+        {/* Badge rozmiaru w lewym górnym rogu */}
         <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 flex-wrap">
           {!isAccessory && product.surface_type && (
             <span className="bg-black/60 backdrop-blur-md text-white border border-white/15 font-black text-[10px] sm:text-xs uppercase px-2 py-1 rounded-xl shadow-lg tracking-wider">
@@ -160,14 +151,13 @@ export default function ProductCard({ product }: ProductCardProps) {
       </div>
 
       {/* Szczegóły produktu */}
-      <div className="p-3 sm:p-4 flex flex-col flex-1 justify-between gap-2.5">
+      <div className="p-4 sm:p-5 flex flex-col flex-1 justify-between gap-3">
         <div className="space-y-1.5">
           <div className="flex items-center justify-between gap-2">
             <span className="text-[11px] font-black text-[#FF6B00] uppercase tracking-wider truncate">
               {product.brand}
             </span>
 
-            {/* Oceny gwiazdkowe */}
             {isAccessory && ratingStats && (
               <div className="flex items-center gap-1 bg-white/5 border border-neutral-800 px-2 py-0.5 rounded-lg flex-shrink-0">
                 <Star className="w-3 h-3 text-[#FF6B00] fill-[#FF6B00]" />
@@ -199,35 +189,8 @@ export default function ProductCard({ product }: ProductCardProps) {
           </div>
         </div>
 
-        {/* Wybór wariantów (np. S / XS dla ochraniaczy) bezpośrednio na karcie */}
-        {variants.length > 0 && !isSold && (
-          <div 
-            className="flex items-center justify-between bg-black/40 border border-neutral-800 rounded-xl px-2.5 py-1.5"
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
-          >
-            <span className="text-[10px] text-neutral-400 font-bold uppercase">Rozmiar:</span>
-            <div className="flex gap-1">
-              {variants.map((v) => (
-                <button
-                  key={v.size}
-                  type="button"
-                  onClick={() => setSelectedVariant(v.size)}
-                  className={cn(
-                    'px-2 py-0.5 text-[10px] font-bold rounded-lg transition-all',
-                    selectedVariant === v.size
-                      ? 'bg-[#FF6B00] text-black shadow'
-                      : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
-                  )}
-                >
-                  {v.size}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* Ceny i przyciski akcji */}
-        <div className="space-y-2.5 pt-1">
+        <div className="space-y-3 pt-2">
           <div className="flex items-baseline gap-2">
             <span className="text-base sm:text-lg font-black text-white">{formatPrice(product.price)}</span>
             {product.original_price && (
