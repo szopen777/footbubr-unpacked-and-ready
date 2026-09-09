@@ -217,6 +217,26 @@ function AdminPage() {
     setTimeout(() => setToast(''), 4000);
   };
 
+  // Funkcja wywołująca Edge Function do wysyłki powiadomień
+  const sendOrderNotification = async (orderId: string, type: 'order_shipped' | 'order_confirmed', tracking?: string | null) => {
+    try {
+      await fetch(
+        'https://kwumqkqnwqbfvpzavclv.supabase.co/functions/v1/send-order-email',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            orderId,
+            type,
+            tracking_number: tracking || null,
+          }),
+        }
+      );
+    } catch (err) {
+      console.error('Błąd wysyłki maila do zamówienia:', err);
+    }
+  };
+
   const loadProducts = async () => {
     setLoading(true);
     const nowIso = new Date().toISOString();
@@ -366,6 +386,15 @@ function AdminPage() {
       showToast(`Błąd: ${error.message}`);
       return;
     }
+
+    // Automatyczna wysyłka maila przy zmianie statusu
+    const targetOrder = orders.find((o) => o.id === orderId);
+    if (status === 'shipped') {
+      await sendOrderNotification(orderId, 'order_shipped', targetOrder?.tracking_number);
+    } else if (status === 'paid') {
+      await sendOrderNotification(orderId, 'order_confirmed');
+    }
+
     await loadOrders();
     if (selectedOrder?.id === orderId) {
       setSelectedOrder((prev) => prev ? { ...prev, status: status as Order['status'] } : prev);
@@ -376,18 +405,39 @@ function AdminPage() {
   const handleSaveTracking = async () => {
     if (!selectedOrder) return;
     setOrderSaving(true);
+    const tracking = orderTrackingInput.trim() || null;
+
+    // Automatycznie ustawiamy status na "shipped", jeśli podano tracking
+    const updatePayload: { tracking_number: string | null; status?: Order['status'] } = {
+      tracking_number: tracking,
+    };
+    if (tracking) {
+      updatePayload.status = 'shipped';
+    }
+
     const { error } = await supabase
       .from('orders')
-      .update({ tracking_number: orderTrackingInput.trim() || null })
+      .update(updatePayload)
       .eq('id', selectedOrder.id);
+
     setOrderSaving(false);
     if (error) {
       showToast(`Błąd: ${error.message}`);
       return;
     }
+
+    // Wyślij e-mail do klienta o nadaniu paczki
+    if (tracking) {
+      await sendOrderNotification(selectedOrder.id, 'order_shipped', tracking);
+    }
+
     await loadOrders();
-    setSelectedOrder((prev) => prev ? { ...prev, tracking_number: orderTrackingInput.trim() || null } : prev);
-    showToast('Numer śledzenia zapisany');
+    setSelectedOrder((prev) => 
+      prev 
+        ? { ...prev, tracking_number: tracking, status: tracking ? ('shipped' as Order['status']) : prev.status } 
+        : prev
+    );
+    showToast('Numer śledzenia zapisany (wysłano e-mail do klienta)');
   };
 
   const handleDeleteOrder = async (orderId: string, productId?: string) => {
@@ -682,7 +732,7 @@ function AdminPage() {
           is_tbd: s.is_tbd,
           featured_product_id: s.featured_product_id || 'none',
           title: s.title || 'Nowy drop',
-          subtitle: s.subtitle || '',
+          subtitle: '',
         });
       }
     } catch (err) {
@@ -1862,12 +1912,12 @@ function AdminPage() {
                     <div className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-4">
                       <h3 className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
                         <Truck className="w-3.5 h-3.5" />
-                        Numer śledzenia przesyłki
+                        Numer śledzenia przesyłki (wpisz i kliknij Zapisz, aby powiadomić klienta)
                       </h3>
                       <div className="flex gap-2">
                         <input
                           className={cn(inp, 'flex-1')}
-                          placeholder="np. INPOST123456789"
+                          placeholder="np. 620012345678901234567890"
                           value={orderTrackingInput}
                           onChange={(e) => setOrderTrackingInput(e.target.value)}
                         />
@@ -1877,7 +1927,7 @@ function AdminPage() {
                           className="flex items-center gap-1.5 bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-bold px-4 py-2.5 rounded-xl transition-all active:scale-95 text-sm disabled:opacity-40"
                         >
                           {orderSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                          Zapisz
+                          Zapisz & Wyślij maila
                         </button>
                       </div>
                     </div>
@@ -2300,7 +2350,6 @@ function AdminPage() {
             </div>
           )}
 
-          {/* ZAKŁADKA NEWSLETTER */}
           {view === 'newsletter' && (
             <div className="animate-fade-in max-w-5xl space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-800/80 pb-6">
