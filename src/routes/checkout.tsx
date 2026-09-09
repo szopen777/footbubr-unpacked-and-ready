@@ -51,10 +51,10 @@ function CheckoutPage() {
   const [orderRecord, setOrderRecord] = useState<Order | null>(null);
   
   // Stan do sekcji "Dobierz do zestawu" w kasie
-  const [bundleAccessory, setBundleAccessory] = useState<Product | null>(null);
+  const [bundleAccessories, setBundleAccessories] = useState<Product[]>([]);
+  const [currentBundleIndex, setCurrentBundleIndex] = useState(0);
   const [bundleLoading, setBundleLoading] = useState(false);
-  const [selectedBundleSize] = useState<'S' | 'XS'>('S');
-  const [selectedBundleColor] = useState<'białe' | 'czarne'>('czarne');
+  const [selectedBundleSize, setSelectedBundleSize] = useState<'S' | 'XS'>('S');
   const [bundleAdded, setBundleAdded] = useState(false);
   
   // Wyszukiwarka Paczkomatów
@@ -88,33 +88,35 @@ function CheckoutPage() {
   const shippingCost = shippingCostFor(form.shippingMethod, discountedTotal);
   const orderTotal = discountedTotal + shippingCost;
 
-  // Ładowanie akcesorium do sekcji "Dobierz do zestawu"
+  // Ładowanie WSZYSTKICH dostępnych akcesoriów do sekcji "Dobierz do zestawu"
   useEffect(() => {
-    const fetchAccessory = async () => {
+    const fetchAccessories = async () => {
       const { data } = await supabase
         .from('products')
         .select('*')
         .or('brand.eq.footbubr,accessory_type.not.is.null')
         .eq('status', 'available')
-        .gt('stock_quantity', 0)
-        .limit(1)
-        .maybeSingle();
+        .gt('stock_quantity', 0);
 
-      if (data) {
-        setBundleAccessory(data as Product);
+      if (data && data.length > 0) {
+        setBundleAccessories(data as Product[]);
+        // Losujemy indeks startowy, żeby za każdym razem mogło pokazać się coś innego
+        setCurrentBundleIndex(Math.floor(Math.random() * data.length));
       }
     };
-    fetchAccessory();
+    fetchAccessories();
   }, []);
 
+  const currentAccessory = bundleAccessories[currentBundleIndex];
+  const isShinGuards = currentAccessory ? ((currentAccessory.name || '').toLowerCase().includes('ochraniacze') || currentAccessory.accessory_type === 'Mini ochraniacze') : false;
+
   const handleAddBundleAccessory = () => {
-    if (!bundleAccessory) return;
+    if (!currentAccessory) return;
     setBundleLoading(true);
     
-    const isShinGuards = (bundleAccessory.name || '').toLowerCase().includes('ochraniacze') || bundleAccessory.accessory_type === 'Mini ochraniacze';
-    const configVariant = isShinGuards ? `Rozmiar: ${selectedBundleSize} · ${selectedBundleColor}` : undefined;
+    const configVariant = isShinGuards ? `Rozmiar: ${selectedBundleSize}` : undefined;
 
-    addItem(bundleAccessory, 1, configVariant);
+    addItem(currentAccessory, 1, configVariant);
     setBundleAdded(true);
     setBundleLoading(false);
     setTimeout(() => setBundleAdded(false), 2500);
@@ -1118,38 +1120,73 @@ function CheckoutPage() {
                 })}
               </div>
 
-              {/* Sekcja "Dobierz do zestawu" w kasie */}
-              {bundleAccessory && (
+              {/* Sekcja "Dobierz do zestawu" w kasie z obsługą rozmiarów */}
+              {currentAccessory && (
                 <div className="border border-neutral-800 bg-white/[0.02] rounded-xl p-3 mb-4">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-[#FF6B00] uppercase tracking-wider mb-2.5">
-                    <Zap className="w-3.5 h-3.5" />
-                    Dobierz do zestawu
+                  <div className="flex items-center justify-between mb-2.5">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-[#FF6B00] uppercase tracking-wider">
+                      <Zap className="w-3.5 h-3.5" />
+                      Dobierz do zestawu
+                    </div>
+                    {bundleAccessories.length > 1 && (
+                      <button
+                        onClick={() => setCurrentBundleIndex((prev) => (prev + 1) % bundleAccessories.length)}
+                        className="text-[10px] text-neutral-400 hover:text-white underline transition-colors"
+                      >
+                        Inny produkt ({currentBundleIndex + 1}/{bundleAccessories.length})
+                      </button>
+                    )}
                   </div>
 
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 mb-2.5">
                     <div className="w-11 h-11 rounded-lg overflow-hidden bg-white/5 border border-neutral-800 flex-shrink-0">
-                      {bundleAccessory.images && bundleAccessory.images[0] && (
-                        <img src={bundleAccessory.images[0]} alt={bundleAccessory.name} className="w-full h-full object-cover" />
+                      {currentAccessory.images && currentAccessory.images[0] && (
+                        <img src={currentAccessory.images[0]} alt={currentAccessory.name} className="w-full h-full object-cover" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-white truncate">{bundleAccessory.name}</p>
-                      <p className="text-xs font-bold text-[#FF6B00]">{formatPrice(bundleAccessory.price)}</p>
+                      <p className="text-xs font-medium text-white truncate">{currentAccessory.name}</p>
+                      <p className="text-xs font-bold text-[#FF6B00]">{formatPrice(currentAccessory.price)}</p>
                     </div>
-                    <button
-                      onClick={handleAddBundleAccessory}
-                      disabled={bundleLoading}
-                      className={cn(
-                        'px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 flex-shrink-0',
-                        bundleAdded 
-                          ? 'bg-emerald-500 text-black' 
-                          : 'bg-white/10 hover:bg-[#FF6B00] hover:text-black text-white'
-                      )}
-                    >
-                      {bundleAdded ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : <Plus className="w-3.5 h-3.5" />}
-                      {bundleAdded ? 'Dodano' : 'Dodaj'}
-                    </button>
                   </div>
+
+                  {/* Wybór rozmiaru dla akcesoriów które go wymagają (np. ochraniacze) */}
+                  {isShinGuards && (
+                    <div className="flex items-center justify-between bg-black/40 border border-neutral-800 rounded-lg p-2 mb-2.5">
+                      <span className="text-[11px] text-neutral-400 font-medium">Rozmiar:</span>
+                      <div className="flex gap-1.5">
+                        {(['S', 'XS'] as const).map((sz) => (
+                          <button
+                            key={sz}
+                            type="button"
+                            onClick={() => setSelectedBundleSize(sz)}
+                            className={cn(
+                              'px-2.5 py-1 text-[11px] font-bold rounded-md transition-all',
+                              selectedBundleSize === sz
+                                ? 'bg-[#FF6B00] text-black'
+                                : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
+                            )}
+                          >
+                            {sz}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={handleAddBundleAccessory}
+                    disabled={bundleLoading}
+                    className={cn(
+                      'w-full py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5',
+                      bundleAdded 
+                        ? 'bg-emerald-500 text-black' 
+                        : 'bg-white/10 hover:bg-[#FF6B00] hover:text-black text-white'
+                    )}
+                  >
+                    {bundleAdded ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : <Plus className="w-3.5 h-3.5" />}
+                    {bundleAdded ? 'Dodano do zamówienia' : 'Dodaj do zamówienia'}
+                  </button>
                 </div>
               )}
 
