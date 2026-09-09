@@ -118,6 +118,7 @@ interface ProductForm {
   brand: string;
   model: string;
   size_eu: string;
+  badge_label: string; // Nowe pole do krótkiej etykiety na kafelku
   accessory_type: string;
   insole_length_cm: string;
   price: string;
@@ -139,7 +140,7 @@ interface ProductForm {
 
 const EMPTY_BOOT_FORM: ProductForm = {
   productType: 'boot',
-  name: '', brand: 'Nike', model: '', size_eu: '42.5', accessory_type: 'Skarpety antypoślizgowe', insole_length_cm: '',
+  name: '', brand: 'Nike', model: '', size_eu: '42.5', badge_label: '', accessory_type: 'Skarpety antypoślizgowe', insole_length_cm: '',
   price: '', original_price: '', stock_quantity: '1', surface_type: 'FG', level: 'Profesjonalny',
   condition: 'Nowe z metką', condition_detail: '', images: '',
   box_included: false, bag_included: false, extras_description: '',
@@ -149,7 +150,7 @@ const EMPTY_BOOT_FORM: ProductForm = {
 
 const EMPTY_ACCESSORY_FORM: ProductForm = {
   productType: 'accessory',
-  name: 'Mini ochraniacze piłkarskie FOOTBUBR', brand: 'FOOTBUBR', model: 'Mini ochraniacze', size_eu: 'S / XS', accessory_type: 'Mini ochraniacze', insole_length_cm: '',
+  name: 'Mini ochraniacze piłkarskie FOOTBUBR', brand: 'FOOTBUBR', model: 'Mini ochraniacze', size_eu: 'S / XS', badge_label: 'S/XS', accessory_type: 'Mini ochraniacze', insole_length_cm: '',
   price: '49', original_price: '59', stock_quantity: '100', surface_type: 'FG', level: 'Amatorski',
   condition: 'Nowe z metką', condition_detail: '', images: '',
   box_included: false, bag_included: false, extras_description: '',
@@ -875,19 +876,20 @@ function AdminPage() {
 
     const bootStock = dbStatus === 'sold' ? 0 : 1;
 
-    const payload: ProductInsert = {
+    const payload: any = {
       name: accName,
       brand: isAcc ? 'FOOTBUBR' : form.brand,
       model: isAcc ? form.accessory_type : (form.model || form.name),
-      size_eu: finalSizeEu as any,
+      size_eu: finalSizeEu,
+      badge_label: form.badge_label || null, // Zapis nowej etykiety do bazy
       accessory_type: isAcc ? form.accessory_type : null,
       insole_length_cm: isAcc ? null : (form.insole_length_cm ? parseFloat(form.insole_length_cm) : null),
       price: parseFloat(form.price),
       original_price: form.original_price ? parseFloat(form.original_price) : null,
       stock_quantity: isAcc ? finalStock : bootStock,
-      surface_type: isAcc ? 'FG' : form.surface_type as any,
-      level: isAcc ? 'Amatorski' : form.level as any,
-      condition: form.condition as any,
+      surface_type: isAcc ? 'FG' : form.surface_type,
+      level: isAcc ? 'Amatorski' : form.level,
+      condition: form.condition,
       condition_detail: finalConditionDetail || null,
       images: (form.images || '').split('\n').map((s) => s.trim()).filter(Boolean),
       box_included: isAcc ? false : form.box_included,
@@ -898,7 +900,7 @@ function AdminPage() {
     };
 
     if (editingId) {
-      const { error } = await supabase.from('products').update(payload as ProductUpdate).eq('id', editingId);
+      const { error } = await supabase.from('products').update(payload).eq('id', editingId);
       if (error) {
         showToast(`Błąd zapisu: ${error.message}`);
         setSaving(false);
@@ -923,7 +925,7 @@ function AdminPage() {
     setSaving(false);
   };
 
-  const handleEdit = (p: Product & { stock_quantity?: number; accessory_type?: string }) => {
+  const handleEdit = (p: Product & { stock_quantity?: number; accessory_type?: string; badge_label?: string }) => {
     let customStatus: CustomProductStatus = 'available';
     let dType: DropTypeChoice = 'global';
 
@@ -955,7 +957,8 @@ function AdminPage() {
       name: p.name || '', 
       brand: p.brand || '', 
       model: p.model || '', 
-      size_eu: String(p.size_eu || ''), 
+      size_eu: String(p.size_eu || ''),
+      badge_label: p.badge_label || '', // Wczytywanie etykiety do edycji
       accessory_type: p.accessory_type || 'Skarpety antypoślizgowe', 
       insole_length_cm: p.insole_length_cm ? String(p.insole_length_cm) : '', 
       price: String(p.price || ''), 
@@ -1458,6 +1461,20 @@ function AdminPage() {
                       <div>
                         <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Pełna nazwa produktu *</label>
                         <input className={inp} placeholder="np. Nike Mercurial Elite 1 of 1" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                      </div>
+
+                      {/* Nowe pole: Krótka etykieta na kafelku */}
+                      <div>
+                        <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">
+                          Krótka etykieta na kafelku (np. S/XS, ONE SIZE)
+                        </label>
+                        <input 
+                          className={inp} 
+                          placeholder="np. S/XS" 
+                          value={form.badge_label} 
+                          onChange={(e) => setForm({ ...form, badge_label: e.target.value })} 
+                        />
+                        <p className="text-[10px] text-neutral-500 mt-1">Ten tekst wyświetli się bezpośrednio na pomarańczowej pigułce produktu w katalogu.</p>
                       </div>
                       
                       {form.productType === 'boot' ? (
