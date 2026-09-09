@@ -12,7 +12,7 @@ import {
   CircleAlert as AlertCircle, Lock, ShieldCheck, 
   PackageOpen, ArrowRight, ExternalLink, Search, Trash2, Plus, Zap
 } from 'lucide-react';
-import { Link, useNavigate } from '@tanstack/react-router';
+import { Link } from '@tanstack/react-router';
 
 interface InPostPoint {
   name: string;
@@ -43,7 +43,6 @@ function isMatchingShinGuardSize(variantSizeName: string, chosenSize: 'S' | 'XS'
 }
 
 function CheckoutPage() {
-  const navigate = useNavigate();
   const { items, total, discountedTotal, discountAmount, appliedPromo, applyPromo, removePromo, clearCart, removeItem, addItem } = useCart();
   
   const [step, setStep] = useState<'summary' | 'success'>('summary');
@@ -54,8 +53,8 @@ function CheckoutPage() {
   // Stan do sekcji "Dobierz do zestawu" w kasie
   const [bundleAccessory, setBundleAccessory] = useState<Product | null>(null);
   const [bundleLoading, setBundleLoading] = useState(false);
-  const [selectedBundleSize, setSelectedBundleSize] = useState<'S' | 'XS'>('S');
-  const [selectedBundleColor, setSelectedBundleColor] = useState<'białe' | 'czarne'>('czarne');
+  const [selectedBundleSize] = useState<'S' | 'XS'>('S');
+  const [selectedBundleColor] = useState<'białe' | 'czarne'>('czarne');
   const [bundleAdded, setBundleAdded] = useState(false);
   
   // Wyszukiwarka Paczkomatów
@@ -121,7 +120,6 @@ function CheckoutPage() {
     setTimeout(() => setBundleAdded(false), 2500);
   };
 
-  // Inteligentne sortowanie trafień z priorytetem numeru i ulicy
   const sortPointsByRelevance = (itemsList: InPostPoint[], query: string): InPostPoint[] => {
     if (!Array.isArray(itemsList)) return [];
     const q = (query || '').trim().toLowerCase();
@@ -817,10 +815,10 @@ function CheckoutPage() {
                         >
                           Wybierz
                         </button>
-                    </div>
-                  );
-                })}
-              </div>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
 
               {!searchingPoints && pointsList.length === 0 && (
@@ -1088,28 +1086,26 @@ function CheckoutPage() {
               {/* Lista produktów z możliwością usunięcia i kliknięcia */}
               <div className="space-y-3 mb-4 max-h-56 overflow-y-auto pr-1">
                 {items.map(({ product, quantity }) => {
-                  const isShinGuards = (product.name || '').toLowerCase().includes('ochraniacze') || product.accessory_type === 'Mini ochraniacze';
-                  const isSocks = (product.name || '').toLowerCase().includes('skarpety') || product.accessory_type === 'Skarpety antypoślizgowe';
-                  const isBundle = product.accessory_type === 'Zestawy FOOTBUBR' || (product.name || '').toLowerCase().includes('zestaw');
-
                   return (
                     <div key={product.id} className="flex items-center gap-3 bg-black/40 border border-neutral-800/80 rounded-xl p-2.5 group">
-                      <div 
-                        onClick={() => navigate({ to: '/product/$id', params: { id: product.id } })}
-                        className="w-12 h-12 sm:w-13 sm:h-13 rounded-lg overflow-hidden bg-white/5 border border-neutral-800 flex-shrink-0 cursor-pointer relative"
+                      <Link 
+                        to="/product/$id" 
+                        params={{ id: product.id }}
+                        className="w-12 h-12 sm:w-13 sm:h-13 rounded-lg overflow-hidden bg-white/5 border border-neutral-800 flex-shrink-0 relative block"
                       >
                         {product.images && product.images[0] && <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />}
-                      </div>
-                      <div 
-                        onClick={() => navigate({ to: '/product/$id', params: { id: product.id } })}
-                        className="flex-1 min-w-0 cursor-pointer"
+                      </Link>
+                      <Link 
+                        to="/product/$id" 
+                        params={{ id: product.id }}
+                        className="flex-1 min-w-0 block"
                       >
                         <p className="text-xs font-semibold text-white truncate hover:text-[#FF6B00] transition-colors">{product.name}</p>
                         <p className="text-[11px] text-neutral-500 truncate">
                           {quantity > 1 ? `Ilość: ${quantity} szt. · ` : ''}{product.size_eu || ''}
                         </p>
                         <p className="text-xs font-bold text-[#FF6B00] mt-0.5">{formatPrice(product.price * quantity)}</p>
-                      </div>
+                      </Link>
                       <button
                         onClick={() => removeItem(product.id)}
                         className="text-neutral-600 hover:text-red-400 p-1.5 rounded-lg transition-colors flex-shrink-0"
@@ -1184,109 +1180,110 @@ function CheckoutPage() {
                           onChange={(e) => { setPromoInput(e.target.value.toUpperCase()); setPromoErrorMsg(''); }}
                           onKeyDown={(e) => e.key === 'Enter' && handleApplyPromo()}
                           className="w-full bg-white/5 border border-neutral-800 rounded-xl pl-9 pr-3 py-2.5 text-sm text-neutral-100 placeholder:text-neutral-500 focus:outline-none focus:border-[#FF6B00]/60 uppercase font-mono transition-all"
-                      />
+                        />
+                      </div>
+                      <button
+                        onClick={handleApplyPromo}
+                        disabled={promoLoading || !promoInput.trim()}
+                        className="px-4 py-2.5 bg-white/10 hover:bg-white/15 text-white text-sm font-semibold rounded-xl transition-all active:scale-95 flex-shrink-0 disabled:opacity-40"
+                      >
+                        {promoLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Zastosuj'}
+                      </button>
                     </div>
-                    <button
-                      onClick={handleApplyPromo}
-                      disabled={promoLoading || !promoInput.trim()}
-                      className="px-4 py-2.5 bg-white/10 hover:bg-white/15 text-white text-sm font-semibold rounded-xl transition-all active:scale-95 flex-shrink-0 disabled:opacity-40"
-                    >
-                      {promoLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Zastosuj'}
-                    </button>
+                    {promoErrorMsg && (
+                      <p className="text-red-400 text-xs flex items-center gap-1.5 animate-fade-in">
+                        <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                        {promoErrorMsg}
+                      </p>
+                    )}
                   </div>
-                  {promoErrorMsg && (
-                    <p className="text-red-400 text-xs flex items-center gap-1.5 animate-fade-in">
-                      <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
-                      {promoErrorMsg}
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="border-t border-neutral-800 mt-4 pt-4 space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-neutral-500">Produkty</span>
-                <span className="text-white">{formatPrice(total)}</span>
+                )}
               </div>
-              {discountAmount > 0 && appliedPromo && (
+
+              <div className="border-t border-neutral-800 mt-4 pt-4 space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-emerald-400 flex items-center gap-1.5">
-                    <Check className="w-3.5 h-3.5 stroke-[3]" />
-                    Rabat {appliedPromo.discount_type === 'percentage' ? `-${appliedPromo.discount_value}%` : `-${appliedPromo.discount_value} PLN`}
+                  <span className="text-neutral-500">Produkty</span>
+                  <span className="text-white">{formatPrice(total)}</span>
+                </div>
+                {discountAmount > 0 && appliedPromo && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-emerald-400 flex items-center gap-1.5">
+                      <Check className="w-3.5 h-3.5 stroke-[3]" />
+                      Rabat {appliedPromo.discount_type === 'percentage' ? `-${appliedPromo.discount_value}%` : `-${appliedPromo.discount_value} PLN`}
+                    </span>
+                    <span className="text-emerald-400 font-medium">-{formatPrice(discountAmount)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm">
+                  <span className="text-neutral-500">Wysyłka</span>
+                  <span className="text-white">{shippingCost === 0 ? <span className="text-emerald-400 font-bold">DARMOWA</span> : formatPrice(shippingCost)}</span>
+                </div>
+                {discountedTotal < FREE_SHIPPING_THRESHOLD && (
+                  <p className="text-xs text-neutral-600 pt-1">
+                    Darmowa dostawa od {formatPrice(FREE_SHIPPING_THRESHOLD)} - brakuje {formatPrice(FREE_SHIPPING_THRESHOLD - discountedTotal)}
+                  </p>
+                )}
+                <div className="flex justify-between font-bold mt-3 pt-3 border-t border-neutral-800">
+                  <span className="text-white">Razem</span>
+                  <div className="text-right">
+                    {discountAmount > 0 && (
+                      <span className="text-xs text-neutral-600 line-through block">{formatPrice(total + shippingCost)}</span>
+                    )}
+                    <span className="text-[#FF6B00] text-lg">{formatPrice(orderTotal)}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-4 mt-4 border-t border-neutral-800">
+                <label className="flex items-start gap-3 cursor-pointer group select-none">
+                  <input
+                    type="checkbox"
+                    checked={acceptTerms}
+                    onChange={(e) => {
+                      setAcceptTerms(e.target.checked);
+                      if (errors.acceptTerms) setErrors({ ...errors, acceptTerms: '' });
+                    }}
+                    className="mt-0.5 w-4 h-4 rounded border-neutral-700 bg-black/40 text-[#FF6B00] focus:ring-[#FF6B00] focus:ring-offset-0 cursor-pointer accent-[#FF6B00]"
+                  />
+                  <span className="text-xs text-neutral-400 leading-snug group-hover:text-neutral-300">
+                    Oświadczam, że znam i akceptuję postanowienia{' '}
+                    <Link to="/terms" target="_blank" className="text-[#FF6B00] underline hover:text-[#FF7A00]">
+                      Regulaminu
+                    </Link>{' '}
+                    oraz{' '}
+                    <Link to="/privacy" target="_blank" className="text-[#FF6B00] underline hover:text-[#FF7A00]">
+                      Polityki Prywatności
+                    </Link>
+                    . *
                   </span>
-                  <span className="text-emerald-400 font-medium">-{formatPrice(discountAmount)}</span>
-                </div>
-              )}
-              <div className="flex justify-between text-sm">
-                <span className="text-neutral-500">Wysyłka</span>
-                <span className="text-white">{shippingCost === 0 ? <span className="text-emerald-400 font-bold">DARMOWA</span> : formatPrice(shippingCost)}</span>
+                </label>
+                {errors.acceptTerms && <p className="text-red-400 text-xs mt-1.5">{errors.acceptTerms}</p>}
               </div>
-              {discountedTotal < FREE_SHIPPING_THRESHOLD && (
-                <p className="text-xs text-neutral-600 pt-1">
-                  Darmowa dostawa od {formatPrice(FREE_SHIPPING_THRESHOLD)} - brakuje {formatPrice(FREE_SHIPPING_THRESHOLD - discountedTotal)}
-                </p>
-              )}
-              <div className="flex justify-between font-bold mt-3 pt-3 border-t border-neutral-800">
-                <span className="text-white">Razem</span>
-                <div className="text-right">
-                  {discountAmount > 0 && (
-                    <span className="text-xs text-neutral-600 line-through block">{formatPrice(total + shippingCost)}</span>
-                  )}
-                  <span className="text-[#FF6B00] text-lg">{formatPrice(orderTotal)}</span>
-                </div>
-              </div>
-            </div>
 
-            <div className="pt-4 mt-4 border-t border-neutral-800">
-              <label className="flex items-start gap-3 cursor-pointer group select-none">
-                <input
-                  type="checkbox"
-                  checked={acceptTerms}
-                  onChange={(e) => {
-                    setAcceptTerms(e.target.checked);
-                    if (errors.acceptTerms) setErrors({ ...errors, acceptTerms: '' });
-                  }}
-                  className="mt-0.5 w-4 h-4 rounded border-neutral-700 bg-black/40 text-[#FF6B00] focus:ring-[#FF6B00] focus:ring-offset-0 cursor-pointer accent-[#FF6B00]"
-                />
-                <span className="text-xs text-neutral-400 leading-snug group-hover:text-neutral-300">
-                  Oświadczam, że znam i akceptuję postanowienia{' '}
-                  <Link to="/terms" target="_blank" className="text-[#FF6B00] underline hover:text-[#FF7A00]">
-                    Regulaminu
-                  </Link>{' '}
-                  oraz{' '}
-                  <Link to="/privacy" target="_blank" className="text-[#FF6B00] underline hover:text-[#FF7A00]">
-                    Polityki Prywatności
-                  </Link>
-                  . *
+              {generalError && (
+                <div className="mt-4 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-xs flex items-center gap-2 animate-fade-in">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span>{generalError}</span>
+                </div>
+              )}
+
+              <button
+                onClick={handleSubmit}
+                disabled={submitting}
+                className="flex items-center justify-center gap-2 w-full bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-black py-3.5 rounded-xl mt-4 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_4px_15px_rgba(255,107,0,0.25)]"
+              >
+                {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Lock className="w-4 h-4 text-black" />}
+                {submitting ? 'Przetwarzanie...' : 'Złóż zamówienie i zapłać'}
+              </button>
+
+              <div className="mt-3 flex items-center justify-center gap-3 text-[11px] text-neutral-500">
+                <span className="flex items-center gap-1">
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#FF6B00]" /> 100% Oryginalne
                 </span>
-              </label>
-              {errors.acceptTerms && <p className="text-red-400 text-xs mt-1.5">{errors.acceptTerms}</p>}
+                <span>•</span>
+                <span>14 dni na zwrot</span>
+              </div>
             </div>
-
-            {generalError && (
-              <div className="mt-4 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-xs flex items-center gap-2 animate-fade-in">
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                <span>{generalError}</span>
-            </div>
-          )}
-
-          <button
-            onClick={handleSubmit}
-            disabled={submitting}
-            className="flex items-center justify-center gap-2 w-full bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-black py-3.5 rounded-xl mt-4 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_4px_15px_rgba(255,107,0,0.25)]"
-          >
-            {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Lock className="w-4 h-4 text-black" />}
-            {submitting ? 'Przetwarzanie...' : 'Złóż zamówienie i zapłać'}
-          </button>
-
-          <div className="mt-3 flex items-center justify-center gap-3 text-[11px] text-neutral-500">
-            <span className="flex items-center gap-1">
-              <ShieldCheck className="w-3.5 h-3.5 text-[#FF6B00]" /> 100% Oryginalne
-            </span>
-            <span>•</span>
-            <span>14 dni na zwrot</span>
-          </div>
           </div>
         </div>
       </div>
