@@ -217,14 +217,13 @@ function AdminPage() {
     setTimeout(() => setToast(''), 4000);
   };
 
-  // Funkcja wywołująca Edge Function do wysyłki powiadomień
   const sendOrderNotification = async (orderId: string, type: 'order_shipped' | 'order_confirmed', tracking?: string | null) => {
     try {
       await fetch(
-        'https://kwumqkqnwqbfvpzavclv.supabase.co/functions/v1/send-order-email',
+        'https://kwumqkqnwqbfvpzavclv.supabase.co/functions/v1/send-drop-email',
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'text/plain' },
           body: JSON.stringify({
             orderId,
             type,
@@ -387,12 +386,9 @@ function AdminPage() {
       return;
     }
 
-    // Automatyczna wysyłka maila przy zmianie statusu
     const targetOrder = orders.find((o) => o.id === orderId);
     if (status === 'shipped') {
       await sendOrderNotification(orderId, 'order_shipped', targetOrder?.tracking_number);
-    } else if (status === 'paid') {
-      await sendOrderNotification(orderId, 'order_confirmed');
     }
 
     await loadOrders();
@@ -407,7 +403,6 @@ function AdminPage() {
     setOrderSaving(true);
     const tracking = orderTrackingInput.trim() || null;
 
-    // Automatycznie ustawiamy status na "shipped", jeśli podano tracking
     const updatePayload: { tracking_number: string | null; status?: Order['status'] } = {
       tracking_number: tracking,
     };
@@ -426,7 +421,6 @@ function AdminPage() {
       return;
     }
 
-    // Wyślij e-mail do klienta o nadaniu paczki
     if (tracking) {
       await sendOrderNotification(selectedOrder.id, 'order_shipped', tracking);
     }
@@ -437,7 +431,7 @@ function AdminPage() {
         ? { ...prev, tracking_number: tracking, status: tracking ? ('shipped' as Order['status']) : prev.status } 
         : prev
     );
-    showToast('Numer śledzenia zapisany (wysłano e-mail do klienta)');
+    showToast('Numer śledzenia zapisany (wysłano e-mail)');
   };
 
   const handleDeleteOrder = async (orderId: string, productId?: string) => {
