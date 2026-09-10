@@ -83,15 +83,15 @@ export default function TopAnnouncementBar() {
   const allItems = [...items, ...items];
 
   return (
-    <div className="w-full max-w-full overflow-hidden overflow-x-clip bg-[#FF6B00] text-black border-b-2 border-black [contain:paint]">
+    <div className="w-full max-w-[100vw] overflow-hidden bg-[#FF6B00] text-black border-b-2 border-black select-none pointer-events-none">
       <div className="relative flex w-full overflow-hidden">
-        <div className="animate-marquee">
+        <div className="flex shrink-0 whitespace-nowrap animate-marquee py-1.5">
           {allItems.map((item, i) => (
             <span
               key={i}
-              className="inline-flex items-center gap-2 text-[10px] sm:text-[11px] font-black uppercase tracking-[0.14em] px-4 py-1.5 shrink-0"
+              className="inline-flex items-center gap-2 text-[10px] sm:text-[11px] font-black uppercase tracking-[0.14em] px-4 shrink-0"
             >
-              <span className="inline-block w-1 h-1 rounded-full bg-black/60" />
+              <span className="inline-block w-1 h-1 rounded-full bg-black/60 shrink-0" />
               {item}
             </span>
           ))}
