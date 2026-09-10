@@ -118,7 +118,7 @@ interface ProductForm {
   brand: string;
   model: string;
   size_eu: string;
-  badge_label: string; // Nowe pole do krótkiej etykiety na kafelku
+  badge_label: string;
   accessory_type: string;
   insole_length_cm: string;
   price: string;
@@ -449,133 +449,112 @@ function AdminPage() {
       return;
     }
 
-    if (productId && targetOrder) {
-      const restore = confirm('Czy chcesz przywrócić stan magazynowy tego zamówienia?');
+    if (targetOrder) {
+      const restore = confirm('Czy chcesz przywrócić stan magazynowy wszystkich produktów z tego zamówienia?');
       if (restore) {
-        const prod = products.find((p) => p.id === productId);
-        const pName = (prod?.name || '').toLowerCase();
-        const pBrand = (prod?.brand || '').toLowerCase();
-        const isAccessory =
-          pBrand === 'footbubr' ||
-          pName.includes('skarpety') ||
-          pName.includes('ochraniacze') ||
-          pName.includes('taśma') ||
-          pName.includes('tasma') ||
-          pName.includes('zestaw') ||
-          Boolean(prod?.accessory_type);
+        try {
+          const rawData = targetOrder.shipping_method === 'paczkomat'
+            ? (targetOrder.paczkomat_code || '')
+            : (targetOrder.shipping_address || '');
 
-        const isBundle =
-          prod?.accessory_type === 'Zestawy FOOTBUBR' ||
-          pName.includes('zestaw');
+          const variantMatch = typeof rawData === 'string' ? rawData.match(/\[Wariant:\s*(.*?)\]/) : null;
+          const variantText = variantMatch ? variantMatch[1] : null;
 
-        if (!isAccessory) {
-          await supabase.from('products').update({ status: 'available', stock_quantity: 1 }).eq('id', productId);
-        } else if (isBundle) {
-          const newBoxStock = (prod?.stock_quantity ?? 0) + 1;
-          await supabase.from('products').update({
-            stock_quantity: newBoxStock,
-            status: 'available',
-          }).eq('id', productId);
+          if (variantText) {
+            const parts = variantText.split('|').map((p) => p.trim()).filter(Boolean);
 
-          const { data: sockProd } = await supabase
-            .from('products')
-            .select('*')
-            .or('accessory_type.eq.Skarpety antypoślizgowe,name.ilike.%skarpety%')
-            .neq('id', productId)
-            .limit(1)
-            .maybeSingle();
+            for (const part of parts) {
+              const qtyMatch = part.match(/x(\d+)$/i);
+              const qty = qtyMatch ? parseInt(qtyMatch[1], 10) : 1;
+              const nameWithoutQty = part.replace(/\s*x\d+$/i, '').trim();
 
-          if (sockProd) {
-            await supabase.from('products').update({
-              stock_quantity: (sockProd.stock_quantity ?? 0) + 1,
-              status: 'available',
-            }).eq('id', sockProd.id);
-          }
+              const sizeInParen = nameWithoutQty.match(/\((.*?)\)/)?.[1] || '';
+              const cleanProdName = nameWithoutQty.replace(/\s*\(.*?\)/, '').trim().toLowerCase();
 
-          const rawNote = targetOrder.paczkomat_code || targetOrder.shipping_address || targetOrder.product?.size_eu || '';
-          const chosenSize: 'S' | 'XS' = rawNote.toUpperCase().includes('XS') ? 'XS' : 'S';
-          const chosenTapeColorKey = rawNote.toLowerCase().includes('biał') ? 'biał' : 'czarn';
-
-          const { data: shinProd } = await supabase
-            .from('products')
-            .select('*')
-            .or('accessory_type.eq.Mini ochraniacze,name.ilike.%ochraniacze%')
-            .neq('id', productId)
-            .limit(1)
-            .maybeSingle();
-
-          if (shinProd) {
-            try {
-              if (shinProd.condition_detail && shinProd.condition_detail.startsWith('[')) {
-                const shinVariants = JSON.parse(shinProd.condition_detail);
-                const updated = shinVariants.map((v: any) => {
-                  if (isMatchingShinGuardSize(v.size, chosenSize)) {
-                    return { ...v, stock: (v.stock || 0) + 1 };
-                  }
-                  return v;
-                });
-                const totalStock = updated.reduce((s: number, v: any) => s + (v.stock || 0), 0);
-                await supabase.from('products').update({
-                  condition_detail: JSON.stringify(updated),
-                  stock_quantity: totalStock,
-                  status: 'available',
-                }).eq('id', shinProd.id);
-              } else {
-                await supabase.from('products').update({
-                  stock_quantity: (shinProd.stock_quantity ?? 0) + 1,
-                  status: 'available',
-                }).eq('id', shinProd.id);
-              }
-            } catch {}
-          }
-
-          const { data: tapeProds } = await supabase
-            .from('products')
-            .select('*')
-            .or('accessory_type.ilike.%taśm%,accessory_type.ilike.%tape%,name.ilike.%taśma%,name.ilike.%tasma%')
-            .neq('id', productId);
-
-          if (tapeProds && tapeProds.length > 0) {
-            const targetTape = tapeProds.find((t) => (t.name || '').toLowerCase().includes(chosenTapeColorKey)) || tapeProds[0];
-            if (targetTape) {
-              await supabase.from('products').update({
-                stock_quantity: (targetTape.stock_quantity ?? 0) + 1,
-                status: 'available',
-              }).eq('id', targetTape.id);
-            }
-          }
-        } else {
-          const rawNote = targetOrder.paczkomat_code || targetOrder.shipping_address || targetOrder.product?.size_eu || '';
-          try {
-            if (prod?.condition_detail && prod.condition_detail.startsWith('[')) {
-              const parsed = JSON.parse(prod.condition_detail);
-              const updated = parsed.map((v: any) => {
-                if (rawNote.includes(v.size)) return { ...v, stock: (v.stock || 0) + 1 };
-                return v;
+              const matchedProd = products.find((p) => {
+                const dbName = (p.name || '').toLowerCase();
+                return dbName.includes(cleanProdName) || cleanProdName.includes(dbName);
               });
-              const totalStock = updated.reduce((s: number, v: any) => s + (v.stock || 0), 0);
-              await supabase.from('products').update({
-                condition_detail: JSON.stringify(updated),
-                stock_quantity: totalStock,
-                status: 'available',
-              }).eq('id', productId);
-            } else {
-              await supabase.from('products').update({
-                stock_quantity: (prod?.stock_quantity ?? 0) + 1,
-                status: 'available',
-              }).eq('id', productId);
-            }
-          } catch {}
-        }
 
-        await loadProducts();
+              if (matchedProd) {
+                const isAcc =
+                  matchedProd.brand?.toLowerCase() === 'footbubr' ||
+                  matchedProd.name?.toLowerCase().includes('skarpety') ||
+                  matchedProd.name?.toLowerCase().includes('ochraniacze') ||
+                  matchedProd.name?.toLowerCase().includes('taśma') ||
+                  matchedProd.name?.toLowerCase().includes('tasma') ||
+                  Boolean(matchedProd.accessory_type);
+
+                if (!isAcc) {
+                  await supabase
+                    .from('products')
+                    .update({ status: 'available', stock_quantity: 1 })
+                    .eq('id', matchedProd.id);
+                } else {
+                  let parsedVariants: AccessoryVariant[] = [];
+                  try {
+                    if (matchedProd.condition_detail && matchedProd.condition_detail.startsWith('[')) {
+                      parsedVariants = JSON.parse(matchedProd.condition_detail);
+                    }
+                  } catch {}
+
+                  if (parsedVariants.length > 0) {
+                    const isXS = sizeInParen.toUpperCase().includes('XS');
+                    const targetChoice: 'S' | 'XS' = isXS ? 'XS' : 'S';
+
+                    const updatedVariants = parsedVariants.map((v) => {
+                      if (isMatchingShinGuardSize(v.size, targetChoice) || v.size === sizeInParen) {
+                        return { ...v, stock: (v.stock || 0) + qty };
+                      }
+                      return v;
+                    });
+
+                    const newTotal = updatedVariants.reduce((s, v) => s + (v.stock || 0), 0);
+                    await supabase
+                      .from('products')
+                      .update({
+                        condition_detail: JSON.stringify(updatedVariants),
+                        stock_quantity: newTotal,
+                        status: 'available',
+                      })
+                      .eq('id', matchedProd.id);
+                  } else {
+                    const newStock = (matchedProd.stock_quantity ?? 0) + qty;
+                    await supabase
+                      .from('products')
+                      .update({
+                        stock_quantity: newStock,
+                        status: 'available',
+                      })
+                      .eq('id', matchedProd.id);
+                  }
+                }
+              }
+            }
+          } else if (productId) {
+            const prod = products.find((p) => p.id === productId);
+            if (prod) {
+              await supabase
+                .from('products')
+                .update({
+                  status: 'available',
+                  stock_quantity: (prod.stock_quantity ?? 0) + 1,
+                })
+                .eq('id', productId);
+            }
+          }
+
+          await loadProducts();
+        } catch (err) {
+          console.error('Błąd przywracania magazynu:', err);
+        }
       }
     }
 
     setDeletingOrder(false);
     setSelectedOrder(null);
     await loadOrders();
-    showToast('Zamówienie usunięte i stan przywrócony');
+    showToast('Zamówienie usunięte i stany magazynowe przywrócone');
   };
 
   const openOrderDetail = (order: Order & { product?: Product }) => {
@@ -881,7 +860,7 @@ function AdminPage() {
       brand: isAcc ? 'FOOTBUBR' : form.brand,
       model: isAcc ? form.accessory_type : (form.model || form.name),
       size_eu: finalSizeEu,
-      badge_label: form.badge_label || null, // Zapis nowej etykiety do bazy
+      badge_label: form.badge_label || null,
       accessory_type: isAcc ? form.accessory_type : null,
       insole_length_cm: isAcc ? null : (form.insole_length_cm ? parseFloat(form.insole_length_cm) : null),
       price: parseFloat(form.price),
@@ -958,7 +937,7 @@ function AdminPage() {
       brand: p.brand || '', 
       model: p.model || '', 
       size_eu: String(p.size_eu || ''),
-      badge_label: p.badge_label || '', // Wczytywanie etykiety do edycji
+      badge_label: p.badge_label || '',
       accessory_type: p.accessory_type || 'Skarpety antypoślizgowe', 
       insole_length_cm: p.insole_length_cm ? String(p.insole_length_cm) : '', 
       price: String(p.price || ''), 
@@ -1463,7 +1442,6 @@ function AdminPage() {
                         <input className={inp} placeholder="np. Nike Mercurial Elite 1 of 1" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
                       </div>
 
-                      {/* Nowe pole: Krótka etykieta na kafelku */}
                       <div>
                         <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">
                           Krótka etykieta na kafelku (np. S/XS, ONE SIZE)
@@ -1990,22 +1968,22 @@ function AdminPage() {
                                 </p>
 
                                 {variantText ? (
-  <div className="space-y-1.5 pt-1.5">
-    <p className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
-      Produkty do spakowania:
-    </p>
-    <div className="flex flex-wrap gap-1.5">
-      {variantText.split('|').map((part, idx) => (
-        <span
-          key={idx}
-          className="text-xs font-bold text-white bg-white/5 border border-neutral-700 px-2.5 py-1 rounded-lg flex items-center gap-1.5"
-        >
-          <span className="w-1.5 h-1.5 rounded-full bg-[#FF6B00]" />
-          {part.trim()}
-        </span>
-      ))}
-    </div>
-  </div>
+                                  <div className="space-y-1.5 pt-1.5">
+                                    <p className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
+                                      Skład zamówienia do spakowania:
+                                    </p>
+                                    <div className="flex flex-wrap gap-1.5">
+                                      {variantText.split('|').map((part, idx) => (
+                                        <span
+                                          key={idx}
+                                          className="text-xs font-bold text-white bg-white/5 border border-neutral-700 px-2.5 py-1 rounded-lg flex items-center gap-1.5"
+                                        >
+                                          <span className="w-1.5 h-1.5 rounded-full bg-[#FF6B00]" />
+                                          {part.trim()}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
                                 ) : selectedOrder.product?.size_eu ? (
                                   <p className="text-xs text-neutral-400">
                                     Rozmiar: <span className="text-white font-semibold">{selectedOrder.product.size_eu}</span>
