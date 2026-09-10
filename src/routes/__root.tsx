@@ -81,7 +81,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" },
       { title: "FootBubr - Unikalne Korki Piłkarskie 1 of 1 & Akcesoria" },
       {
         name: "description",
@@ -138,14 +138,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="pl" className="dark overflow-x-hidden max-w-[100vw]">
+    <html lang="pl" className="dark">
       <head>
         <meta charSet="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
         <title>FootBubr - Unikalne Korki Piłkarskie 1 of 1 & Akcesoria</title>
         <HeadContent />
       </head>
-      <body className="overflow-x-hidden max-w-[100vw] w-full relative">
+      <body className="w-full bg-[#090909] text-white antialiased overflow-x-hidden">
         {children}
         <Scripts />
       </body>
@@ -160,9 +160,9 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <FavoritesProvider>
         <CartProvider>
-          <div className="flex flex-col min-h-screen w-full max-w-[100vw] overflow-x-hidden">
+          <div className="flex flex-col min-h-screen w-full">
             <TopAnnouncementBar />
-            <main className="flex-1 w-full max-w-[100vw] overflow-x-hidden">
+            <main className="flex-1 w-full">
               <Outlet />
             </main>
             <Footer />
