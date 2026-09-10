@@ -133,98 +133,92 @@ serve(async (req) => {
     const { type, email, dropId, orderId, tracking_number } = payload;
 
     // ==========================================
-    // 1. POWITANIE W BUBRCLUB (KOD -5%) - ZABEZPIECZONE
+    // 1. POWITANIE W BUBRCLUB (KOD -5%) - PONOWNY ZAPIS BEZ DRUGIEGO KODU
     // ==========================================
     if (type === "welcome_code" && email) {
       const cleanEmail = String(email).trim().toLowerCase();
 
-      // KROK A: Sprawdzamy czy ten e-mail kiedykolwiek odebrał kod w tabeli blokującej
+      // Sprawdzamy czy ten e-mail kiedykolwiek wcześniej odebrał kod
       const { data: alreadyClaimed } = await supabase
         .from("claimed_discount_emails")
         .select("email")
         .ilike("email", cleanEmail)
         .maybeSingle();
 
+      let codeToReturn = null;
+      let isFirstTime = false;
+
       if (alreadyClaimed) {
-        return new Response(
-          JSON.stringify({
-            success: true,
-            alreadySubscribed: true,
-            message: "Ten adres e-mail odebrał już swój jednorazowy kod powitalny.",
-          }),
-          {
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-            status: 200,
-          }
+        // Osoba wraca po wypisaniu – zapisujemy do subskrybentów na powiadomienia, ale NIE dajemy kodu
+        await supabase.from("drop_subscribers").upsert(
+          { email: cleanEmail, discount_code: null, drop_settings_id: dropId || 1 },
+          { onConflict: "email" }
         );
+      } else {
+        // Pierwszy raz – generujemy kod i blokujemy na zawsze wclaimed_discount_emails
+        codeToReturn = generateCode();
+        isFirstTime = true;
+
+        await supabase.from("claimed_discount_emails").insert({ email: cleanEmail });
+
+        await supabase.from("drop_subscribers").upsert(
+          { email: cleanEmail, discount_code: codeToReturn, drop_settings_id: dropId || 1 },
+          { onConflict: "email" }
+        );
+
+        await supabase.from("discount_codes").insert({
+          code: codeToReturn,
+          discount_type: "percentage",
+          discount_value: 5,
+          uses_left: 1,
+        });
+
+        const emailHtml = renderEmailShell(`
+          <div style="text-align: center;">
+            <div style="display: inline-block; background-color: #241407 !important; border: 1px solid #FF6B00; border-radius: 9999px; padding: 6px 16px; margin-bottom: 22px;">
+              <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: #FF6B00 !important;">
+                DOŁĄCZONO DO BUBRCLUB ⚡
+              </span>
+            </div>
+
+            <h1 style="margin: 0 0 14px 0; font-size: 26px; font-weight: 900; line-height: 1.2; text-transform: uppercase; letter-spacing: -0.5px; color: #ffffff !important;">
+              Witaj w klubie
+            </h1>
+
+            <p style="margin: 0 0 28px 0; max-width: 400px; display: inline-block; font-size: 14px; line-height: 1.6; color: #b0b0b0 !important;">
+              Będziesz otrzymywać powiadomienia o nowych dropach przed innymi. Na start łap jednorazowy kod rabatowy -5% na całe zamówienie.
+            </p>
+
+            <div style="background-color: #141414 !important; border: 2px dashed #FF6B00; border-radius: 14px; padding: 22px 16px; margin: 0 auto 30px auto; max-width: 320px;">
+              <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: #888888 !important; display: block; margin-bottom: 6px;">
+                TWÓJ KOD RABATOWY -5%
+              </span>
+              <span style="font-size: 28px; font-weight: 900; letter-spacing: 3px; font-family: monospace; color: #FF6B00 !important;">
+                ${codeToReturn}
+              </span>
+            </div>
+
+            <table border="0" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
+              <tr>
+                <td align="center" style="border-radius: 12px; background-color: #FF6B00 !important;">
+                  <a href="https://footbubr.pl" target="_blank" style="display: inline-block; padding: 15px 34px; font-size: 13px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; color: #000000 !important; text-decoration: none;">
+                    Przejdź do sklepu →
+                  </a>
+                </td>
+              </tr>
+            </table>
+          </div>
+        `, cleanEmail);
+
+        await resend.emails.send({
+          from: "FootBubr <kontakt@footbubr.pl>",
+          to: cleanEmail,
+          subject: "Twój kod rabatowy -5% do BubrClub ⚡",
+          html: emailHtml,
+        });
       }
 
-      // KROK B: Generujemy kod i zapisujemy do tabeli blokującej
-      const code = generateCode();
-      
-      await supabase.from("claimed_discount_emails").insert({ email: cleanEmail });
-
-      await supabase.from("drop_subscribers").upsert(
-        { email: cleanEmail, discount_code: code, drop_settings_id: dropId || 1 },
-        { onConflict: "email" }
-      );
-
-      await supabase.from("discount_codes").insert({
-        code: code,
-        discount_type: "percentage",
-        discount_value: 5,
-        uses_left: 1,
-      });
-
-      const emailHtml = renderEmailShell(`
-        <div style="text-align: center;">
-          <div style="display: inline-block; background-color: #241407 !important; border: 1px solid #FF6B00; border-radius: 9999px; padding: 6px 16px; margin-bottom: 22px;">
-            <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: #FF6B00 !important;">
-              DOŁĄCZONO DO BUBRCLUB ⚡
-            </span>
-          </div>
-
-          <h1 style="margin: 0 0 14px 0; font-size: 26px; font-weight: 900; line-height: 1.2; text-transform: uppercase; letter-spacing: -0.5px; color: #ffffff !important;">
-            Witaj w klubie
-          </h1>
-
-          <p style="margin: 0 0 28px 0; max-width: 400px; display: inline-block; font-size: 14px; line-height: 1.6; color: #b0b0b0 !important;">
-            Będziesz otrzymywać powiadomienia o nowych dropach przed innymi. Na start łap jednorazowy kod rabatowy -5% na całe zamówienie.
-          </p>
-
-          <div style="background-color: #141414 !important; border: 2px dashed #FF6B00; border-radius: 14px; padding: 22px 16px; margin: 0 auto 30px auto; max-width: 320px;">
-            <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: #888888 !important; display: block; margin-bottom: 6px;">
-              TWÓJ KOD RABATOWY -5%
-            </span>
-            <span style="font-size: 28px; font-weight: 900; letter-spacing: 3px; font-family: monospace; color: #FF6B00 !important;">
-              ${code}
-            </span>
-          </div>
-
-          <table border="0" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
-            <tr>
-              <td align="center" style="border-radius: 12px; background-color: #FF6B00 !important;">
-                <a href="https://footbubr.pl" target="_blank" style="display: inline-block; padding: 15px 34px; font-size: 13px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; color: #000000 !important; text-decoration: none;">
-                  Przejdź do sklepu →
-                </a>
-              </td>
-            </tr>
-          </table>
-
-          <p style="margin: 22px 0 0 0; font-size: 11px; color: #666666 !important;">
-            Kod jest jednorazowy. Wklej go w koszyku podczas finalizacji zamówienia.
-          </p>
-        </div>
-      `, cleanEmail);
-
-      await resend.emails.send({
-        from: "FootBubr <kontakt@footbubr.pl>",
-        to: cleanEmail,
-        subject: "Twój kod rabatowy -5% do BubrClub ⚡",
-        html: emailHtml,
-      });
-
-      return new Response(JSON.stringify({ success: true, alreadySubscribed: false, code }), {
+      return new Response(JSON.stringify({ success: true, isFirstTime, code: codeToReturn }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
       });
@@ -555,7 +549,7 @@ serve(async (req) => {
       `);
 
       await resend.emails.send({
-        from: "FootBubr <kontakt@footbubr.pl>",
+        from: "FootRepo <kontakt@footbubr.pl>",
         to: order.customer_email,
         subject: `📦 Twoja paczka z FootBubr jest w drodze! (${order.product?.name || "Zamówienie"})`,
         html: emailHtml,
