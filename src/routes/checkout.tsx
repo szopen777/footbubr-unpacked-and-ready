@@ -123,9 +123,7 @@ function CheckoutPage() {
   const handleAddBundleAccessory = () => {
     if (!currentAccessory) return;
     setBundleLoading(true);
-    
     const configVariant = isShinGuards ? `Rozmiar: ${selectedBundleSize}` : undefined;
-
     addItem(currentAccessory, 1, configVariant);
     setBundleAdded(true);
     setBundleLoading(false);
@@ -138,12 +136,10 @@ function CheckoutPage() {
     } else if (typeof updateQuantity === 'function') {
       updateQuantity(productId, newQuantity, variant);
     } else {
-      // Fallback jeśli cart-context nie eksportuje bezpośrednio updateQuantity
       const currentItem = items.find(
         (it) => it.product.id === productId && (it.variant || it.product.size_eu) === (variant || it.product.size_eu)
       );
       if (!currentItem) return;
-      
       const diff = newQuantity - currentItem.quantity;
       if (diff > 0) {
         addItem(currentItem.product, diff, variant);
@@ -258,10 +254,10 @@ function CheckoutPage() {
       }
 
       setPointsList([]);
-      setSearchMessage('Nie znaleziono paczkomatów. Spróbuj dopisać miasto lub podać kod pocztowy.');
+      setSearchMessage('Nie znaleziono paczkomatów.');
     } catch {
       setPointsList([]);
-      setSearchMessage('Błąd połączenia. Możesz wpisać kod paczkomatu ręcznie w formularzu.');
+      setSearchMessage('Błąd połączenia. Możesz wpisać kod paczkomatu ręcznie.');
     } finally {
       setSearchingPoints(false);
     }
@@ -276,7 +272,7 @@ function CheckoutPage() {
     if (!form.email.trim()) {
       e.email = 'Adres email jest wymagany';
     } else if (!emailRegex.test(form.email.trim())) {
-      e.email = 'Podaj poprawny adres email (np. jan@domena.pl)';
+      e.email = 'Podaj poprawny adres email';
     }
 
     const cleanPhone = form.phone.replace(/\D/g, '');
@@ -293,7 +289,7 @@ function CheckoutPage() {
       if (!form.city.trim()) e.city = 'Podaj miasto';
     }
     if (form.paymentMethod === 'blik' && form.blikCode.length !== 6) e.blikCode = 'Kod BLIK musi mieć 6 cyfr';
-    if (!acceptTerms) e.acceptTerms = 'Musisz zaakceptować regulamin i politykę prywatności';
+    if (!acceptTerms) e.acceptTerms = 'Musisz zaakceptować regulamin';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -328,6 +324,7 @@ function CheckoutPage() {
     const rollbacks: (() => Promise<any>)[] = [];
 
     try {
+      // 1. Rezerwacja stanów magazynowych
       for (const { product, quantity } of items) {
         const pName = (product.name || '').toLowerCase();
         const pBrand = (product.brand || '').toLowerCase();
@@ -525,6 +522,7 @@ function CheckoutPage() {
         }
       }
 
+      // 2. Symulacja BLIK
       if (form.paymentMethod === 'blik') {
         setBlikStep('waiting');
         await new Promise((r) => setTimeout(r, 1800));
@@ -533,10 +531,9 @@ function CheckoutPage() {
           for (const rollback of rollbacks) {
             await rollback();
           }
-
           setBlikStep('idle');
           setSubmitting(false);
-          setGeneralError('Płatność BLIK została odrzucona przez bank. Przedmioty wróciły do oferty.');
+          setGeneralError('Płatność BLIK została odrzucona przez bank.');
           return;
         }
 
@@ -544,52 +541,46 @@ function CheckoutPage() {
         await new Promise((r) => setTimeout(r, 600));
       }
 
-      const placedOrderIds: string[] = [];
-      let firstRecord: Order | null = null;
+      // 3. JEDNO ZBIORCZE ZAMÓWIENIE W BAZIE DANYCH
       const cleanPhone = `+48${form.phone.replace(/\D/g, '')}`;
+      
+      const itemsSummaryList = items.map(({ product, quantity, variant }) => {
+        const v = variant || product.size_eu;
+        return `${product.name}${v ? ` (${v})` : ''} x${quantity}`;
+      }).join(' • ');
 
-      for (const { product, quantity, variant } of items) {
-        let itemPrice = product.price;
-        if (appliedPromo) {
-          if (appliedPromo.discount_type === 'percentage') {
-            itemPrice = Math.round(product.price * (1 - appliedPromo.discount_value / 100));
-          } else {
-            const ratio = (product.price * quantity) / (total || 1);
-            itemPrice = Math.max(0, product.price - Math.round((appliedPromo.discount_value * ratio) / quantity));
-          }
+      const mainProductId = items[0].product.id;
+
+      const orderPayload = {
+        product_id: mainProductId,
+        customer_name: `${form.firstName.trim()} ${form.lastName.trim()}`,
+        customer_email: form.email.trim().toLowerCase(),
+        customer_phone: cleanPhone,
+        shipping_method: form.shippingMethod,
+        paczkomat_code: form.shippingMethod === 'paczkomat' 
+          ? `${form.paczkomatCode.trim().toUpperCase()} [${itemsSummaryList}]` 
+          : null,
+        shipping_address: form.shippingMethod === 'kurier' 
+          ? `${form.address.trim()}, ${form.postalCode.trim()} ${form.city.trim()} [${itemsSummaryList}]` 
+          : null,
+        payment_method: form.paymentMethod,
+        total_price: orderTotal,
+        status: 'paid' as const,
+      };
+
+      const { data: createdOrder, error: orderError } = await supabase
+        .from('orders')
+        .insert(orderPayload)
+        .select('*')
+        .maybeSingle();
+
+      if (orderError || !createdOrder) {
+        console.error('Supabase order insert error:', orderError);
+        for (const rollback of rollbacks) {
+          await rollback();
         }
-
-        const itemTotal = itemPrice * quantity + shippingCost;
-        const variantNote = variant ? ` [Wariant: ${variant}]` : (product.size_eu ? ` [Wariant: ${product.size_eu}]` : '');
-
-        const orderPayload = {
-          product_id: product.id,
-          customer_name: `${form.firstName.trim()} ${form.lastName.trim()}`,
-          customer_email: form.email.trim().toLowerCase(),
-          customer_phone: cleanPhone,
-          shipping_method: form.shippingMethod,
-          paczkomat_code: form.shippingMethod === 'paczkomat' ? `${form.paczkomatCode.trim().toUpperCase()}${variantNote}` : null,
-          shipping_address:
-            form.shippingMethod === 'kurier'
-              ? `${form.address.trim()}, ${form.postalCode.trim()} ${form.city.trim()}${variantNote}`
-              : null,
-          payment_method: form.paymentMethod,
-          total_price: itemTotal,
-          status: 'paid' as const,
-        };
-
-        const { data: order, error: orderError } = await supabase
-          .from('orders')
-          .insert(orderPayload)
-          .select('*')
-          .maybeSingle();
-
-        if (orderError) {
-          console.error('Supabase order insert error:', orderError);
-        } else if (order) {
-          placedOrderIds.push(order.id);
-          if (!firstRecord) firstRecord = order as Order;
-        }
+        setGeneralError('Wystąpił problem przy składaniu zamówienia. Spróbuj ponownie.');
+        return;
       }
 
       if (appliedPromo && appliedPromo.id) {
@@ -600,14 +591,11 @@ function CheckoutPage() {
           .eq('id', appliedPromo.id);
       }
 
-      if (placedOrderIds.length > 0 || firstRecord) {
-        setOrderId(placedOrderIds[0] || 'ORD-' + Date.now().toString().slice(-6));
-        if (firstRecord) setOrderRecord(firstRecord);
-        clearCart();
-        setStep('success');
-      } else {
-        setGeneralError('Wystąpił problem przy składaniu zamówienia. Spróbuj ponownie.');
-      }
+      setOrderId(createdOrder.id);
+      setOrderRecord(createdOrder as Order);
+      clearCart();
+      setStep('success');
+
     } catch (err: any) {
       console.error('Unexpected order error:', err);
       for (const rollback of rollbacks) {
@@ -659,8 +647,6 @@ function CheckoutPage() {
         </div>
 
         <main className="flex-1 flex items-center justify-center relative px-4 py-12">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-[#FF6B00]/10 blur-[100px] rounded-full pointer-events-none" />
-
           <div className="max-w-md w-full bg-[#141414] border border-neutral-800 rounded-3xl p-8 sm:p-10 text-center relative z-10 animate-scale-in shadow-2xl">
             <div className="relative w-20 h-20 mx-auto mb-6">
               <div 
@@ -716,7 +702,7 @@ function CheckoutPage() {
       <Header />
       <CartDrawer />
 
-      {/* MODAL WYSZUKIWARKI PACZKOMATÓW */}
+      {/* MODAL PACZKOMATÓW */}
       {showInpostModal && (
         <div className="fixed inset-0 z-[200] bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-fade-in">
           <div className="bg-[#141414] border border-neutral-800 rounded-2xl w-full max-w-xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden relative">
@@ -782,46 +768,44 @@ function CheckoutPage() {
 
               {!searchingPoints && pointsList.length > 0 && (
                 <div className="space-y-2">
-                  {pointsList.map((pt) => {
-                    return (
-                      <div
-                        key={pt.name}
-                        onClick={() => {
-                          setForm({ ...form, paczkomatCode: pt.name });
-                          setShowInpostModal(false);
-                        }}
-                        className="p-3 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-3 group border bg-black/40 hover:bg-white/5 border-neutral-800 hover:border-neutral-700"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-mono font-black text-sm text-[#FF6B00] group-hover:scale-105 transition-transform">
-                              {pt.name}
-                            </span>
-                            <span className="text-xs text-white font-semibold truncate">
-                              {pt.address_details?.street || ''} {pt.address_details?.building_number || ''}
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-neutral-400 mt-0.5">
-                            {pt.address_details?.post_code || ''} {pt.address_details?.city || ''}
-                            {pt.location_description ? ` · ${pt.location_description}` : ''}
-                          </p>
+                  {pointsList.map((pt) => (
+                    <div
+                      key={pt.name}
+                      onClick={() => {
+                        setForm({ ...form, paczkomatCode: pt.name });
+                        setShowInpostModal(false);
+                      }}
+                      className="p-3 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-3 group border bg-black/40 hover:bg-white/5 border-neutral-800 hover:border-neutral-700"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-mono font-black text-sm text-[#FF6B00] group-hover:scale-105 transition-transform">
+                            {pt.name}
+                          </span>
+                          <span className="text-xs text-white font-semibold truncate">
+                            {pt.address_details?.street || ''} {pt.address_details?.building_number || ''}
+                          </span>
                         </div>
-
-                        <button
-                          type="button"
-                          className="bg-white/10 group-hover:bg-[#FF6B00] group-hover:text-black text-white font-bold text-xs px-3 py-1.5 rounded-lg transition-all flex-shrink-0"
-                        >
-                          Wybierz
-                        </button>
+                        <p className="text-[11px] text-neutral-400 mt-0.5">
+                          {pt.address_details?.post_code || ''} {pt.address_details?.city || ''}
+                          {pt.location_description ? ` · ${pt.location_description}` : ''}
+                        </p>
                       </div>
-                    );
-                  })}
+
+                      <button
+                        type="button"
+                        className="bg-white/10 group-hover:bg-[#FF6B00] group-hover:text-black text-white font-bold text-xs px-3 py-1.5 rounded-lg transition-all flex-shrink-0"
+                      >
+                        Wybierz
+                      </button>
+                    </div>
+                  ))}
                 </div>
               )}
 
               {!searchingPoints && pointsList.length === 0 && (
                 <div className="py-12 text-center text-neutral-500 text-xs">
-                  {searchMessage || 'Wpisz miasto i ulicę lub kod pocztowy powyżej, aby znaleźć paczkomaty.'}
+                  {searchMessage || 'Wpisz miasto i ulicę lub kod pocztowy powyżej.'}
                 </div>
               )}
             </div>
