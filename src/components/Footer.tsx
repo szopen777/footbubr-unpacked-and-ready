@@ -78,23 +78,25 @@ export default function Footer() {
 
       const data = await response.json();
 
-      if (data?.alreadySubscribed) {
-        toast.info('Jesteś już w BubrClub!', {
-          description: data?.code 
-            ? `Twój wcześniejszy kod to: ${data.code}` 
-            : `Ten adres e-mail już odebrał swój kod rabatowy.`,
-          duration: 7000,
-        });
+      if (data?.success) {
         setSubscribed(true);
-      } else {
         localStorage.setItem('footbubr_nl_subscribed', emailTrimmed);
-        setSubscribed(true);
-        toast.success('Sprawdź swoją skrzynkę e-mail!', {
-          description: data?.code 
-            ? `Twój kod: ${data.code} (-5%). Wysłaliśmy go też na adres ${emailTrimmed}.`
-            : `Wysłaliśmy kod rabatowy -5% na adres ${emailTrimmed}.`,
-          duration: 7000,
-        });
+
+        if (data.isFirstTime) {
+          // Nowy użytkownik – dostaje kod na start
+          toast.success('Zapisano do BubrClub!', {
+            description: data?.code 
+              ? `Twój kod: ${data.code} (-5%). Wysłaliśmy go też na adres ${emailTrimmed}.`
+              : `Wysłaliśmy kod rabatowy -5% na adres ${emailTrimmed}.`,
+            duration: 7000,
+          });
+        } else {
+          // Użytkownik powracający (wypisał się i wraca) – brak ponownego kodu
+          toast.info('Witaj ponownie w BubrClub!', {
+            description: `Jesteś z powrotem na liście powiadomień o dropach. (Kod rabatowy został już wcześniej wykorzystany na ten adres).`,
+            duration: 7000,
+          });
+        }
       }
 
       setNewsletterEmail('');
