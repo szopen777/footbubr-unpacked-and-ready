@@ -133,7 +133,7 @@ serve(async (req) => {
     const { type, email, dropId, orderId, tracking_number } = payload;
 
     // ==========================================
-    // 1. POWITANIE W BUBRCLUB (KOD -5%) - W 100% ZABEZPIECZONE
+    // 1. POWITANIE W BUBRCLUB (KOD -5%) - ZABEZPIECZONE
     // ==========================================
     if (type === "welcome_code" && email) {
       const cleanEmail = String(email).trim().toLowerCase();
@@ -159,7 +159,7 @@ serve(async (req) => {
         );
       }
 
-      // KROK B: Generujemy kod i zapisujemy do tabeli blokującej (nawet jak się potem wypisze, blokada zostaje)
+      // KROK B: Generujemy kod i zapisujemy do tabeli blokującej
       const code = generateCode();
       
       await supabase.from("claimed_discount_emails").insert({ email: cleanEmail });
