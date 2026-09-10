@@ -43,6 +43,22 @@ function isMatchingShinGuardSize(variantSizeName: string | undefined | null, cho
   return clean.startsWith('S') || clean.includes(' S') || clean.includes('S ') || clean.includes('S-') || clean.includes('S -') || clean.includes('S×') || clean.includes('S ×');
 }
 
+async function sendOrderConfirmationEmail(orderId: string) {
+  try {
+    await fetch('https://kwumqkqnwqbfvpzavclv.supabase.co/functions/v1/send-drop-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        orderId,
+        type: 'order_confirmed',
+        admin_email: 'kontakt@footbubr.pl',
+      }),
+    });
+  } catch (err) {
+    console.error('Błąd wysyłki powiadomienia e-mail:', err);
+  }
+}
+
 function CheckoutPage() {
   const { 
     items, 
@@ -63,12 +79,14 @@ function CheckoutPage() {
   const [orderId, setOrderId] = useState('');
   const [orderRecord, setOrderRecord] = useState<Order | null>(null);
   
+  // Upsell w kasie
   const [bundleAccessories, setBundleAccessories] = useState<Product[]>([]);
   const [currentBundleIndex, setCurrentBundleIndex] = useState(0);
   const [bundleLoading, setBundleLoading] = useState(false);
   const [selectedBundleSize, setSelectedBundleSize] = useState<'S' | 'XS'>('S');
   const [bundleAdded, setBundleAdded] = useState(false);
   
+  // Modal paczkomatów
   const [showInpostModal, setShowInpostModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchingPoints, setSearchingPoints] = useState(false);
@@ -560,7 +578,6 @@ function CheckoutPage() {
       // 3. JEDNO ZBIORCZE ZAMÓWIENIE FORMATOWANE SPECJALNIE DLA PANELU ADMINA
       const cleanPhone = `+48${form.phone.replace(/\D/g, '')}`;
       
-      // Tworzymy format [Wariant: Produkt 1 | Produkt 2 | ...], który panel admina parsuje do kafelków!
       const variantParts = items.map(({ product, quantity, variant }) => {
         const v = variant || product.size_eu;
         return `${product.name}${v ? ` (${v})` : ''} x${quantity}`;
@@ -611,6 +628,10 @@ function CheckoutPage() {
 
       setOrderId(createdOrder.id);
       setOrderRecord(createdOrder as Order);
+
+      // WYSYŁKA MAILA Z POTWIERDZENIEM NA kontakt@footbubr.pl ORAZ DO KLIENTA
+      sendOrderConfirmationEmail(createdOrder.id);
+
       clearCart();
       setStep('success');
 
@@ -722,7 +743,7 @@ function CheckoutPage() {
       <Header />
       <CartDrawer />
 
-      {/* MODAL WYSZUKIWARKI PACZKOMATÓW */}
+      {/* MODAL PACZKOMATÓW */}
       {showInpostModal && (
         <div className="fixed inset-0 z-[200] bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-fade-in">
           <div className="bg-[#141414] border border-neutral-800 rounded-2xl w-full max-w-xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden relative">
