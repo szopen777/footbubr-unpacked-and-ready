@@ -10,7 +10,7 @@ import {
   ArrowLeft, Package, Truck, CreditCard, 
   Loader as Loader2, MapPin, Tag, X, Check, 
   CircleAlert as AlertCircle, Lock, ShieldCheck, 
-  PackageOpen, ArrowRight, ExternalLink, Search, Trash2, Plus, Zap
+  PackageOpen, ArrowRight, ExternalLink, Search, Trash2, Plus, Zap, Minus
 } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 
@@ -43,21 +43,33 @@ function isMatchingShinGuardSize(variantSizeName: string, chosenSize: 'S' | 'XS'
 }
 
 function CheckoutPage() {
-  const { items, total, discountedTotal, discountAmount, appliedPromo, applyPromo, removePromo, clearCart, removeItem, addItem } = useCart();
+  const { 
+    items, 
+    total, 
+    discountedTotal, 
+    discountAmount, 
+    appliedPromo, 
+    applyPromo, 
+    removePromo, 
+    clearCart, 
+    removeItem, 
+    addItem,
+    updateQuantity 
+  } = useCart();
   
   const [step, setStep] = useState<'summary' | 'success'>('summary');
   const [submitting, setSubmitting] = useState(false);
   const [orderId, setOrderId] = useState('');
   const [orderRecord, setOrderRecord] = useState<Order | null>(null);
   
-  // Upsell w kasie (wybór losowego akcesorium do zestawu)
+  // Upsell w kasie
   const [bundleAccessories, setBundleAccessories] = useState<Product[]>([]);
   const [currentBundleIndex, setCurrentBundleIndex] = useState(0);
   const [bundleLoading, setBundleLoading] = useState(false);
   const [selectedBundleSize, setSelectedBundleSize] = useState<'S' | 'XS'>('S');
   const [bundleAdded, setBundleAdded] = useState(false);
   
-  // Wyszukiwarka paczkomatów (modal)
+  // Modal paczkomatów
   const [showInpostModal, setShowInpostModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchingPoints, setSearchingPoints] = useState(false);
@@ -88,7 +100,6 @@ function CheckoutPage() {
   const shippingCost = shippingCostFor(form.shippingMethod, discountedTotal);
   const orderTotal = discountedTotal + shippingCost;
 
-  // Pobieranie akcesoriów FOOTBUBR do cross-sellu
   useEffect(() => {
     const fetchAccessories = async () => {
       const { data } = await supabase
@@ -113,13 +124,34 @@ function CheckoutPage() {
     if (!currentAccessory) return;
     setBundleLoading(true);
     
-    // Jeśli to ochraniacze z opcją rozmiaru S/XS, przekazujemy wybrany rozmiar jako konfigurację
     const configVariant = isShinGuards ? `Rozmiar: ${selectedBundleSize}` : undefined;
 
     addItem(currentAccessory, 1, configVariant);
     setBundleAdded(true);
     setBundleLoading(false);
     setTimeout(() => setBundleAdded(false), 2500);
+  };
+
+  const handleQuantityChange = (productId: string, newQuantity: number, variant?: string) => {
+    if (newQuantity <= 0) {
+      removeItem(productId, variant);
+    } else if (typeof updateQuantity === 'function') {
+      updateQuantity(productId, newQuantity, variant);
+    } else {
+      // Fallback jeśli cart-context nie eksportuje bezpośrednio updateQuantity
+      const currentItem = items.find(
+        (it) => it.product.id === productId && (it.variant || it.product.size_eu) === (variant || it.product.size_eu)
+      );
+      if (!currentItem) return;
+      
+      const diff = newQuantity - currentItem.quantity;
+      if (diff > 0) {
+        addItem(currentItem.product, diff, variant);
+      } else if (diff < 0) {
+        removeItem(productId, variant);
+        addItem(currentItem.product, newQuantity, variant);
+      }
+    }
   };
 
   const sortPointsByRelevance = (itemsList: InPostPoint[], query: string): InPostPoint[] => {
@@ -156,7 +188,6 @@ function CheckoutPage() {
     setSearchMessage('');
 
     try {
-      // 1. Sprawdź czy to kod Paczkomatu (np. KRA01M)
       const cleanCode = raw.toUpperCase().replace(/\s+/g, '');
       if (/^[A-Z]{3}[0-9]{2,}[A-Z0-9]*$/.test(cleanCode)) {
         const resCode = await fetch(`https://api-pl-points.easypack24.net/v1/points/${cleanCode}`);
@@ -170,7 +201,6 @@ function CheckoutPage() {
         }
       }
 
-      // 2. Sprawdź czy to kod pocztowy (np. 31-150 lub 31150)
       const postalMatch = raw.match(/\d{2}-?\d{3}/);
       if (postalMatch) {
         const pCode = postalMatch[0].includes('-') ? postalMatch[0] : `${postalMatch[0].slice(0, 2)}-${postalMatch[0].slice(2)}`;
@@ -185,7 +215,6 @@ function CheckoutPage() {
         }
       }
 
-      // 3. Jeśli zapytanie to tylko nazwa miejscowości
       const isJustCity = !/\d/.test(raw) && raw.split(/\s+/).length <= 2;
       if (isJustCity) {
         const resCity = await fetch(
@@ -199,7 +228,6 @@ function CheckoutPage() {
         }
       }
 
-      // 4. Geokodowanie OpenStreetMap (dla pełnych adresów np. "Kluczborska 17 Kraków")
       let coords: { lat: number; lng: number } | null = null;
       try {
         const normalizedQuery = raw.replace(/([a-zA-ZąćęłńóśźżĄĆĘŁŃÓŚŹŻ])(\d)/g, '$1 $2');
@@ -230,7 +258,7 @@ function CheckoutPage() {
       }
 
       setPointsList([]);
-      setSearchMessage('Nie znaleziono paczkomatów. Spróbuj dopisać miasto (np. Kluczborska Wrocław) lub podać kod pocztowy.');
+      setSearchMessage('Nie znaleziono paczkomatów. Spróbuj dopisać miasto lub podać kod pocztowy.');
     } catch {
       setPointsList([]);
       setSearchMessage('Błąd połączenia. Możesz wpisać kod paczkomatu ręcznie w formularzu.');
@@ -244,7 +272,6 @@ function CheckoutPage() {
     if (!form.firstName.trim()) e.firstName = 'Imię jest wymagane';
     if (!form.lastName.trim()) e.lastName = 'Nazwisko jest wymagane';
     
-    // Walidacja email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
     if (!form.email.trim()) {
       e.email = 'Adres email jest wymagany';
@@ -252,7 +279,6 @@ function CheckoutPage() {
       e.email = 'Podaj poprawny adres email (np. jan@domena.pl)';
     }
 
-    // Walidacja telefonu (dokładnie 9 cyfr bez spacji i prefiksu)
     const cleanPhone = form.phone.replace(/\D/g, '');
     if (!cleanPhone) {
       e.phone = 'Numer telefonu jest wymagany';
@@ -302,7 +328,6 @@ function CheckoutPage() {
     const rollbacks: (() => Promise<any>)[] = [];
 
     try {
-      // Rezerwacja i walidacja stanu magazynowego
       for (const { product, quantity } of items) {
         const pName = (product.name || '').toLowerCase();
         const pBrand = (product.brand || '').toLowerCase();
@@ -359,7 +384,6 @@ function CheckoutPage() {
           const chosenShinGuardSize: 'S' | 'XS' = configStr.toUpperCase().includes('XS') ? 'XS' : 'S';
           const chosenTapeColorKey = configStr.toLowerCase().includes('biał') ? 'biał' : 'czarn';
 
-          // Dekrementacja składowych zestawu
           const { data: sockProd } = await supabase
             .from('products')
             .select('*')
@@ -1053,13 +1077,24 @@ function CheckoutPage() {
             </div>
           </div>
 
-          {/* Kolumna prawa: podsumowanie */}
+          {/* Kolumna prawa: podsumowanie z kontrolerem ilości */}
           <div className="lg:col-span-2 min-w-0">
             <div className="bg-[#141414] rounded-2xl border border-neutral-800/80 p-4 sm:p-6 lg:sticky lg:top-24 animate-fade-in-up">
               <h2 className="font-bold text-white mb-4 uppercase tracking-wider text-sm">Podsumowanie</h2>
               
-              <div className="space-y-3 mb-4 max-h-60 overflow-y-auto pr-1">
+              <div className="space-y-3 mb-4 max-h-64 overflow-y-auto pr-1">
                 {items.map(({ product, quantity, variant }) => {
+                  const pName = (product.name || '').toLowerCase();
+                  const pBrand = (product.brand || '').toLowerCase();
+                  const isAccessory =
+                    pBrand === 'footbubr' ||
+                    pName.includes('skarpety') ||
+                    pName.includes('ochraniacze') ||
+                    pName.includes('taśma') ||
+                    pName.includes('tasma') ||
+                    pName.includes('zestaw') ||
+                    Boolean(product.accessory_type);
+
                   return (
                     <div key={`${product.id}-${variant || ''}`} className="flex items-center gap-3 bg-black/40 border border-neutral-800/80 rounded-xl p-2.5 group">
                       <Link 
@@ -1067,23 +1102,59 @@ function CheckoutPage() {
                         params={{ id: product.id }}
                         className="w-12 h-12 rounded-lg overflow-hidden bg-white/5 border border-neutral-800 flex-shrink-0 relative block"
                       >
-                        {product.images && product.images[0] && <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />}
+                        {product.images && product.images[0] && (
+                          <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                        )}
                       </Link>
-                      <Link 
-                        to="/product/$id" 
-                        params={{ id: product.id }}
-                        className="flex-1 min-w-0 block"
-                      >
-                        <p className="text-xs font-semibold text-white truncate hover:text-[#FF6B00] transition-colors">{product.name}</p>
+                      
+                      <div className="flex-1 min-w-0">
+                        <Link to="/product/$id" params={{ id: product.id }} className="block">
+                          <p className="text-xs font-semibold text-white truncate hover:text-[#FF6B00] transition-colors">
+                            {product.name}
+                          </p>
+                        </Link>
+                        
                         <p className="text-xs text-neutral-500 truncate">
-                          {quantity > 1 ? `Ilość: ${quantity} szt. · ` : ''}{variant || product.size_eu || ''}
+                          {variant || product.size_eu ? `Rozmiar: ${variant || product.size_eu}` : ''}
                         </p>
-                        <p className="text-xs font-bold text-[#FF6B00] mt-0.5">{formatPrice(product.price * quantity)}</p>
-                      </Link>
+
+                        <div className="flex items-center justify-between mt-1.5">
+                          <span className="text-xs font-bold text-[#FF6B00]">
+                            {formatPrice(product.price * quantity)}
+                          </span>
+
+                          {isAccessory ? (
+                            <div className="flex items-center gap-1 bg-black/60 border border-neutral-800 rounded-lg p-0.5">
+                              <button
+                                type="button"
+                                onClick={() => handleQuantityChange(product.id, quantity - 1, variant)}
+                                className="w-5 h-5 flex items-center justify-center text-neutral-400 hover:text-white hover:bg-white/10 rounded transition-colors"
+                              >
+                                <Minus className="w-3 h-3" />
+                              </button>
+                              <span className="text-xs font-semibold text-white min-w-[16px] text-center">
+                                {quantity}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleQuantityChange(product.id, quantity + 1, variant)}
+                                className="w-5 h-5 flex items-center justify-center text-neutral-400 hover:text-white hover:bg-white/10 rounded transition-colors"
+                              >
+                                <Plus className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-[10px] text-neutral-500 font-medium px-1.5 py-0.5 bg-white/5 rounded border border-neutral-800">
+                              1 para (unikat)
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
                       <button
                         type="button"
                         onClick={() => removeItem(product.id, variant)}
-                        className="text-neutral-600 hover:text-red-400 p-1.5 rounded-lg transition-colors flex-shrink-0"
+                        className="text-neutral-600 hover:text-red-400 p-1.5 rounded-lg transition-colors flex-shrink-0 self-start"
                         title="Usuń produkt"
                       >
                         <Trash2 className="w-4 h-4" />
