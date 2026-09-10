@@ -32,8 +32,9 @@ function formatPhoneNumber(val: string): string {
   return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
 }
 
-function isMatchingShinGuardSize(variantSizeName: string, chosenSize: 'S' | 'XS'): boolean {
-  const clean = (variantSizeName || '').toUpperCase().trim();
+function isMatchingShinGuardSize(variantSizeName: string | undefined | null, chosenSize: 'S' | 'XS'): boolean {
+  if (!variantSizeName) return false;
+  const clean = String(variantSizeName).toUpperCase().trim();
   if (chosenSize === 'XS') {
     return clean.startsWith('XS') || clean.includes(' XS') || clean.includes('XS ');
   }
@@ -62,14 +63,12 @@ function CheckoutPage() {
   const [orderId, setOrderId] = useState('');
   const [orderRecord, setOrderRecord] = useState<Order | null>(null);
   
-  // Upsell w kasie
   const [bundleAccessories, setBundleAccessories] = useState<Product[]>([]);
   const [currentBundleIndex, setCurrentBundleIndex] = useState(0);
   const [bundleLoading, setBundleLoading] = useState(false);
   const [selectedBundleSize, setSelectedBundleSize] = useState<'S' | 'XS'>('S');
   const [bundleAdded, setBundleAdded] = useState(false);
   
-  // Modal paczkomatów
   const [showInpostModal, setShowInpostModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchingPoints, setSearchingPoints] = useState(false);
@@ -324,8 +323,8 @@ function CheckoutPage() {
     const rollbacks: (() => Promise<any>)[] = [];
 
     try {
-      // 1. Rezerwacja stanów magazynowych
-      for (const { product, quantity } of items) {
+      // 1. ZDEJMOWANIE ZE STANÓW MAGAZYNOWYCH
+      for (const { product, quantity, variant } of items) {
         const pName = (product.name || '').toLowerCase();
         const pBrand = (product.brand || '').toLowerCase();
         const isAccessory =
@@ -342,6 +341,7 @@ function CheckoutPage() {
           pName.includes('zestaw');
 
         if (!isAccessory) {
+          // Buty 1-of-1
           const { data: updatedProduct, error: updateError } = await supabase
             .from('products')
             .update({ status: 'sold', stock_quantity: 0 })
@@ -360,6 +360,7 @@ function CheckoutPage() {
             await supabase.from('products').update({ status: 'available', stock_quantity: 1 }).eq('id', product.id);
           });
         } else if (isBundle) {
+          // Zestaw piłkarski
           const { data: currentBox } = await supabase.from('products').select('*').eq('id', product.id).single();
           if (!currentBox || (currentBox.stock_quantity ?? 0) < quantity) {
             setGeneralError('Brak wystarczającej ilości zestawów w magazynie.');
@@ -377,10 +378,11 @@ function CheckoutPage() {
             await supabase.from('products').update({ stock_quantity: currentBox.stock_quantity, status: currentBox.status }).eq('id', product.id);
           });
 
-          const configStr = product.size_eu || '';
+          const configStr = variant || product.size_eu || '';
           const chosenShinGuardSize: 'S' | 'XS' = configStr.toUpperCase().includes('XS') ? 'XS' : 'S';
           const chosenTapeColorKey = configStr.toLowerCase().includes('biał') ? 'biał' : 'czarn';
 
+          // Zdejmij skarpety
           const { data: sockProd } = await supabase
             .from('products')
             .select('*')
@@ -402,6 +404,7 @@ function CheckoutPage() {
             });
           }
 
+          // Zdejmij ochraniacze (wg wybranego rozmiaru S lub XS)
           const { data: shinProd } = await supabase
             .from('products')
             .select('*')
@@ -454,6 +457,7 @@ function CheckoutPage() {
             }
           }
 
+          // Zdejmij taśmę
           const { data: tapeProds } = await supabase
             .from('products')
             .select('*')
@@ -476,6 +480,7 @@ function CheckoutPage() {
             }
           }
         } else {
+          // Akcesoria kupowane osobno (np. Mini ochraniacze, Skarpety)
           const { data: currentProd } = await supabase.from('products').select('*').eq('id', product.id).single();
           if (!currentProd || (currentProd.stock_quantity ?? 0) < quantity) {
             setGeneralError(`Niestety! Brak wystarczającej ilości produktu "${product.name}".`);
@@ -491,8 +496,12 @@ function CheckoutPage() {
           } catch {}
 
           if (prodVariants.length > 0) {
+            const chosenSizeStr = variant || product.size_eu || '';
+            const isTargetXS = chosenSizeStr.toUpperCase().includes('XS');
+            const targetChoice: 'S' | 'XS' = isTargetXS ? 'XS' : 'S';
+
             const updatedVariants = prodVariants.map((v) => {
-              if (v.size === product.size_eu) {
+              if (isMatchingShinGuardSize(v.size, targetChoice) || v.size === chosenSizeStr) {
                 return { ...v, stock: Math.max(0, (v.stock || 0) - quantity) };
               }
               return v;
@@ -504,21 +513,28 @@ function CheckoutPage() {
               stock_quantity: newTotal,
               status: newTotal === 0 ? 'sold' : 'available'
             }).eq('id', product.id);
+
+            rollbacks.push(async () => {
+              await supabase.from('products').update({
+                condition_detail: currentProd.condition_detail,
+                stock_quantity: currentProd.stock_quantity,
+                status: currentProd.status
+              }).eq('id', product.id);
+            });
           } else {
             const newStock = Math.max(0, (currentProd.stock_quantity ?? 100) - quantity);
             await supabase.from('products').update({
               stock_quantity: newStock,
               status: newStock === 0 ? 'sold' : 'available'
             }).eq('id', product.id);
-          }
 
-          rollbacks.push(async () => {
-            await supabase.from('products').update({
-              condition_detail: currentProd.condition_detail,
-              stock_quantity: currentProd.stock_quantity,
-              status: currentProd.status
-            }).eq('id', product.id);
-          });
+            rollbacks.push(async () => {
+              await supabase.from('products').update({
+                stock_quantity: currentProd.stock_quantity,
+                status: currentProd.status
+              }).eq('id', product.id);
+            });
+          }
         }
       }
 
@@ -541,14 +557,16 @@ function CheckoutPage() {
         await new Promise((r) => setTimeout(r, 600));
       }
 
-      // 3. JEDNO ZBIORCZE ZAMÓWIENIE W BAZIE DANYCH
+      // 3. JEDNO ZBIORCZE ZAMÓWIENIE FORMATOWANE SPECJALNIE DLA PANELU ADMINA
       const cleanPhone = `+48${form.phone.replace(/\D/g, '')}`;
       
-      const itemsSummaryList = items.map(({ product, quantity, variant }) => {
+      // Tworzymy format [Wariant: Produkt 1 | Produkt 2 | ...], który panel admina parsuje do kafelków!
+      const variantParts = items.map(({ product, quantity, variant }) => {
         const v = variant || product.size_eu;
         return `${product.name}${v ? ` (${v})` : ''} x${quantity}`;
-      }).join(' • ');
+      }).join(' | ');
 
+      const variantNote = ` [Wariant: ${variantParts}]`;
       const mainProductId = items[0].product.id;
 
       const orderPayload = {
@@ -558,10 +576,10 @@ function CheckoutPage() {
         customer_phone: cleanPhone,
         shipping_method: form.shippingMethod,
         paczkomat_code: form.shippingMethod === 'paczkomat' 
-          ? `${form.paczkomatCode.trim().toUpperCase()} [${itemsSummaryList}]` 
+          ? `${form.paczkomatCode.trim().toUpperCase()}${variantNote}` 
           : null,
         shipping_address: form.shippingMethod === 'kurier' 
-          ? `${form.address.trim()}, ${form.postalCode.trim()} ${form.city.trim()} [${itemsSummaryList}]` 
+          ? `${form.address.trim()}, ${form.postalCode.trim()} ${form.city.trim()}${variantNote}` 
           : null,
         payment_method: form.paymentMethod,
         total_price: orderTotal,
@@ -647,6 +665,8 @@ function CheckoutPage() {
         </div>
 
         <main className="flex-1 flex items-center justify-center relative px-4 py-12">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-[#FF6B00]/10 blur-[100px] rounded-full pointer-events-none" />
+
           <div className="max-w-md w-full bg-[#141414] border border-neutral-800 rounded-3xl p-8 sm:p-10 text-center relative z-10 animate-scale-in shadow-2xl">
             <div className="relative w-20 h-20 mx-auto mb-6">
               <div 
@@ -702,7 +722,7 @@ function CheckoutPage() {
       <Header />
       <CartDrawer />
 
-      {/* MODAL PACZKOMATÓW */}
+      {/* MODAL WYSZUKIWARKI PACZKOMATÓW */}
       {showInpostModal && (
         <div className="fixed inset-0 z-[200] bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-fade-in">
           <div className="bg-[#141414] border border-neutral-800 rounded-2xl w-full max-w-xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden relative">
@@ -805,7 +825,7 @@ function CheckoutPage() {
 
               {!searchingPoints && pointsList.length === 0 && (
                 <div className="py-12 text-center text-neutral-500 text-xs">
-                  {searchMessage || 'Wpisz miasto i ulicę lub kod pocztowy powyżej.'}
+                  {searchMessage || 'Wpisz miasto i ulicę lub kod pocztowy powyżej, aby znaleźć paczkomaty.'}
                 </div>
               )}
             </div>
