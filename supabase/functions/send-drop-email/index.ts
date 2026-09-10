@@ -133,25 +133,24 @@ serve(async (req) => {
     const { type, email, dropId, orderId, tracking_number } = payload;
 
     // ==========================================
-    // 1. POWITANIE W BUBRCLUB (KOD -5%) - ZABEZPIECZONE
+    // 1. POWITANIE W BUBRCLUB (KOD -5%) - W 100% ZABEZPIECZONE
     // ==========================================
     if (type === "welcome_code" && email) {
       const cleanEmail = String(email).trim().toLowerCase();
 
-      // Sprawdzamy czy ten e-mail już kiedykolwiek pobrał kod
-      const { data: existingSubscriber } = await supabase
-        .from("drop_subscribers")
-        .select("id, email, discount_code")
+      // KROK A: Sprawdzamy czy ten e-mail kiedykolwiek odebrał kod w tabeli blokującej
+      const { data: alreadyClaimed } = await supabase
+        .from("claimed_discount_emails")
+        .select("email")
         .ilike("email", cleanEmail)
         .maybeSingle();
 
-      if (existingSubscriber) {
+      if (alreadyClaimed) {
         return new Response(
           JSON.stringify({
             success: true,
             alreadySubscribed: true,
-            code: existingSubscriber.discount_code,
-            message: "Ten adres e-mail odebrał już swój kod powitalny.",
+            message: "Ten adres e-mail odebrał już swój jednorazowy kod powitalny.",
           }),
           {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -160,27 +159,15 @@ serve(async (req) => {
         );
       }
 
+      // KROK B: Generujemy kod i zapisujemy do tabeli blokującej (nawet jak się potem wypisze, blokada zostaje)
       const code = generateCode();
+      
+      await supabase.from("claimed_discount_emails").insert({ email: cleanEmail });
 
-      const { error: insertError } = await supabase.from("drop_subscribers").insert({
-        email: cleanEmail,
-        discount_code: code,
-        drop_settings_id: dropId || 1,
-      });
-
-      if (insertError) {
-        return new Response(
-          JSON.stringify({
-            success: true,
-            alreadySubscribed: true,
-            message: "Ten adres e-mail odebrał już swój kod powitalny.",
-          }),
-          {
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-            status: 200,
-          }
-        );
-      }
+      await supabase.from("drop_subscribers").upsert(
+        { email: cleanEmail, discount_code: code, drop_settings_id: dropId || 1 },
+        { onConflict: "email" }
+      );
 
       await supabase.from("discount_codes").insert({
         code: code,
@@ -383,7 +370,7 @@ serve(async (req) => {
     }
 
     // ==========================================
-    // 4. POTWIERDZENIE ZAMÓWIENIA (KLIENT + KONTAKT@FOOTBUBR.PL)
+    // 4. POTWIERDZENIE ZAMÓWIENIA
     // ==========================================
     if (type === "order_confirmed" && orderId) {
       const { data: order } = await supabase
@@ -421,7 +408,6 @@ serve(async (req) => {
           </div>
         `;
 
-      // 1. Mail do klienta
       const customerEmailHtml = renderEmailShell(`
         <div style="text-align: center;">
           <div style="display: inline-block; background-color: #0d2818 !important; border: 1px solid #10b981; border-radius: 9999px; padding: 6px 16px; margin-bottom: 22px;">
@@ -465,7 +451,6 @@ serve(async (req) => {
         html: customerEmailHtml,
       });
 
-      // 2. Mail powiadomienie na kontakt@footbubr.pl
       const adminAlertHtml = renderEmailShell(`
         <div>
           <div style="display: inline-block; background-color: #241407 !important; border: 1px solid #FF6B00; border-radius: 9999px; padding: 4px 12px; margin-bottom: 16px;">
