@@ -38,7 +38,7 @@ function TermsPage() {
                 <span className="text-[#FF6B00]">§ 1.</span> Postanowienia ogólne i Sprzedawca
               </h2>
               <p className="mb-2">
-                1. Sklep internetowy <strong>FootBubr</strong> prowadzony jest w ramach <strong>działalności nierejestrowanej</strong> (zgodnie z art. 5 Ustawy z dnia 6 marca 2018 r. – Prawo przedsiębiorców).
+                1. Sklep internetowy <strong>FootBubr</strong> dostępny pod adresem domeny prowadzony jest w ramach <strong>działalności nierejestrowanej</strong> (zgodnie z art. 5 Ustawy z dnia 6 marca 2018 r. – Prawo przedsiębiorców).
               </p>
               <p className="mb-2">
                 2. <strong>Dane Sprzedawcy:</strong> Ignacy Chodor, adres do doręczeń: Wrocław, 50-323, Kluczborska 6/10, e-mail kontaktowy: <strong>kontakt@footbubr.pl</strong>.
@@ -50,16 +50,16 @@ function TermsPage() {
 
             <section>
               <h2 className="text-base font-bold text-white mb-2 uppercase tracking-wide flex items-center gap-2">
-                <span className="text-[#FF6B00]">§ 2.</span> Specyfika towarów 1 of 1 i Dropów
+                <span className="text-[#FF6B00]">§ 2.</span> Produkty i Asortyment
               </h2>
               <p className="mb-2">
-                1. W ofercie Sklepu znajdują się unikatowe korki piłkarskie (resale/vintage/kolekcjonerskie) występujące w pojedynczych egzemplarzach (<strong>1 of 1</strong>) oraz akcesoria marki FootBubr.
+                1. W ofercie Sklepu znajdują się autorskie produkty i akcesoria piłkarskie marki <strong>FootBubr</strong> (m.in. ochraniacze piłkarskie / mini deski, skarpety antypoślizgowe, taśmy oraz dedykowane akcesoria meczowe i treningowe).
               </p>
               <p className="mb-2">
-                2. Każda para butów jest w 100% oryginalna i przechodzi rygorystyczną weryfikację autentyczności.
+                2. Wszystkie towary oferowane w Sklepie są fabrycznie nowe, wolne od wad fizycznych i prawnych oraz zgodne z opisem i parametrami przedstawionymi na karcie produktu.
               </p>
               <p>
-                3. Stan obuwia (nowe z pudełkiem, nowe bez pudełka) jest zawsze dokładnie opisany i sfotografowany na karcie produktu.
+                3. Sprzedaż produktów może być organizowana w ramach cyklicznych partii premierowych (dropów) o ograniczonej puli ilościowej.
               </p>
             </section>
 
@@ -68,29 +68,59 @@ function TermsPage() {
                 <span className="text-[#FF6B00]">§ 3.</span> Zamówienia i Płatności
               </h2>
               <p className="mb-2">
-                1. Zamówienia składa się przez formularz zamówienia (Checkout) w Sklepie.
+                1. Zamówienia składa się za pośrednictwem formularza elektronicznego (Checkout) dostępnego w Sklepie internetowym.
               </p>
               <p className="mb-2">
-                2. Dostępne formy płatności: Płatność kodem BLIK, szybki przelew online lub karta płatnicza.
+                2. Dostępne formy płatności obejmują: szybkie przelewy elektroniczne, płatność kodem BLIK oraz karty płatnicze realizowane przez zintegrowanego operatora płatności.
               </p>
               <p>
-                3. Ze względu na unikatowy charakter par (1 of 1), dodanie produktu do koszyka nie stanowi rezerwacji do momentu opłacenia zamówienia.
+                3. Umowa sprzedaży zostaje zawarta z chwilą pomyślnego dokonania płatności i otrzymania przez Klienta mailowego potwierdzenia przyjęcia zamówienia do realizacji.
               </p>
             </section>
 
             <section>
               <h2 className="text-base font-bold text-white mb-2 uppercase tracking-wide flex items-center gap-2">
-                <span className="text-[#FF6B00]">§ 4.</span> Dostawa
+                <span className="text-[#FF6B00]">§ 4.</span> Dostawa i Realizacja
               </h2>
               <p className="mb-2">
                 1. Wysyłka realizowana jest na terytorium Rzeczypospolitej Polskiej za pośrednictwem:
               </p>
               <ul className="list-disc list-inside ml-2 space-y-1 mb-2">
                 <li>Paczkomatów InPost 24/7</li>
-                <li>Kuriera InPost</li>
+                <li>Przesyłek kurierskich InPost</li>
               </ul>
+              <p className="mb-2">
+                2. Czas przygotowania i nadania przesyłki wynosi standardowo 24–48 godzin roboczych od momentu zaksięgowania wpłaty.
+              </p>
               <p>
-                2. Czas realizacji wysyłki wynosi zazwyczaj 24-48 godzin roboczych od momentu zaksięgowania płatności.
+                3. Po nadaniu paczki Klient otrzymuje numer śledzenia przesyłki drogą mailową.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-base font-bold text-white mb-2 uppercase tracking-wide flex items-center gap-2">
+                <span className="text-[#FF6B00]">§ 5.</span> Prawo odstąpienia od umowy (Zwroty)
+              </h2>
+              <p className="mb-2">
+                1. Konsument ma prawo odstąpić od umowy zawartej na odległość w terminie <strong>14 dni</strong> od dnia odebrania przesyłki bez podawania przyczyny.
+              </p>
+              <p className="mb-2">
+                2. Zwracany towar nie może nosić śladów użytkowania (np. śladów z boiska, uszkodzeń mechanicznych) i powinien zostać odesłany w stanie kompletnym wraz z oryginalnym opakowaniem.
+              </p>
+              <p>
+                3. Zwrot płatności następuje niezwłocznie, nie później niż w ciągu 14 dni od momentu otrzymania przez Sprzedawcę zwracanego towaru.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-base font-bold text-white mb-2 uppercase tracking-wide flex items-center gap-2">
+                <span className="text-[#FF6B00]">§ 6.</span> Reklamacje i Rękojmia
+              </h2>
+              <p className="mb-2">
+                1. Sprzedawca odpowiada wobec Konsumenta za brak zgodności towaru z umową zgodnie z przepisami Ustawy o prawach konsumenta.
+              </p>
+              <p>
+                2. Reklamacje dotyczące wad fizycznych towaru lub uszkodzeń w transporcie można zgłaszać drogą elektroniczną na adres: <strong>kontakt@footbubr.pl</strong>. Zgłoszenie zostanie rozpatrzone w terminie 14 dni kalendarzowych.
               </p>
             </section>
           </div>
