@@ -83,7 +83,6 @@ export default function Footer() {
         localStorage.setItem('footbubr_nl_subscribed', emailTrimmed);
 
         if (data.isFirstTime) {
-          // Nowy użytkownik – dostaje kod na start
           toast.success('Zapisano do BubrClub!', {
             description: data?.code 
               ? `Twój kod: ${data.code} (-5%). Wysłaliśmy go też na adres ${emailTrimmed}.`
@@ -91,9 +90,8 @@ export default function Footer() {
             duration: 7000,
           });
         } else {
-          // Użytkownik powracający (wypisał się i wraca) – brak ponownego kodu
           toast.info('Witaj ponownie w BubrClub!', {
-            description: `Jesteś z powrotem na liście powiadomień o dropach. (Kod rabatowy został już wcześniej wykorzystany na ten adres).`,
+            description: `Jesteś z powrotem na liście powiadomień o premierach. (Kod rabatowy został już wcześniej wykorzystany na ten adres).`,
             duration: 7000,
           });
         }
@@ -125,7 +123,7 @@ export default function Footer() {
                 DOŁĄCZ DO BUBRCLUB
               </h3>
               <p className="text-xs text-neutral-400">
-                Otrzymuj alerty o dropach unikatów 1 of 1 i zgarnij kod na start.
+                Bądź na bieżąco z premierami sprzętu FootBubr i zgarnij zniżkę na start.
               </p>
             </div>
 
@@ -181,7 +179,7 @@ export default function Footer() {
               </span>
             </Link>
             <p className="text-xs sm:text-sm text-neutral-400 leading-relaxed max-w-sm">
-              Selekcjonowany sklep z unikatowymi dropami korków piłkarskich 1 of 1 oraz profesjonalnymi akcesoriami treningowymi marki FOOTBUBR.
+              Polska marka tworząca nowoczesny sprzęt i akcesoria piłkarskie. Maksymalna lekkość, wygoda i zero kompromisów na boisku.
             </p>
           </div>
 
@@ -236,7 +234,7 @@ export default function Footer() {
                 <button
                   type="button"
                   className="text-left text-neutral-400 hover:text-white transition-colors"
-                  onClick={() => toast.info('Wysyłamy w 24h przez Paczkomaty InPost oraz kuriera. Darmowa dostawa od 300 zł.')}
+                  onClick={() => toast.info('Wysyłamy w 24h przez Paczkomaty InPost oraz kuriera. Darmowa dostawa od 150 zł.')}
                 >
                   Czas i koszt dostawy
                 </button>
@@ -261,7 +259,7 @@ export default function Footer() {
                 <button
                   type="button"
                   className="text-left text-neutral-400 hover:text-white transition-colors"
-                  onClick={() => toast.info('FootBubr — pasja do unikatowego obuwia piłkarskiego i najwyższej jakości sprzętu.')}
+                  onClick={() => toast.info('FootBubr — polska marka sprzętu piłkarskiego stworzona przez graczy dla graczy.')}
                 >
                   O nas
                 </button>
@@ -300,7 +298,7 @@ export default function Footer() {
 
           <div className="flex items-center gap-1.5 text-neutral-400">
             <Footprints className="w-3.5 h-3.5 text-[#FF6B00]" />
-            <span>Dla graczy, którzy cenią unikalność.</span>
+            <span>Sprzęt twardy jak tama. Stworzone do ligowej gry.</span>
           </div>
         </div>
       </div>
