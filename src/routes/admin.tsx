@@ -1305,8 +1305,8 @@ function AdminPage() {
                 className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 animate-backdrop-in"
                 onClick={() => { setShowProductModal(false); setForm(EMPTY_ACCESSORY_FORM); setEditingId(null); }}
               />
-              <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 pointer-events-none">
-                <div className="bg-[#111] border border-neutral-800 rounded-2xl w-full max-w-2xl max-h-[92vh] flex flex-col animate-scale-in pointer-events-auto shadow-2xl overflow-hidden">
+              <div className="fixed inset-0 z-50 flex items-start justify-center p-2 sm:p-4 pt-3 sm:pt-6 pb-20 pointer-events-none">
+                <div className="bg-[#111] border border-neutral-800 rounded-2xl w-full max-w-2xl max-h-[82dvh] sm:max-h-[88vh] flex flex-col animate-scale-in pointer-events-auto shadow-2xl overflow-hidden">
                   
                   {/* Górna stała belka */}
                   <div className="flex-shrink-0 flex items-center justify-between gap-3 px-4 sm:px-6 py-3.5 border-b border-neutral-800 bg-[#111]">
@@ -1587,8 +1587,8 @@ function AdminPage() {
                     </div>
                   </div>
 
-                  {/* Stały dolny pasek z przyciskami pod kciukiem */}
-                  <div className="flex-shrink-0 flex gap-3 px-4 sm:px-6 py-3.5 border-t border-neutral-800 bg-[#111]">
+                  {/* Stały dolny pasek z podniesieniem nad Safari UI */}
+                  <div className="flex-shrink-0 flex gap-3 px-4 sm:px-6 pt-3.5 pb-7 sm:pb-4 border-t border-neutral-800 bg-[#111] shadow-[0_-10px_20px_rgba(0,0,0,0.5)]">
                     <button
                       onClick={handleSave}
                       disabled={saving || !form.name || !form.price}
