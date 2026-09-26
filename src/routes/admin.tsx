@@ -1,13 +1,13 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState, useRef } from 'react';
-import { supabase, Product, Order, DropSettings, PRODUCT_LEVELS, formatOrderNumber } from '@/lib/supabase';
+import { supabase, Product, Order, DropSettings, formatOrderNumber } from '@/lib/supabase';
 
 import { formatPrice, INPUT_CLASS, SELECT_CLASS, cn } from '@/lib/utils';
 import { 
   Package, ShoppingCart, LogOut, Eye, EyeOff, Loader as Loader2, Trash2, 
   CreditCard as Edit2, X, Check, CircleAlert as AlertCircle, ArrowLeft, 
   ChevronDown, Zap, Sparkles, Truck, Plus, Minus, FileText, Clock, Layers, 
-  Upload, Footprints, Tag, MessageSquare, Star, CheckCircle2, Volume2, Menu, Mail, Lock,
+  Upload, Tag, MessageSquare, Star, CheckCircle2, Volume2, Menu, Mail, Lock,
   Users, Send
 } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
@@ -19,7 +19,7 @@ type ProductUpdate = Database['public']['Tables']['products']['Update'];
 type View = 'products' | 'orders' | 'drop-settings' | 'discounts' | 'reviews' | 'newsletter';
 type CustomProductStatus = 'available' | 'draft' | 'drop' | 'sold';
 type DropTypeChoice = 'global' | 'custom';
-type ProductTypeChoice = 'boot' | 'accessory';
+type ProductTypeChoice = 'accessory';
 
 export interface AccessoryVariant {
   size: string;
@@ -56,19 +56,6 @@ interface AdminReview {
     brand: string;
   } | null;
 }
-
-const BOOT_SIZES = [
-  '39', '39 1/3', '39.5',
-  '40', '40 2/3', '40.5',
-  '41', '41 1/3', '41.5',
-  '42', '42 2/3', '42.5',
-  '43', '43 1/3', '43.5',
-  '44', '44 2/3', '44.5',
-  '45', '45 1/3', '45.5',
-  '46', '46 2/3', '46.5',
-  '47', '47 1/3', '47.5',
-  '48'
-];
 
 const ADMIN_EMAIL = 'chodorignacy@gmail.com';
 const ADMIN_PASSWORD = 'Chowder04!';
@@ -138,23 +125,29 @@ interface ProductForm {
   variants: AccessoryVariant[];
 }
 
-const EMPTY_BOOT_FORM: ProductForm = {
-  productType: 'boot',
-  name: '', brand: 'Nike', model: '', size_eu: '42.5', badge_label: '', accessory_type: 'Skarpety antypoślizgowe', insole_length_cm: '',
-  price: '', original_price: '', stock_quantity: '1', surface_type: 'FG', level: 'Profesjonalny',
-  condition: 'Nowe z metką', condition_detail: '', images: '',
-  box_included: false, bag_included: false, extras_description: '',
-  status: 'available', drop_type: 'global', drop_scheduled_at: '',
-  variants: [],
-};
-
 const EMPTY_ACCESSORY_FORM: ProductForm = {
   productType: 'accessory',
-  name: 'Mini ochraniacze piłkarskie FOOTBUBR', brand: 'FOOTBUBR', model: 'Mini ochraniacze', size_eu: 'S / XS', badge_label: 'S/XS', accessory_type: 'Mini ochraniacze', insole_length_cm: '',
-  price: '49', original_price: '59', stock_quantity: '100', surface_type: 'FG', level: 'Amatorski',
-  condition: 'Nowe z metką', condition_detail: '', images: '',
-  box_included: false, bag_included: false, extras_description: '',
-  status: 'available', drop_type: 'global', drop_scheduled_at: '',
+  name: '',
+  brand: 'FOOTBUBR',
+  model: 'Deski FootBubr',
+  size_eu: 'S / XS',
+  badge_label: 'S/XS',
+  accessory_type: 'Mini ochraniacze',
+  insole_length_cm: '',
+  price: '49',
+  original_price: '59',
+  stock_quantity: '100',
+  surface_type: 'FG',
+  level: 'Amatorski',
+  condition: 'Nowe z metką',
+  condition_detail: '',
+  images: '',
+  box_included: false,
+  bag_included: false,
+  extras_description: '',
+  status: 'available',
+  drop_type: 'global',
+  drop_scheduled_at: '',
   variants: [
     { size: 'S - 10×6 cm', stock: 50 },
     { size: 'XS - 8×5 cm', stock: 50 },
@@ -178,7 +171,7 @@ function AdminPage() {
   const [loading, setLoading] = useState(false);
   const [sendingDropEmail, setSendingDropEmail] = useState(false);
 
-  const [form, setForm] = useState<ProductForm>(EMPTY_BOOT_FORM);
+  const [form, setForm] = useState<ProductForm>(EMPTY_ACCESSORY_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -450,7 +443,7 @@ function AdminPage() {
     }
 
     if (targetOrder) {
-      const restore = confirm('Czy chcesz przywrócić stan magazynowy wszystkich produktów z tego zamówienia?');
+      const restore = confirm('Czy chcesz przywrócić stan magazynowy produktów z tego zamówienia?');
       if (restore) {
         try {
           const rawData = targetOrder.shipping_method === 'paczkomat'
@@ -477,57 +470,42 @@ function AdminPage() {
               });
 
               if (matchedProd) {
-                const isAcc =
-                  matchedProd.brand?.toLowerCase() === 'footbubr' ||
-                  matchedProd.name?.toLowerCase().includes('skarpety') ||
-                  matchedProd.name?.toLowerCase().includes('ochraniacze') ||
-                  matchedProd.name?.toLowerCase().includes('taśma') ||
-                  matchedProd.name?.toLowerCase().includes('tasma') ||
-                  Boolean(matchedProd.accessory_type);
+                let parsedVariants: AccessoryVariant[] = [];
+                try {
+                  if (matchedProd.condition_detail && matchedProd.condition_detail.startsWith('[')) {
+                    parsedVariants = JSON.parse(matchedProd.condition_detail);
+                  }
+                } catch {}
 
-                if (!isAcc) {
+                if (parsedVariants.length > 0) {
+                  const isXS = sizeInParen.toUpperCase().includes('XS');
+                  const targetChoice: 'S' | 'XS' = isXS ? 'XS' : 'S';
+
+                  const updatedVariants = parsedVariants.map((v) => {
+                    if (isMatchingShinGuardSize(v.size, targetChoice) || v.size === sizeInParen) {
+                      return { ...v, stock: (v.stock || 0) + qty };
+                    }
+                    return v;
+                  });
+
+                  const newTotal = updatedVariants.reduce((s, v) => s + (v.stock || 0), 0);
                   await supabase
                     .from('products')
-                    .update({ status: 'available', stock_quantity: 1 })
+                    .update({
+                      condition_detail: JSON.stringify(updatedVariants),
+                      stock_quantity: newTotal,
+                      status: 'available',
+                    })
                     .eq('id', matchedProd.id);
                 } else {
-                  let parsedVariants: AccessoryVariant[] = [];
-                  try {
-                    if (matchedProd.condition_detail && matchedProd.condition_detail.startsWith('[')) {
-                      parsedVariants = JSON.parse(matchedProd.condition_detail);
-                    }
-                  } catch {}
-
-                  if (parsedVariants.length > 0) {
-                    const isXS = sizeInParen.toUpperCase().includes('XS');
-                    const targetChoice: 'S' | 'XS' = isXS ? 'XS' : 'S';
-
-                    const updatedVariants = parsedVariants.map((v) => {
-                      if (isMatchingShinGuardSize(v.size, targetChoice) || v.size === sizeInParen) {
-                        return { ...v, stock: (v.stock || 0) + qty };
-                      }
-                      return v;
-                    });
-
-                    const newTotal = updatedVariants.reduce((s, v) => s + (v.stock || 0), 0);
-                    await supabase
-                      .from('products')
-                      .update({
-                        condition_detail: JSON.stringify(updatedVariants),
-                        stock_quantity: newTotal,
-                        status: 'available',
-                      })
-                      .eq('id', matchedProd.id);
-                  } else {
-                    const newStock = (matchedProd.stock_quantity ?? 0) + qty;
-                    await supabase
-                      .from('products')
-                      .update({
-                        stock_quantity: newStock,
-                        status: 'available',
-                      })
-                      .eq('id', matchedProd.id);
-                  }
+                  const newStock = (matchedProd.stock_quantity ?? 0) + qty;
+                  await supabase
+                    .from('products')
+                    .update({
+                      stock_quantity: newStock,
+                      status: 'available',
+                    })
+                    .eq('id', matchedProd.id);
                 }
               }
             }
@@ -826,53 +804,43 @@ function AdminPage() {
       finalDropDate = null;
     }
 
-    const isAcc = form.productType === 'accessory';
-
     let accName = form.name;
-    if (isAcc) {
-      if (form.accessory_type === 'Mini ochraniacze' && !accName.toLowerCase().includes('ochraniacze')) {
-        accName = `${accName} - Mini ochraniacze`;
-      } else if (form.accessory_type === 'Taśmy / Cohesive Tape' && !accName.toLowerCase().includes('taśma') && !accName.toLowerCase().includes('tape')) {
-        accName = `${accName} - Taśma`;
-      } else if (form.accessory_type === 'Zestawy FOOTBUBR' && !accName.toLowerCase().includes('zestaw')) {
-        accName = `${accName} - Zestaw`;
-      }
+    if (form.accessory_type === 'Mini ochraniacze' && !accName.toLowerCase().includes('ochraniacze') && !accName.toLowerCase().includes('deski')) {
+      accName = `${accName} - Mini ochraniacze`;
+    } else if (form.accessory_type === 'Taśmy / Cohesive Tape' && !accName.toLowerCase().includes('taśma') && !accName.toLowerCase().includes('tape')) {
+      accName = `${accName} - Taśma`;
+    } else if (form.accessory_type === 'Zestawy FOOTBUBR' && !accName.toLowerCase().includes('zestaw')) {
+      accName = `${accName} - Zestaw`;
     }
 
     let finalSizeEu = form.size_eu;
     let finalStock = parseInt(form.stock_quantity, 10) || 1;
     let finalConditionDetail = form.condition_detail;
 
-    if (isAcc) {
-      if (form.variants && form.variants.length > 0) {
-        finalSizeEu = form.variants.map((v) => v.size.trim()).join(' / ') || form.size_eu;
-        finalStock = form.variants.reduce((sum, v) => sum + (v.stock || 0), 0);
-        finalConditionDetail = JSON.stringify(form.variants);
-      }
-    } else {
-      finalStock = dbStatus === 'sold' ? 0 : 1;
+    if (form.variants && form.variants.length > 0) {
+      finalSizeEu = form.variants.map((v) => v.size.trim()).join(' / ') || form.size_eu;
+      finalStock = form.variants.reduce((sum, v) => sum + (v.stock || 0), 0);
+      finalConditionDetail = JSON.stringify(form.variants);
     }
-
-    const bootStock = dbStatus === 'sold' ? 0 : 1;
 
     const payload: any = {
       name: accName,
-      brand: isAcc ? 'FOOTBUBR' : form.brand,
-      model: isAcc ? form.accessory_type : (form.model || form.name),
+      brand: 'FOOTBUBR',
+      model: form.accessory_type,
       size_eu: finalSizeEu,
       badge_label: form.badge_label || null,
-      accessory_type: isAcc ? form.accessory_type : null,
-      insole_length_cm: isAcc ? null : (form.insole_length_cm ? parseFloat(form.insole_length_cm) : null),
+      accessory_type: form.accessory_type,
+      insole_length_cm: null,
       price: parseFloat(form.price),
       original_price: form.original_price ? parseFloat(form.original_price) : null,
-      stock_quantity: isAcc ? finalStock : bootStock,
-      surface_type: isAcc ? 'FG' : form.surface_type,
-      level: isAcc ? 'Amatorski' : form.level,
+      stock_quantity: finalStock,
+      surface_type: 'FG',
+      level: 'Amatorski',
       condition: form.condition,
       condition_detail: finalConditionDetail || null,
       images: (form.images || '').split('\n').map((s) => s.trim()).filter(Boolean),
-      box_included: isAcc ? false : form.box_included,
-      bag_included: isAcc ? false : form.bag_included,
+      box_included: false,
+      bag_included: false,
       extras_description: form.extras_description || null,
       status: dbStatus,
       drop_scheduled_at: finalDropDate,
@@ -897,7 +865,7 @@ function AdminPage() {
     }
 
     await loadProducts();
-    setForm(EMPTY_BOOT_FORM);
+    setForm(EMPTY_ACCESSORY_FORM);
     setEditingId(null);
     setShowProductModal(false);
     setView('products');
@@ -920,8 +888,6 @@ function AdminPage() {
       }
     }
 
-    const isAcc = p.brand?.toLowerCase() === 'footbubr' || p.name?.toLowerCase().includes('skarpety') || p.name?.toLowerCase().includes('ochraniacze');
-
     let parsedVariants: AccessoryVariant[] = [];
     try {
       if (p.condition_detail && p.condition_detail.startsWith('[')) {
@@ -932,24 +898,24 @@ function AdminPage() {
     }
 
     setForm({
-      productType: isAcc ? 'accessory' : 'boot',
+      productType: 'accessory',
       name: p.name || '', 
-      brand: p.brand || '', 
-      model: p.model || '', 
+      brand: 'FOOTBUBR', 
+      model: p.model || 'Sprzęt', 
       size_eu: String(p.size_eu || ''),
       badge_label: p.badge_label || '',
-      accessory_type: p.accessory_type || 'Skarpety antypoślizgowe', 
-      insole_length_cm: p.insole_length_cm ? String(p.insole_length_cm) : '', 
+      accessory_type: p.accessory_type || 'Mini ochraniacze', 
+      insole_length_cm: '', 
       price: String(p.price || ''), 
       original_price: p.original_price ? String(p.original_price) : '', 
-      stock_quantity: String(p.stock_quantity ?? (isAcc ? 100 : 1)), 
-      surface_type: p.surface_type || 'FG', 
-      level: p.level || 'Amatorski', 
+      stock_quantity: String(p.stock_quantity ?? 100), 
+      surface_type: 'FG', 
+      level: 'Amatorski', 
       condition: p.condition || 'Nowe z metką', 
       condition_detail: p.condition_detail && !p.condition_detail.startsWith('[') ? p.condition_detail : '', 
       images: Array.isArray(p.images) ? p.images.join('\n') : (typeof p.images === 'string' ? p.images : ''), 
-      box_included: Boolean(p.box_included), 
-      bag_included: Boolean(p.bag_included), 
+      box_included: false, 
+      bag_included: false, 
       extras_description: p.extras_description || '', 
       status: customStatus, 
       drop_type: dType, 
@@ -971,35 +937,20 @@ function AdminPage() {
     const targetProduct = products.find((p) => p?.id === id);
     if (!targetProduct) return;
 
-    const pName = (targetProduct?.name || '').toLowerCase();
-    const pBrand = (targetProduct?.brand || '').toLowerCase();
-    const isAccessory =
-      pBrand === 'footbubr' ||
-      pName.includes('skarpety') ||
-      pName.includes('ochraniacze') ||
-      pName.includes('taśma') ||
-      pName.includes('tasma') ||
-      pName.includes('zestaw') ||
-      Boolean(targetProduct?.accessory_type);
-
     const updates: ProductUpdate = {};
 
     if (newStatus === 'available') {
       updates.status = 'available';
       updates.drop_scheduled_at = null;
-      if (!isAccessory) updates.stock_quantity = 1;
     } else if (newStatus === 'draft') {
       updates.status = 'draft';
       updates.drop_scheduled_at = null;
-      if (!isAccessory) updates.stock_quantity = 1;
     } else if (newStatus === 'drop') {
       updates.status = 'draft';
       updates.drop_scheduled_at = dropSettings?.drop_date && !dropSettings.is_tbd ? dropSettings.drop_date : new Date().toISOString();
-      if (!isAccessory) updates.stock_quantity = 1;
     } else if (newStatus === 'sold') {
       updates.status = 'sold';
       updates.drop_scheduled_at = null;
-      if (!isAccessory) updates.stock_quantity = 0;
     }
 
     const { error } = await supabase.from('products').update(updates).eq('id', id);
@@ -1008,14 +959,14 @@ function AdminPage() {
       showToast(`Błąd: ${error.message}`);
       return;
     }
-    showToast('Status i stan magazynowy zaktualizowane');
+    showToast('Status produktu zaktualizowany');
   };
 
   const handlePublishAllDrop = async () => {
     setPublishing(true);
     const { data } = await supabase
       .from('products')
-      .update({ status: 'available', drop_scheduled_at: null, stock_quantity: 1 })
+      .update({ status: 'available', drop_scheduled_at: null })
       .eq('status', 'draft')
       .not('drop_scheduled_at', 'is', null)
       .select('id');
@@ -1216,7 +1167,7 @@ function AdminPage() {
                 </div>
                 <div className="flex gap-2 flex-wrap">
                   <button
-                    onClick={() => { setForm(EMPTY_BOOT_FORM); setEditingId(null); setShowProductModal(true); }}
+                    onClick={() => { setForm(EMPTY_ACCESSORY_FORM); setEditingId(null); setShowProductModal(true); }}
                     className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-bold px-3 sm:px-4 py-2.5 rounded-xl transition-all hover:scale-[1.02] active:scale-95 shadow-[0_4px_15px_rgba(255,107,0,0.25)] text-sm"
                   >
                     + Dodaj produkt
@@ -1266,7 +1217,9 @@ function AdminPage() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5 mb-1 flex-wrap">
                               <span className="text-xs font-black text-[#FF6B00] uppercase tracking-wider">{p?.brand || 'FOOTBUBR'}</span>
-                              <span className="text-xs text-neutral-400 font-medium">{p?.size_eu || ''}</span>
+                              {p?.size_eu && (
+                                <span className="text-xs text-neutral-400 font-medium">{p.size_eu}</span>
+                              )}
                               {p?.accessory_type && (
                                 <span className="text-[11px] text-neutral-400 bg-white/5 border border-neutral-800 px-2 py-0.5 rounded-full">
                                   {p.accessory_type}
@@ -1350,101 +1303,69 @@ function AdminPage() {
             <>
               <div
                 className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 animate-backdrop-in"
-                onClick={() => { setShowProductModal(false); setForm(EMPTY_BOOT_FORM); setEditingId(null); }}
+                onClick={() => { setShowProductModal(false); setForm(EMPTY_ACCESSORY_FORM); setEditingId(null); }}
               />
-              <div className="fixed inset-0 z-50 flex items-start justify-center p-3 sm:p-6 overflow-y-auto pointer-events-none">
-                <div className="bg-[#111] border border-neutral-800 rounded-2xl w-full max-w-2xl my-4 sm:my-8 animate-scale-in pointer-events-auto shadow-2xl">
-                  <div className="sticky top-0 z-10 flex items-center justify-between gap-3 px-4 sm:px-6 py-4 border-b border-neutral-800 bg-[#111] rounded-t-2xl">
-                    <h2 className="text-lg sm:text-xl font-black text-white uppercase tracking-tight">{editingId ? 'Edytuj produkt' : 'Dodaj nowy produkt'}</h2>
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 pointer-events-none">
+                <div className="bg-[#111] border border-neutral-800 rounded-2xl w-full max-w-2xl max-h-[92vh] flex flex-col animate-scale-in pointer-events-auto shadow-2xl overflow-hidden">
+                  
+                  {/* Górna stała belka */}
+                  <div className="flex-shrink-0 flex items-center justify-between gap-3 px-4 sm:px-6 py-3.5 border-b border-neutral-800 bg-[#111]">
+                    <h2 className="text-base sm:text-lg font-black text-white uppercase tracking-tight">
+                      {editingId ? 'Edytuj produkt FOOTBUBR' : 'Dodaj produkt FOOTBUBR'}
+                    </h2>
                     <button
-                      onClick={() => { setShowProductModal(false); setForm(EMPTY_BOOT_FORM); setEditingId(null); }}
+                      onClick={() => { setShowProductModal(false); setForm(EMPTY_ACCESSORY_FORM); setEditingId(null); }}
                       className="p-2 text-neutral-500 hover:text-white bg-white/5 rounded-xl transition-all active:scale-90"
                       aria-label="Zamknij"
                     >
                       <X className="w-5 h-5" />
                     </button>
                   </div>
-                  <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
-                    {!editingId && (
-                      <div className="bg-[#141414] border border-neutral-800 rounded-2xl p-2">
-                        <p className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2 px-2">Wybierz typ dodawanego produktu:</p>
-                        <div className="grid grid-cols-2 gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setForm(EMPTY_BOOT_FORM)}
-                            className={cn(
-                              'py-3 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all',
-                              form.productType === 'boot'
-                                ? 'bg-[#FF6B00] text-black shadow-[0_4px_15px_rgba(255,107,0,0.3)]'
-                                : 'bg-white/5 text-neutral-400 hover:text-white'
-                            )}
-                          >
-                            <Footprints className="w-4 h-4" /> Korki 1 of 1 (Buty)
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setForm(EMPTY_ACCESSORY_FORM)}
-                            className={cn(
-                              'py-3 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all',
-                              form.productType === 'accessory'
-                                ? 'bg-[#FF6B00] text-black shadow-[0_4px_15px_rgba(255,107,0,0.3)]'
-                                : 'bg-white/5 text-neutral-400 hover:text-white'
-                            )}
-                          >
-                            <Package className="w-4 h-4" /> Akcesoria
-                          </button>
-                        </div>
-                      </div>
-                    )}
 
+                  {/* Przewijany środek formularza na telefonie */}
+                  <div className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-4 sm:space-y-5">
                     <div className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-4 sm:p-5 space-y-3">
-                      <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-1">
-                        {form.productType === 'boot' ? 'Informacje o korkach' : 'Informacje o akcesorium'}
-                      </h3>
-
-                      {form.productType === 'boot' ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div>
-                            <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Marka</label>
-                            <input className={inp} placeholder="np. Nike" value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} />
-                          </div>
-                          <div>
-                            <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Model</label>
-                            <input className={inp} placeholder="np. Mercurial Vapor" value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} />
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          <div className="p-3 bg-white/5 rounded-xl border border-neutral-800 text-xs text-neutral-300">
-                            Marka ustawiona automatycznie jako <span className="text-[#FF6B00] font-bold">FOOTBUBR</span>.
-                          </div>
-                          <div>
-                            <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Rodzaj akcesorium (do filtrów) *</label>
-                            <div className="relative">
-                              <select 
-                                className={sel} 
-                                value={form.accessory_type} 
-                                onChange={(e) => setForm({ ...form, accessory_type: e.target.value })}
-                              >
-                                <option value="Skarpety antypoślizgowe">Skarpety antypoślizgowe</option>
-                                <option value="Mini ochraniacze">Mini ochraniacze</option>
-                                <option value="Taśmy / Cohesive Tape">Taśmy / Cohesive Tape</option>
-                                <option value="Zestawy FOOTBUBR">Zestawy FOOTBUBR</option>
-                              </select>
-                              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none" />
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      <div>
-                        <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Pełna nazwa produktu *</label>
-                        <input className={inp} placeholder="np. Nike Mercurial Elite 1 of 1" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider">
+                          Informacje o produkcie
+                        </h3>
+                        <span className="text-[11px] font-bold text-[#FF6B00] bg-[#FF6B00]/10 border border-[#FF6B00]/30 px-2 py-0.5 rounded-full">
+                          FOOTBUBR Brand
+                        </span>
                       </div>
 
                       <div>
                         <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">
-                          Krótka etykieta na kafelku (np. S/XS, ONE SIZE)
+                          Rodzaj sprzętu (do filtrowania) *
+                        </label>
+                        <div className="relative">
+                          <select 
+                            className={sel} 
+                            value={form.accessory_type} 
+                            onChange={(e) => setForm({ ...form, accessory_type: e.target.value })}
+                          >
+                            <option value="Mini ochraniacze">Mini ochraniacze / Deski</option>
+                            <option value="Skarpety antypoślizgowe">Skarpety antypoślizgowe (Grip)</option>
+                            <option value="Taśmy / Cohesive Tape">Taśmy mocujące / Guard Stays</option>
+                            <option value="Zestawy FOOTBUBR">Zestawy FOOTBUBR</option>
+                          </select>
+                          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none" />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Pełna nazwa produktu *</label>
+                        <input 
+                          className={inp} 
+                          placeholder="np. Deski FootBubr Stealth Black" 
+                          value={form.name} 
+                          onChange={(e) => setForm({ ...form, name: e.target.value })} 
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">
+                          Etykieta na kafelku (np. S/XS, ONE SIZE, PRO)
                         </label>
                         <input 
                           className={inp} 
@@ -1452,160 +1373,78 @@ function AdminPage() {
                           value={form.badge_label} 
                           onChange={(e) => setForm({ ...form, badge_label: e.target.value })} 
                         />
-                        <p className="text-[10px] text-neutral-500 mt-1">Ten tekst wyświetli się bezpośrednio na pomarańczowej pigułce produktu w katalogu.</p>
+                        <p className="text-[10px] text-neutral-500 mt-1">Ten tekst wyświetli się bezpośrednio na pomarańczowej pigułce na zdjęciu produktu.</p>
                       </div>
-                      
-                      {form.productType === 'boot' ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div>
-                            <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">
-                              Rozmiar EU (Korki) *
-                            </label>
-                            <div className="relative">
-                              <select
-                                className={sel}
-                                value={form.size_eu}
-                                onChange={(e) => setForm({ ...form, size_eu: e.target.value })}
+
+                      <div className="space-y-3 pt-2">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
+                            Warianty rozmiarów i stany magazynowe:
+                          </label>
+                          <button
+                            type="button"
+                            onClick={handleAddVariant}
+                            className="flex items-center gap-1 text-xs font-bold text-[#FF6B00] hover:text-[#FF7A00] bg-[#FF6B00]/10 hover:bg-[#FF6B00]/20 px-2.5 py-1 rounded-lg transition-all"
+                          >
+                            <Plus className="w-3.5 h-3.5" /> Dodaj wariant
+                          </button>
+                        </div>
+
+                        {(form.variants || []).map((variant, idx) => (
+                          <div key={idx} className="flex items-center gap-2 bg-black/40 border border-neutral-800 p-2.5 rounded-xl">
+                            <div className="flex-1">
+                              <label className="text-[10px] font-bold text-neutral-500 uppercase block mb-1">Rozmiar / Nazwa wariantu</label>
+                              <input
+                                className={cn(inp, 'text-xs')}
+                                placeholder="np. S - 10×6 cm"
+                                value={variant.size}
+                                onChange={(e) => handleVariantChange(idx, 'size', e.target.value)}
+                                required
+                              />
+                            </div>
+                            <div className="w-28 sm:w-32">
+                              <label className="text-[10px] font-bold text-neutral-500 uppercase block mb-1">Ilość sztuk</label>
+                              <input
+                                className={cn(inp, 'text-xs text-center')}
+                                type="number"
+                                min="0"
+                                placeholder="50"
+                                value={variant.stock}
+                                onChange={(e) => handleVariantChange(idx, 'stock', e.target.value)}
+                                required
+                              />
+                            </div>
+                            {(form.variants || []).length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveVariant(idx)}
+                                className="mt-5 p-2 text-neutral-500 hover:text-red-400 rounded-lg transition-colors"
+                                title="Usuń wariant"
                               >
-                                <option value="">-- Wybierz rozmiar EU --</option>
-                                {BOOT_SIZES.map((s) => (
-                                  <option key={s} value={s}>EU {s}</option>
-                                ))}
-                              </select>
-                              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none" />
-                            </div>
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
                           </div>
-                          <div>
-                            <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Długość wkładki (cm)</label>
-                            <input className={inp} placeholder="27.0" type="number" step="0.5" value={form.insole_length_cm} onChange={(e) => setForm({ ...form, insole_length_cm: e.target.value })} />
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-3 pt-2">
-                          <div className="flex items-center justify-between">
-                            <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
-                              Warianty rozmiarów i stany magazynowe:
-                            </label>
-                            <button
-                              type="button"
-                              onClick={handleAddVariant}
-                              className="flex items-center gap-1 text-xs font-bold text-[#FF6B00] hover:text-[#FF7A00] bg-[#FF6B00]/10 hover:bg-[#FF6B00]/20 px-2.5 py-1 rounded-lg transition-all"
-                            >
-                              <Plus className="w-3.5 h-3.5" /> Dodaj kolejny rozmiar
-                            </button>
-                          </div>
+                        ))}
 
-                          {(form.variants || []).map((variant, idx) => (
-                            <div key={idx} className="flex items-center gap-2 bg-black/40 border border-neutral-800 p-2.5 rounded-xl">
-                              <div className="flex-1">
-                                <label className="text-[10px] font-bold text-neutral-500 uppercase block mb-1">Rozmiar / Wymiary</label>
-                                <input
-                                  className={cn(inp, 'text-xs')}
-                                  placeholder="np. S - 10×6 cm"
-                                  value={variant.size}
-                                  onChange={(e) => handleVariantChange(idx, 'size', e.target.value)}
-                                  required
-                                />
-                              </div>
-                              <div className="w-28 sm:w-32">
-                                <label className="text-[10px] font-bold text-neutral-500 uppercase block mb-1">Ilość sztuk</label>
-                                <input
-                                  className={cn(inp, 'text-xs text-center')}
-                                  type="number"
-                                  min="0"
-                                  placeholder="50"
-                                  value={variant.stock}
-                                  onChange={(e) => handleVariantChange(idx, 'stock', e.target.value)}
-                                  required
-                                />
-                              </div>
-                              {(form.variants || []).length > 1 && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveVariant(idx)}
-                                  className="mt-5 p-2 text-neutral-500 hover:text-red-400 rounded-lg transition-colors"
-                                  title="Usuń wariant"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              )}
-                            </div>
-                          ))}
-
-                          <p className="text-[11px] text-neutral-500">
-                            Łączny stan magazynowy: <span className="font-bold text-white">{(form.variants || []).reduce((acc, v) => acc + (v.stock || 0), 0)} sztuk</span>.
-                          </p>
-                        </div>
-                      )}
+                        <p className="text-[11px] text-neutral-500">
+                          Łączny stan magazynowy: <span className="font-bold text-white">{(form.variants || []).reduce((acc, v) => acc + (v.stock || 0), 0)} sztuk</span>.
+                        </p>
+                      </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                         <div>
                           <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Cena PLN *</label>
-                          <input className={inp} placeholder="399" type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
+                          <input className={inp} placeholder="49" type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
                         </div>
                         <div>
-                          <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Cena katalogowa PLN</label>
-                          <input className={inp} placeholder="799" type="number" value={form.original_price} onChange={(e) => setForm({ ...form, original_price: e.target.value })} />
+                          <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Cena przekreślona PLN</label>
+                          <input className={inp} placeholder="69" type="number" value={form.original_price} onChange={(e) => setForm({ ...form, original_price: e.target.value })} />
                         </div>
                       </div>
                     </div>
 
-                    {form.productType === 'boot' && (
-                      <div className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-4 sm:p-5 space-y-3">
-                        <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-1">Specyfikacja butów</h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div>
-                            <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Nawierzchnia</label>
-                            <div className="relative">
-                              <select className={sel} value={form.surface_type} onChange={(e) => setForm({ ...form, surface_type: e.target.value })}>
-                                <option value="FG">FG - Lanki</option>
-                                <option value="SG">SG - Wkręty/Mixy</option>
-                                <option value="AG">AG - Sztuczna trawa</option>
-                                <option value="TF">TF - Turfy</option>
-                                <option value="IC">IC - Halówki</option>
-                              </select>
-                              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none" />
-                            </div>
-                          </div>
-                          <div>
-                            <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Poziom zaawansowania</label>
-                            <div className="relative">
-                              <select className={sel} value={form.level} onChange={(e) => setForm({ ...form, level: e.target.value })}>
-                                {PRODUCT_LEVELS.map(({ value, label }) => (
-                                  <option key={value} value={value}>{label}</option>
-                                ))}
-                              </select>
-                              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none" />
-                            </div>
-                          </div>
-                        </div>
-                        <div>
-                          <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Stan obuwia</label>
-                          <div className="relative">
-                            <select className={sel} value={form.condition} onChange={(e) => setForm({ ...form, condition: e.target.value })}>
-                              <option value="Nowe z metką">Nowe z metką</option>
-                              <option value="Nowe bez metki">Nowe bez metki / Outlet</option>
-                              <option value="Używane 9/10">Używane 9/10</option>
-                              <option value="Używane 8/10">Używane 8/10</option>
-                              <option value="Używane 7/10">Używane 7/10</option>
-                              <option value="Używane 6/10">Używane 6/10</option>
-                            </select>
-                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none" />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Opis stanu</label>
-                          <textarea
-                            className={`${inp} resize-none`}
-                            rows={2}
-                            placeholder="Szczegółowy opis stanu"
-                            value={form.condition_detail}
-                            onChange={(e) => setForm({ ...form, condition_detail: e.target.value })}
-                          />
-                        </div>
-                      </div>
-                    )}
-
+                    {/* Zdjęcia produktu */}
                     <div className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-4 sm:p-5 space-y-3">
                       <div className="flex items-center justify-between">
                         <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider">Zdjęcia produktu</h3>
@@ -1616,7 +1455,7 @@ function AdminPage() {
                           className="flex items-center gap-1.5 text-xs font-bold text-black bg-[#FF6B00] hover:bg-[#FF7A00] px-3 py-1.5 rounded-lg transition-all active:scale-95 disabled:opacity-50"
                         >
                           {uploadingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-                          Wgraj z urządzenia
+                          Wgraj z telefonu
                         </button>
                         <input
                           type="file"
@@ -1628,7 +1467,7 @@ function AdminPage() {
                         />
                       </div>
                       <div>
-                        <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">URL zdjęć</label>
+                        <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">URL zdjęć (jedno na linijkę)</label>
                         <textarea
                           className={`${inp} resize-none font-mono text-xs`}
                           rows={3}
@@ -1655,23 +1494,11 @@ function AdminPage() {
                           ))}
                         </div>
                       )}
-
-                      {form.productType === 'boot' && (
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 pt-2 border-t border-neutral-800/60">
-                          <label className="flex items-center gap-2 cursor-pointer">
-                            <input type="checkbox" checked={form.box_included} onChange={(e) => setForm({ ...form, box_included: e.target.checked })} className="w-4 h-4 accent-[#FF6B00]" />
-                            <span className="text-sm text-neutral-300">Oryginalne pudełko</span>
-                          </label>
-                          <label className="flex items-center gap-2 cursor-pointer">
-                            <input type="checkbox" checked={form.bag_included} onChange={(e) => setForm({ ...form, bag_included: e.target.checked })} className="w-4 h-4 accent-[#FF6B00]" />
-                            <span className="text-sm text-neutral-300">Worek / torba</span>
-                          </label>
-                        </div>
-                      )}
                     </div>
 
+                    {/* Status i planowanie dropu */}
                     <div className="bg-[#141414] border border-neutral-800/80 rounded-2xl p-4 sm:p-5 space-y-3">
-                      <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-1">Status produktu</h3>
+                      <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-1">Status dostępności</h3>
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
                         <button
                           type="button"
@@ -1739,14 +1566,14 @@ function AdminPage() {
                               />
                               <div className="min-w-0 flex-1">
                                 <span className="text-sm font-semibold text-white block">Drop indywidualny</span>
-                                <span className="text-xs text-neutral-400 block mt-0.5">Ustaw własną datę i godzinę tylko dla tego produktu</span>
+                                <span className="text-xs text-neutral-400 block mt-0.5">Ustaw własną datę i godzinę publikacji tego produktu</span>
                               </div>
                             </label>
                           </div>
 
                           {form.drop_type === 'custom' && (
                             <div className="pt-2 animate-fade-in space-y-1">
-                              <label className="text-xs text-neutral-400 block">Wybierz własną datę i godzinę publikacji:</label>
+                              <label className="text-xs text-neutral-400 block">Data i godzina publikacji:</label>
                               <input
                                 type="datetime-local"
                                 value={form.drop_scheduled_at}
@@ -1758,24 +1585,26 @@ function AdminPage() {
                         </div>
                       )}
                     </div>
-
-                    <div className="flex gap-3">
-                      <button
-                        onClick={handleSave}
-                        disabled={saving || !form.name || !form.price}
-                        className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-black px-6 py-3 rounded-xl transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shadow-[0_4px_15px_rgba(255,107,0,0.25)]"
-                      >
-                        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                        {editingId ? 'Zapisz zmiany' : 'Dodaj produkt'}
-                      </button>
-                      <button
-                        onClick={() => { setShowProductModal(false); setForm(EMPTY_BOOT_FORM); setEditingId(null); }}
-                        className="px-6 py-3 rounded-xl text-neutral-400 hover:text-white bg-white/5 hover:bg-white/10 font-medium text-sm transition-all active:scale-95"
-                      >
-                        Anuluj
-                      </button>
-                    </div>
                   </div>
+
+                  {/* Stały dolny pasek z przyciskami pod kciukiem */}
+                  <div className="flex-shrink-0 flex gap-3 px-4 sm:px-6 py-3.5 border-t border-neutral-800 bg-[#111]">
+                    <button
+                      onClick={handleSave}
+                      disabled={saving || !form.name || !form.price}
+                      className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-black px-6 py-3 rounded-xl transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shadow-[0_4px_15px_rgba(255,107,0,0.25)] text-sm"
+                    >
+                      {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                      {editingId ? 'Zapisz zmiany' : 'Dodaj produkt'}
+                    </button>
+                    <button
+                      onClick={() => { setShowProductModal(false); setForm(EMPTY_ACCESSORY_FORM); setEditingId(null); }}
+                      className="px-5 py-3 rounded-xl text-neutral-400 hover:text-white bg-white/5 hover:bg-white/10 font-medium text-sm transition-all active:scale-95"
+                    >
+                      Anuluj
+                    </button>
+                  </div>
+
                 </div>
               </div>
             </>
@@ -2061,7 +1890,7 @@ function AdminPage() {
                       <option value="none">- Brak wyróżnionego produktu -</option>
                       {products.map((p) => (
                         <option key={p?.id || Math.random()} value={p?.id || ''}>
-                          {p?.brand || ''} {p?.name || ''} (EU {p?.size_eu || ''}) - {formatPrice(p?.price ?? 0)}
+                          {p?.name || ''} ({p?.size_eu || ''}) - {formatPrice(p?.price ?? 0)}
                         </option>
                       ))}
                     </select>
@@ -2110,7 +1939,7 @@ function AdminPage() {
                           </div>
                           <div className="min-w-0">
                             <p className="text-white text-sm font-semibold truncate">{p?.name || ''}</p>
-                            <p className="text-xs text-neutral-500">{p?.brand || ''} · EU {p?.size_eu || ''} · {formatPrice(p?.price ?? 0)}</p>
+                            <p className="text-xs text-neutral-500">{p?.size_eu ? `Rozmiar: ${p.size_eu} · ` : ''}{formatPrice(p?.price ?? 0)}</p>
                           </div>
                         </div>
                         <button
@@ -2136,7 +1965,7 @@ function AdminPage() {
                         <div key={p?.id || Math.random()} className="flex items-center justify-between p-2.5 bg-black/30 border border-neutral-800/60 rounded-xl">
                           <div className="min-w-0">
                             <p className="text-neutral-300 text-xs font-semibold truncate">{p?.name || ''}</p>
-                            <p className="text-[11px] text-neutral-500">EU {p?.size_eu || ''} · {formatPrice(p?.price ?? 0)}</p>
+                            <p className="text-[11px] text-neutral-500">{p?.size_eu ? `Rozmiar: ${p.size_eu} · ` : ''}{formatPrice(p?.price ?? 0)}</p>
                           </div>
                           <button
                             onClick={() => handleQuickStatusChange(p.id, 'drop')}
@@ -2167,7 +1996,7 @@ function AdminPage() {
                     <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Nazwa kodu *</label>
                     <input
                       className={cn(inp, 'uppercase font-mono')}
-                      placeholder="np. TIKTOK10"
+                      placeholder="np. BUBRCLUB"
                       value={newCodeName}
                       onChange={(e) => setNewCodeName(e.target.value)}
                       required
@@ -2452,7 +2281,7 @@ function AdminNav({
     <>
       <nav className="flex-1 p-3 space-y-1">
         <button
-          onClick={() => { setView('products'); setForm(EMPTY_BOOT_FORM); setEditingId(null); }}
+          onClick={() => { setView('products'); setForm(EMPTY_ACCESSORY_FORM); setEditingId(null); }}
           className={cn('flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-medium transition-all active:scale-95', view === 'products' ? 'bg-[#FF6B00]/15 text-[#FF6B00]' : 'text-neutral-400 hover:text-white hover:bg-white/5')}
         >
           <Package className="w-4 h-4" /> Produkty
