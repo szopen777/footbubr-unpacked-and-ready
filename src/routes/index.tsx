@@ -280,15 +280,15 @@ function HomePage() {
           <div className="max-w-2xl mx-auto text-center">
             <div className="inline-flex items-center gap-2 bg-[#FF6B00]/10 border border-[#FF6B00]/20 backdrop-blur-md rounded-full px-4 py-1.5 mb-4 sm:mb-6 animate-fade-in-up">
               <Zap className="w-3.5 h-3.5 text-[#FF6B00]" />
-              <span className="text-xs font-bold text-[#FF6B00] uppercase tracking-wider">Dropy 1 of 1 & Akcesoria</span>
+              <span className="text-xs font-bold text-[#FF6B00] uppercase tracking-wider">Sprzęt piłkarski nowej generacji</span>
             </div>
             <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white leading-[1.1] mb-3 sm:mb-4 uppercase tracking-tight animate-fade-in-up delay-100">
-              Unikatowe korki<br />
-              piłkarskie w<br />
-              <span className="text-[#FF6B00]">dropach 1 of 1</span>
+              Nowoczesny sprzęt<br />
+              piłkarski w<br />
+              <span className="text-[#FF6B00]">dropach FootBubr</span>
             </h1>
             <p className="text-neutral-400 text-base sm:text-lg leading-relaxed mb-6 sm:mb-8 max-w-xl mx-auto animate-fade-in-up delay-200">
-              Każda para to unikat. Nie przegap swojego rozmiaru.
+              Dopracowane detale, bezkompromisowa jakość i pełna swoboda na boisku.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 text-xs sm:text-sm text-neutral-500 animate-fade-in-up delay-300">
               <div className="flex items-center gap-1.5">
@@ -297,7 +297,7 @@ function HomePage() {
               </div>
               <div className="flex items-center gap-1.5">
                 <ShieldCheck className="w-4 h-4 text-[#FF6B00]" />
-                Oryginalne pary
+                Polska marka
               </div>
               <div className="flex items-center gap-1.5">
                 <Zap className="w-4 h-4 text-[#FF6B00]" />
@@ -394,9 +394,9 @@ export const Route = createFileRoute('/')({
   head: () => ({
     meta: [
       { title: 'FootBubr' },
-      { name: 'description', content: 'Resale korków piłkarskich 1 of 1 oraz akcesoria piłkarskie FOOTBUBR.' },
+      { name: 'description', content: 'Oficjalny sklep FOOTBUBR – autorski sprzęt i akcesoria piłkarskie.' },
       { property: 'og:title', content: 'FootBubr' },
-      { property: 'og:description', content: 'Dropy korków 1 of 1 oraz akcesoria piłkarskie.' },
+      { property: 'og:description', content: 'Autorski sprzęt i nowoczesne akcesoria piłkarskie.' },
     ],
   }),
 });
