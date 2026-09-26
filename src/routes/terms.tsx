@@ -90,7 +90,7 @@ function TermsPage() {
                 <li>Przesyłek kurierskich InPost</li>
               </ul>
               <p className="mb-2">
-                2. Czas przygotowania i nadania przesyłki wynosi standardowo 24–48 godzin roboczych od momentu zaksięgowania wpłaty.
+                2. Czas przygotowania i nadania przesyłki wynosi standardowo 24-48 godzin roboczych od momentu zaksięgowania wpłaty.
               </p>
               <p>
                 3. Po nadaniu paczki Klient otrzymuje numer śledzenia przesyłki drogą mailową.
