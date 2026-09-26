@@ -63,11 +63,11 @@ export default function HeroDropPanel({ drop, countdownTarget, pairCount, dropSe
         <div className="flex items-center gap-2 mb-3">
           <Zap className="w-4 h-4 text-[#FF6B00]" />
           <span className="text-xs font-black text-[#FF6B00] uppercase tracking-wider">
-            {dropSettings?.title || 'Nowy drop już wkrótce'}
+            {dropSettings?.title || 'Nowy drop FootBubr już wkrótce'}
           </span>
         </div>
         <p className="text-sm text-neutral-400 mb-4 leading-relaxed">
-          {dropSettings?.subtitle || 'Przygotowujemy kolejne unikatowe pary. Zapisz się, by dostać powiadomienie przed startem.'}
+          {dropSettings?.subtitle || 'Przygotowujemy premierową partię sprzętu. Zapisz się, aby otrzymać powiadomienie przed oficjalnym startem.'}
         </p>
         {featuredProduct && (
           <div className="flex items-center gap-3 bg-black/40 border border-neutral-800 rounded-xl p-3 mb-4">
@@ -81,7 +81,7 @@ export default function HeroDropPanel({ drop, countdownTarget, pairCount, dropSe
             <div className="flex-1 min-w-0">
               <p className="text-xs text-neutral-500 uppercase tracking-wider">Zapowiedź</p>
               <p className="text-sm font-semibold text-white truncate">{featuredProduct.name}</p>
-              <p className="text-xs text-neutral-500">{featuredProduct.brand} · EU {featuredProduct.size_eu}</p>
+              <p className="text-xs text-neutral-500">{featuredProduct.brand || 'FootBubr'}{featuredProduct.size_eu ? ` · Rozmiar ${featuredProduct.size_eu}` : ''}</p>
             </div>
           </div>
         )}
@@ -116,7 +116,7 @@ export default function HeroDropPanel({ drop, countdownTarget, pairCount, dropSe
         ) : (
           <div className="flex items-center justify-center gap-2 bg-emerald-400/10 border border-emerald-400/30 rounded-xl py-2.5 px-3 text-sm text-emerald-400 font-semibold">
             <Check className="w-4 h-4" />
-            Zapisano! Czekaj na drop alert.
+            Zapisano! Damy znać przed startem dropu.
           </div>
         )}
       </div>
@@ -158,13 +158,13 @@ export default function HeroDropPanel({ drop, countdownTarget, pairCount, dropSe
             <div className="flex-1 min-w-0">
               <p className="text-xs text-neutral-500 uppercase tracking-wider">Zapowiedź</p>
               <p className="text-sm font-semibold text-white truncate">{featuredProduct.name}</p>
-              <p className="text-xs text-neutral-500">{featuredProduct.brand} · EU {featuredProduct.size_eu}</p>
+              <p className="text-xs text-neutral-500">{featuredProduct.brand || 'FootBubr'}{featuredProduct.size_eu ? ` · Rozmiar ${featuredProduct.size_eu}` : ''}</p>
             </div>
           </div>
         )}
         <div className="flex items-center gap-2 bg-black/40 border border-neutral-800 rounded-xl px-3 py-2">
           <span className="text-xs font-bold text-neutral-300 uppercase tracking-wider">
-            {pairCount > 0 ? `${pairCount} ${pairCount === 1 ? 'para' : pairCount < 5 ? 'pary' : 'par'} 1 of 1` : 'Stay tuned'}
+            {pairCount > 0 ? `Limitowana partia premierowa` : 'Sprzęt meczowy i treningowy'}
           </span>
         </div>
       </div>
@@ -179,7 +179,7 @@ export default function HeroDropPanel({ drop, countdownTarget, pairCount, dropSe
         <span className="text-xs font-black text-[#FF6B00] uppercase tracking-wider">Drop wystartował!</span>
       </div>
       <p className="text-sm text-neutral-400 mb-4 leading-relaxed">
-        Sprawdź dostępne pary poniżej.
+        Sprawdź nową kolekcję poniżej.
       </p>
     </div>
   );
