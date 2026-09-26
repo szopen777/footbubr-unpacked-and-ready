@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { ChevronDown, SlidersHorizontal, X, Sparkles, Footprints, Package } from 'lucide-react';
+import { ChevronDown, SlidersHorizontal, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { PRODUCT_LEVELS } from '@/lib/supabase';
 
 export type MainCategory = 'all' | 'boots' | 'accessories';
 
@@ -19,35 +18,6 @@ export interface FilterState {
 
 export type SortOption = 'newest' | 'price_asc' | 'price_desc';
 
-const SIZES = [
-  '39', '39 1/3', '39.5',
-  '40', '40 2/3', '40.5',
-  '41', '41 1/3', '41.5',
-  '42', '42 2/3', '42.5',
-  '43', '43 1/3', '43.5',
-  '44', '44 2/3', '44.5',
-  '45', '45 1/3', '45.5',
-  '46', '46 2/3', '46.5',
-  '47', '47 1/3', '47.5',
-  '48'
-];
-
-const BRANDS = ['Nike', 'Adidas', 'Puma', 'Mizuno', 'New Balance', 'Under Armour', 'Umbro', 'Lotto'];
-const SURFACES = [
-  { value: 'FG', label: 'FG - Lanki' },
-  { value: 'SG', label: 'SG - Wkręty/Mixy' },
-  { value: 'AG', label: 'AG - Sztuczna trawa' },
-  { value: 'TF', label: 'TF - Turfy' },
-  { value: 'IC', label: 'IC - Halówki' },
-];
-const CONDITIONS = [
-  'Nowe z metką',
-  'Nowe bez metki',
-  'Używane 9/10',
-  'Używane 8/10',
-  'Używane 7/10',
-  'Używane 6/10',
-];
 const ACCESSORY_TYPES = [
   'Skarpety antypoślizgowe',
   'Mini ochraniacze',
@@ -112,34 +82,19 @@ function FilterSection({
 export default function FilterSidebar({ filters, onChange, sortBy, onSortChange }: FilterSidebarProps) {
   const [sheetOpen, setSheetOpen] = useState(false);
 
-  const currentCategory = filters.category || 'all';
-  const currentSizes = (filters.sizes || []).map(String);
-  const currentBrands = filters.brands || [];
-  const currentLevels = filters.levels || [];
-  const currentSurfaces = filters.surfaces || [];
-  const currentConditions = filters.conditions || [];
   const currentAccTypes = filters.accessoryTypes || [];
 
   const toggle = <T,>(arr: T[], val: T): T[] =>
     arr.includes(val) ? arr.filter((v) => v !== val) : [...arr, val];
 
-  const setCategory = (cat: MainCategory) => {
-    onChange({ ...filters, category: cat });
-  };
-
   const activeCount =
-    currentSizes.length +
-    currentBrands.length +
-    currentLevels.length +
-    currentSurfaces.length +
-    currentConditions.length +
     currentAccTypes.length +
     (filters.priceMin ? 1 : 0) +
     (filters.priceMax ? 1 : 0);
 
   const clearAll = () =>
     onChange({
-      category: currentCategory,
+      category: 'all',
       sizes: [],
       brands: [],
       levels: [],
@@ -165,171 +120,24 @@ export default function FilterSidebar({ filters, onChange, sortBy, onSortChange 
   const labelClass = (active: boolean) =>
     cn('text-sm transition-colors cursor-pointer', active ? 'text-white font-medium' : 'text-neutral-400 group-hover:text-neutral-200');
 
-  const categoryTabs = (
-    <div className="pb-3 border-b border-neutral-800/80">
-      <p className="text-[11px] font-bold uppercase tracking-wider text-neutral-500 mb-2.5 flex items-center gap-1.5">
-        <Sparkles className="w-3.5 h-3.5 text-[#FF6B00]" /> Kategoria
-      </p>
-      <div className="grid grid-cols-3 gap-1.5 bg-[#101010] p-1.5 rounded-2xl border border-neutral-800">
-        <button
-          type="button"
-          onClick={() => setCategory('all')}
-          className={cn(
-            'py-2.5 px-2 rounded-xl text-xs font-bold transition-all duration-300 flex flex-col items-center justify-center gap-1 active:scale-95',
-            currentCategory === 'all'
-              ? 'bg-[#FF6B00] text-black shadow-[0_4px_15px_rgba(255,107,0,0.3)] scale-[1.02]'
-              : 'text-neutral-400 hover:text-white hover:bg-white/5'
-          )}
-        >
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>Wszystko</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setCategory('boots')}
-          className={cn(
-            'py-2.5 px-2 rounded-xl text-xs font-bold transition-all duration-300 flex flex-col items-center justify-center gap-1 active:scale-95',
-            currentCategory === 'boots'
-              ? 'bg-[#FF6B00] text-black shadow-[0_4px_15px_rgba(255,107,0,0.3)] scale-[1.02]'
-              : 'text-neutral-400 hover:text-white hover:bg-white/5'
-          )}
-        >
-          <Footprints className="w-3.5 h-3.5" />
-          <span>Korki</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setCategory('accessories')}
-          className={cn(
-            'py-2.5 px-2 rounded-xl text-xs font-bold transition-all duration-300 flex flex-col items-center justify-center gap-1 active:scale-95',
-            currentCategory === 'accessories'
-              ? 'bg-[#FF6B00] text-black shadow-[0_4px_15px_rgba(255,107,0,0.3)] scale-[1.02]'
-              : 'text-neutral-400 hover:text-white hover:bg-white/5'
-          )}
-        >
-          <Package className="w-3.5 h-3.5" />
-          <span>Akcesoria</span>
-        </button>
-      </div>
-    </div>
-  );
-
   const filterContent = (
     <div className="divide-y-0">
-      {categoryTabs}
-
-      {/* FILTRY KORKÓW */}
-      {(currentCategory === 'all' || currentCategory === 'boots') && (
-        <div className="animate-fade-in">
-          <FilterSection title="Rozmiar (EU)" defaultOpen={true}>
-            {/* Siatka 4 kolumny bez przewijania */}
-            <div className="grid grid-cols-4 gap-1.5">
-              {SIZES.map((size) => (
-                <button
-                  key={size}
-                  type="button"
-                  onClick={() => onChange({ ...filters, sizes: toggle(currentSizes, size) })}
-                  className={cn(
-                    'text-[10px] sm:text-[11px] py-2 px-0.5 rounded-lg font-medium transition-all active:scale-90 duration-200 text-center leading-tight flex items-center justify-center',
-                    currentSizes.includes(size)
-                      ? 'bg-[#FF6B00] text-black font-bold shadow-[0_2px_8px_rgba(255,107,0,0.3)]'
-                      : 'bg-white/5 text-neutral-400 hover:bg-white/10 hover:text-white'
-                  )}
-                >
-                  {size}
-                </button>
-              ))}
-            </div>
-          </FilterSection>
-
-          <FilterSection title="Marka" defaultOpen={true}>
-            <div className="space-y-1.5">
-              {BRANDS.map((brand) => {
-                const active = currentBrands.includes(brand);
-                return (
-                  <label key={brand} className="flex items-center gap-2 cursor-pointer group py-0.5">
-                    <div onClick={() => onChange({ ...filters, brands: toggle(currentBrands, brand) })} className={checkboxClass(active)}>
-                      {active && <CheckIcon />}
-                    </div>
-                    <span onClick={() => onChange({ ...filters, brands: toggle(currentBrands, brand) })} className={labelClass(active)}>{brand}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </FilterSection>
-
-          <FilterSection title="Nawierzchnia" defaultOpen={false}>
-            <div className="space-y-1.5">
-              {SURFACES.map(({ value, label }) => {
-                const active = currentSurfaces.includes(value);
-                return (
-                  <label key={value} className="flex items-center gap-2 cursor-pointer group py-0.5">
-                    <div onClick={() => onChange({ ...filters, surfaces: toggle(currentSurfaces, value) })} className={checkboxClass(active)}>
-                      {active && <CheckIcon />}
-                    </div>
-                    <span onClick={() => onChange({ ...filters, surfaces: toggle(currentSurfaces, value) })} className={labelClass(active)}>{label}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </FilterSection>
-
-          <FilterSection title="Poziom zaawansowania" defaultOpen={false}>
-            <div className="space-y-1.5">
-              {PRODUCT_LEVELS.map(({ value, label }) => {
-                const active = currentLevels.includes(value);
-                return (
-                  <label key={value} className="flex items-center gap-2 cursor-pointer group py-0.5">
-                    <div onClick={() => onChange({ ...filters, levels: toggle(currentLevels, value) })} className={checkboxClass(active)}>
-                      {active && <CheckIcon />}
-                    </div>
-                    <span onClick={() => onChange({ ...filters, levels: toggle(currentLevels, value) })} className={labelClass(active)}>{label}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </FilterSection>
-
-          <FilterSection title="Stan obuwia" defaultOpen={false}>
-            <div className="space-y-1.5">
-              {CONDITIONS.map((cond) => {
-                const active = currentConditions.includes(cond);
-                return (
-                  <label key={cond} className="flex items-center gap-2 cursor-pointer group py-0.5">
-                    <div onClick={() => onChange({ ...filters, conditions: toggle(currentConditions, cond) })} className={checkboxClass(active)}>
-                      {active && <CheckIcon />}
-                    </div>
-                    <span onClick={() => onChange({ ...filters, conditions: toggle(currentConditions, cond) })} className={labelClass(active)}>{cond}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </FilterSection>
+      {/* RODZAJ PRODUKTU */}
+      <FilterSection title="Produkt" defaultOpen={true}>
+        <div className="space-y-1.5">
+          {ACCESSORY_TYPES.map((type) => {
+            const active = currentAccTypes.includes(type);
+            return (
+              <label key={type} className="flex items-center gap-2 cursor-pointer group py-0.5">
+                <div onClick={() => onChange({ ...filters, accessoryTypes: toggle(currentAccTypes, type) })} className={checkboxClass(active)}>
+                  {active && <CheckIcon />}
+                </div>
+                <span onClick={() => onChange({ ...filters, accessoryTypes: toggle(currentAccTypes, type) })} className={labelClass(active)}>{type}</span>
+              </label>
+            );
+          })}
         </div>
-      )}
-
-      {/* FILTRY AKCESORIÓW */}
-      {(currentCategory === 'all' || currentCategory === 'accessories') && (
-        <div className="animate-fade-in">
-          <FilterSection title="Rodzaj akcesorium" defaultOpen={true}>
-            <div className="space-y-1.5">
-              {ACCESSORY_TYPES.map((type) => {
-                const active = currentAccTypes.includes(type);
-                return (
-                  <label key={type} className="flex items-center gap-2 cursor-pointer group py-0.5">
-                    <div onClick={() => onChange({ ...filters, accessoryTypes: toggle(currentAccTypes, type) })} className={checkboxClass(active)}>
-                      {active && <CheckIcon />}
-                    </div>
-                    <span onClick={() => onChange({ ...filters, accessoryTypes: toggle(currentAccTypes, type) })} className={labelClass(active)}>{type}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </FilterSection>
-        </div>
-      )}
+      </FilterSection>
 
       {/* CENA (PLN) */}
       <FilterSection title="Cena (PLN)" defaultOpen={true} hasBorder={false}>
