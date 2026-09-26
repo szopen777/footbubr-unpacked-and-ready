@@ -2,11 +2,9 @@ import { useEffect, useState } from 'react';
 import { supabase, Drop } from '@/lib/supabase';
 
 const STATIC_ITEMS = [
-  'DARMOWA WYSYŁKA OD 500 ZŁ',
-  'WSZYSTKIE PARY 100% ORYGINALNE',
-  'WYSYŁKA INPOST / KURIER',
-  'KORKI 1 OF 1 - KAŻDA PARA UNIKAT',
-  'TOPOWE AKCESORIA',
+  'DARMOWA WYSYŁKA OD 150 ZŁ',
+  'POLSKA MARKA SPRZĘTU PIŁKARSKIEGO',
+  'SZYBKA WYSYŁKA INPOST',
 ];
 
 function buildItems(dropText: string): string[] {
