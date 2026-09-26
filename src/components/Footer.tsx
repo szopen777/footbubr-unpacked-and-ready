@@ -179,7 +179,7 @@ export default function Footer() {
               </span>
             </Link>
             <p className="text-xs sm:text-sm text-neutral-400 leading-relaxed max-w-sm">
-              Polska marka tworząca nowoczesny sprzęt i akcesoria piłkarskie. Maksymalna lekkość, wygoda i zero kompromisów na boisku.
+              Polska marka tworząca nowoczesny sprzęt i akcesoria piłkarskie. Maksymalna lekkość i wygoda.
             </p>
           </div>
 
@@ -259,7 +259,7 @@ export default function Footer() {
                 <button
                   type="button"
                   className="text-left text-neutral-400 hover:text-white transition-colors"
-                  onClick={() => toast.info('FootBubr — polska marka sprzętu piłkarskiego stworzona przez graczy dla graczy.')}
+                  onClick={() => toast.info('FootBubr - polska marka sprzętu piłkarskiego stworzona przez graczy dla graczy.')}
                 >
                   O nas
                 </button>
