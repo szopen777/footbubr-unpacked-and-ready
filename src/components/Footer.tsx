@@ -183,25 +183,27 @@ export default function Footer() {
             </p>
           </div>
 
-          {/* Kolumna 2: Sociale & Kontakt */}
+          {/* Kolumna 2: Social & Kontakt */}
           <div className="space-y-3">
             <h4 className="text-xs font-black text-white uppercase tracking-wider">Social & Kontakt</h4>
             <div className="flex items-center gap-2.5 pt-0.5">
               <a
-                href="https://instagram.com"
+                href="https://www.instagram.com/footbubr"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-9 h-9 rounded-xl bg-[#141414] border border-neutral-800 flex items-center justify-center text-neutral-400 hover:text-white hover:border-[#FF6B00]/50 hover:bg-[#FF6B00]/10 transition-all active:scale-95"
-                title="Instagram"
+                title="Instagram FootBubr"
+                aria-label="Instagram FootBubr"
               >
                 <InstagramIcon />
               </a>
               <a
-                href="https://tiktok.com"
+                href="https://www.tiktok.com/@footbubr"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-9 h-9 rounded-xl bg-[#141414] border border-neutral-800 flex items-center justify-center text-neutral-400 hover:text-white hover:border-[#FF6B00]/50 hover:bg-[#FF6B00]/10 transition-all active:scale-95"
-                title="TikTok"
+                title="TikTok FootBubr"
+                aria-label="TikTok FootBubr"
               >
                 <TikTokIcon />
               </a>
@@ -209,11 +211,17 @@ export default function Footer() {
                 href="mailto:kontakt@footbubr.pl"
                 className="w-9 h-9 rounded-xl bg-[#141414] border border-neutral-800 flex items-center justify-center text-neutral-400 hover:text-white hover:border-[#FF6B00]/50 hover:bg-[#FF6B00]/10 transition-all active:scale-95"
                 title="Napisz do nas"
+                aria-label="Napisz do nas"
               >
                 <Mail className="w-4 h-4" />
               </a>
             </div>
-            <p className="text-xs text-neutral-500 font-mono">kontakt@footbubr.pl</p>
+            <a 
+              href="mailto:kontakt@footbubr.pl" 
+              className="text-xs text-neutral-500 hover:text-white font-mono transition-colors block"
+            >
+              kontakt@footbubr.pl
+            </a>
           </div>
 
           {/* Kolumna 3: Pomoc i Obsługa */}
