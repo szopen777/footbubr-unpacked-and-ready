@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { 
-  Footprints, Mail, ArrowRight, Check, Sparkles, Loader2 
+  Footprints, Mail, ArrowRight, Check, Sparkles, Loader2, X, ShieldCheck, HeartHandshake, Flame
 } from 'lucide-react';
 import { toast } from 'sonner';
 import logoPng from '/logoPNG.png';
@@ -44,6 +44,7 @@ export default function Footer() {
   const [newsletterEmail, setNewsletterEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
+  const [isAboutOpen, setIsAboutOpen] = useState(false);
 
   const handleNewsletterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -266,8 +267,8 @@ export default function Footer() {
               <li>
                 <button
                   type="button"
-                  className="text-left text-neutral-400 hover:text-white transition-colors"
-                  onClick={() => toast.info('FootBubr - polska marka sprzętu piłkarskiego stworzona przez graczy dla graczy.')}
+                  className="text-left text-neutral-400 hover:text-[#FF6B00] transition-colors font-medium"
+                  onClick={() => setIsAboutOpen(true)}
                 >
                   O nas
                 </button>
@@ -310,6 +311,86 @@ export default function Footer() {
           </div>
         </div>
       </div>
+
+      {/* 4. MODAL O NAS */}
+      {isAboutOpen && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => setIsAboutOpen(false)}
+        >
+          <div 
+            className="bg-[#121212] border border-neutral-800 rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8 shadow-2xl relative animate-scale-in text-neutral-300"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Przycisk zamknięcia */}
+            <button
+              onClick={() => setIsAboutOpen(false)}
+              className="absolute top-5 right-5 p-2 rounded-xl bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white transition-all"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Nagłówek modala */}
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-12 h-12 rounded-2xl bg-[#FF6B00]/10 border border-[#FF6B00]/30 flex items-center justify-center flex-shrink-0">
+                <img src={logoPng} alt="FootBubr" className="w-7 h-7 object-contain invert brightness-200" />
+              </div>
+              <div>
+                <span className="text-[11px] font-black uppercase text-[#FF6B00] tracking-widest block">
+                  Polska Marka Piłkarska
+                </span>
+                <h3 className="text-xl font-black text-white uppercase tracking-tight">
+                  Historia FootBubr
+                </h3>
+              </div>
+            </div>
+
+            {/* Opowieść */}
+            <div className="space-y-4 text-xs sm:text-sm leading-relaxed text-neutral-300">
+              <p>
+                Gram w piłkę od dzieciaka. Każdy, kto spędził setki godzin na ligowych boiskach, orlikach czy w szatniach, zna ten sam ból: wielkie, plastikowe ochraniacze uwierające w piszczel, getry zsuwające się do kostek i stopa ślizgająca się w bucie przy każdym zrywie. 
+              </p>
+
+              <p>
+                Kiedy do tego dochodziły absurdalne ceny za kawałek gumy czy skarpety z logiem gigantów, w głowie pojawiła się prosta myśl: <strong className="text-white">dość tego, zróbmy to po swojemu</strong>. Pomysł narodził się spontanicznie, ale wynikał z czystej potrzeby z boiska.
+              </p>
+
+              <div className="bg-black/50 border border-neutral-800 rounded-2xl p-4 space-y-2">
+                <div className="flex items-center gap-2 text-white font-bold text-xs uppercase">
+                  <Flame className="w-4 h-4 text-[#FF6B00]" />
+                  Dlaczego Bóbr?
+                </div>
+                <p className="text-xs text-neutral-400">
+                  Jesteśmy w 100% polską marką, a bóbr to nasz narodowy symbol nieustępliwości, sprytu i budowania solidnych konstrukcji. Poza tym... powiedzmy sobie szczerze: <span className="text-neutral-200 font-semibold">kto nie lubi bobrów?</span> Stąd wzięło się nasze motto: <strong className="text-[#FF6B00]">Sprzęt twardy jak tama</strong>.
+                </p>
+              </div>
+
+              <p>
+                W FootBubr nie ma marketingu od ludzi w garniturach. <strong className="text-white">Każdy produkt – deski, skarpety antypoślizgowe i taśmy – testuję osobiście w meczach i na treningach</strong>. Wypuszczamy tylko to, w czym sami wychodzimy na boisko walczyć o 3 punkty.
+              </p>
+            </div>
+
+            {/* Wyróżniki marki */}
+            <div className="grid grid-cols-2 gap-3 mt-6 pt-5 border-t border-neutral-800/80">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-[#FF6B00] flex-shrink-0" />
+                <span className="text-xs font-bold text-white">Testowane w grze</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <HeartHandshake className="w-4 h-4 text-[#FF6B00] flex-shrink-0" />
+                <span className="text-xs font-bold text-white">Polska jakość i cena</span>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setIsAboutOpen(false)}
+              className="mt-6 w-full py-3 bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-black uppercase text-xs tracking-wider rounded-xl transition-all shadow-[0_4px_15px_rgba(255,107,0,0.25)] active:scale-95"
+            >
+              Jasne, wracamy do gry
+            </button>
+          </div>
+        </div>
+      )}
     </footer>
   );
 }
