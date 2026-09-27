@@ -348,7 +348,7 @@ export default function Footer() {
             {/* Opowieść */}
             <div className="space-y-4 text-xs sm:text-sm leading-relaxed text-neutral-300">
               <p>
-                W piłkę gram od dzieciaka i spędziłem na boiskach setki godzin. Zawsze irytował mnie ten sam problem: plastikowe, niewygodne ochraniacze, wiecznie zsuwające się getry i stopa pływająca w bucie przy każdym zwrocie. Kiedy widziałem, jak wielkie marki każą sobie słono płacić za podstawowe akcesoria, postanowiłem wziąć sprawy w swoje ręce.
+                W piłkę gram od dzieciaka i spędziłem na boiskach setki godzin. Zawsze irytował mnie ten sam problem: niewygodne ochraniacze, wiecznie zsuwające się getry i stopa pływająca w bucie przy każdym zwrocie. Kiedy widziałem, jak wielkie marki każą sobie słono płacić za podstawowe akcesoria, postanowiłem wziąć sprawy w swoje ręce.
               </p>
 
               <div className="bg-black/50 border border-neutral-800 rounded-2xl p-4 space-y-2">
@@ -357,7 +357,7 @@ export default function Footer() {
                   Skąd nazwa FootBubr?
                 </div>
                 <p className="text-xs text-neutral-400">
-                  Pomysł zrodził się zupełnie naturalnie i ma bardzo bliskie, osobiste korzenie – to mały ukłon w stronę mojej dziewczyny, której nazwisko idealnie naprowadziło nas na ten motyw. Bóbr to w końcu symbol solidnej, nieustannej roboty, budowania mocnych rzeczy i nieustępliwości. Poza tym – kto nie lubi bobrów? Tak powstało hasło: <strong className="text-[#FF6B00]">Sprzęt twardy jak tama</strong>.
+                  Pomysł zrodził się zupełnie naturalnie i ma bardzo bliskie, osobiste korzenie - to mały ukłon w stronę mojej dziewczyny, której nazwisko idealnie naprowadziło nas na ten motyw. Bóbr to w końcu symbol solidnej, nieustannej roboty, budowania mocnych rzeczy i nieustępliwości. Poza tym – kto nie lubi bobrów?
                 </p>
               </div>
 
@@ -386,7 +386,7 @@ export default function Footer() {
               onClick={() => setIsAboutOpen(false)}
               className="mt-6 w-full py-3 bg-[#FF6B00] hover:bg-[#FF7A00] text-black font-black uppercase text-xs tracking-wider rounded-xl transition-all shadow-[0_4px_15px_rgba(255,107,0,0.25)] active:scale-95"
             >
-              Jasne, wracamy do gry
+              Jasne⚽️🦫
             </button>
           </div>
         </div>
