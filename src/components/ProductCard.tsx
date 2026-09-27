@@ -167,7 +167,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           {discountPercent !== null && (
             <div className="pt-0.5 flex items-center">
               <span className="text-[11px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 px-2.5 py-0.5 rounded-md">
-                -{discountPercent}% taniej
+                -{discountPercent}%
               </span>
             </div>
           )}
