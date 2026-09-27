@@ -1,6 +1,6 @@
 export const SHIPPING_PACZKOMAT = 19;
 export const SHIPPING_KURIER = 21;
-export const FREE_SHIPPING_THRESHOLD = 500;
+export const FREE_SHIPPING_THRESHOLD = 150;
 
 export function shippingCostFor(method: 'paczkomat' | 'kurier', cartValue: number): number {
   if (cartValue >= FREE_SHIPPING_THRESHOLD) return 0;
