@@ -19,32 +19,42 @@ export default function ProductCard({ product }: ProductCardProps) {
 
   const [ratingStats, setRatingStats] = useState<{ avg: string; count: number } | null>(null);
 
+  // Bezpieczne parsowanie liczb
+  const currentPrice = Number(product.price) || 0;
+  const originalPrice = product.original_price ? Number(product.original_price) : 0;
+
   const discountPercent =
-    product.original_price && product.original_price > product.price
-      ? Math.round(((product.original_price - product.price) / product.original_price) * 100)
+    originalPrice > currentPrice && originalPrice > 0
+      ? Math.round(((originalPrice - currentPrice) / originalPrice) * 100)
       : null;
 
   useEffect(() => {
-    const fetchRating = async () => {
-      const { data } = await supabase
-        .from('reviews')
-        .select('rating')
-        .eq('product_id', product.id);
+    if (!product?.id) return;
 
-      if (data && data.length > 0) {
-        const total = data.reduce((acc, r) => acc + r.rating, 0);
-        setRatingStats({
-          avg: (total / data.length).toFixed(1),
-          count: data.length,
-        });
+    const fetchRating = async () => {
+      try {
+        const { data } = await supabase
+          .from('reviews')
+          .select('rating')
+          .eq('product_id', product.id);
+
+        if (data && data.length > 0) {
+          const total = data.reduce((acc, r) => acc + (r.rating || 0), 0);
+          setRatingStats({
+            avg: (total / data.length).toFixed(1),
+            count: data.length,
+          });
+        }
+      } catch (e) {
+        console.error('Błąd pobierania ocen:', e);
       }
     };
 
     fetchRating();
-  }, [product.id]);
+  }, [product?.id]);
 
   const isSold = product.status === 'sold';
-  const mainImage = product.images?.[0] || null;
+  const mainImage = Array.isArray(product.images) && product.images.length > 0 ? product.images[0] : null;
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -87,7 +97,7 @@ export default function ProductCard({ product }: ProductCardProps) {
         {mainImage ? (
           <img
             src={mainImage}
-            alt={product.name}
+            alt={product.name || ''}
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
             loading="lazy"
           />
@@ -123,7 +133,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           </div>
 
           {discountPercent !== null && (
-            <div className="bg-black/75 backdrop-blur-md text-[#FF6B00] border border-[#FF6B00]/40 font-black text-[10px] sm:text-xs px-2 py-1 rounded-xl shadow-lg">
+            <div className="bg-black/80 backdrop-blur-md text-[#FF6B00] border border-[#FF6B00]/40 font-black text-[10px] sm:text-xs px-2 py-1 rounded-xl shadow-lg">
               -{discountPercent}%
             </div>
           )}
@@ -159,32 +169,32 @@ export default function ProductCard({ product }: ProductCardProps) {
             {product.name}
           </h3>
 
-          <div className="flex items-center gap-1.5 pt-0.5 flex-wrap">
-            <span
-              className={cn(
-                'text-[10px] font-medium px-2 py-0.5 rounded-full border',
-                CONDITION_COLORS[product.condition] || 'text-neutral-400 bg-white/5 border-neutral-800'
-              )}
-            >
-              {product.condition}
-            </span>
-          </div>
+          {product.condition && (
+            <div className="flex items-center gap-1.5 pt-0.5 flex-wrap">
+              <span
+                className={cn(
+                  'text-[10px] font-medium px-2 py-0.5 rounded-full border',
+                  CONDITION_COLORS[product.condition] || 'text-neutral-400 bg-white/5 border-neutral-800'
+                )}
+              >
+                {product.condition}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Ceny i przyciski akcji */}
         <div className="space-y-3 pt-2">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-base sm:text-lg font-black text-white">{formatPrice(product.price)}</span>
-            {product.original_price && product.original_price > product.price && (
+            <span className="text-base sm:text-lg font-black text-white">{formatPrice(currentPrice)}</span>
+            {discountPercent !== null && (
               <>
                 <span className="text-xs text-neutral-500 line-through">
-                  {formatPrice(product.original_price)}
+                  {formatPrice(originalPrice)}
                 </span>
-                {discountPercent !== null && (
-                  <span className="text-[10px] font-black text-[#FF6B00] bg-[#FF6B00]/15 border border-[#FF6B00]/30 px-1.5 py-0.5 rounded-md">
-                    -{discountPercent}%
-                  </span>
-                )}
+                <span className="text-[10px] font-black text-[#FF6B00] bg-[#FF6B00]/15 border border-[#FF6B00]/30 px-1.5 py-0.5 rounded-md">
+                  -{discountPercent}%
+                </span>
               </>
             )}
           </div>
