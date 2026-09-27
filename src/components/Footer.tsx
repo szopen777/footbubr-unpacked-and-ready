@@ -312,7 +312,7 @@ export default function Footer() {
         </div>
       </div>
 
-            {/* 4. MODAL O NAS (AUTORSKI PROJEKT JEDNOOSOBOWY) */}
+                  {/* 4. MODAL O NAS */}
       {isAboutOpen && (
         <div 
           className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in"
@@ -345,25 +345,25 @@ export default function Footer() {
               </div>
             </div>
 
-            {/* Opowieść z perspektywy twórcy */}
+            {/* Opowieść */}
             <div className="space-y-4 text-xs sm:text-sm leading-relaxed text-neutral-300">
               <p>
-                W piłkę gram od dzieciaka i spędziłem na boiskach setki godzin. Zawsze irytował mnie ten sam problem: plastikowe, niewygodne ochraniacze, getry lecące do kostek i stopa pływająca w bucie przy każdym zwrocie. Kiedy widziałem, jak wielkie koncerny każą sobie płacić grube pieniądze za podstawowe akcesoria, postanowiłem wziąć sprawy w swoje ręce.
-              </p>
-
-              <p>
-                <strong className="text-white">FootBubr to w 100% mój własny, jednoosobowy projekt.</strong> Nie stoi za mną żadna korporacja ani sztab marketingowców. Sam wymyślam detale, sam sprawdzam jakość, sam pakuję każdą paczkę i – co najważniejsze – <strong className="text-[#FF6B00]">sam wszystko testuję na własnych nogach podczas ligowych meczów i treningów</strong>. Wypuszczam tylko to, w czym sam bez wahania wychodzę na boisko.
+                W piłkę gram od dzieciaka i spędziłem na boiskach setki godzin. Zawsze irytował mnie ten sam problem: plastikowe, niewygodne ochraniacze, wiecznie zsuwające się getry i stopa pływająca w bucie przy każdym zwrocie. Kiedy widziałem, jak wielkie marki każą sobie słono płacić za podstawowe akcesoria, postanowiłem wziąć sprawy w swoje ręce.
               </p>
 
               <div className="bg-black/50 border border-neutral-800 rounded-2xl p-4 space-y-2">
                 <div className="flex items-center gap-2 text-white font-bold text-xs uppercase">
                   <Flame className="w-4 h-4 text-[#FF6B00]" />
-                  Skąd ten bóbr?
+                  Skąd nazwa FootBubr?
                 </div>
                 <p className="text-xs text-neutral-400">
-                  Marka jest w pełni polska, a bóbr to symbol ciężkiej, nieustannej pracy, sprytu i budowania solidnych rzeczy. Poza tym – powiedzmy sobie szczerze, kto nie lubi bobrów? Stąd nasze motto: <strong className="text-[#FF6B00]">Sprzęt twardy jak tama</strong>.
+                  Pomysł zrodził się zupełnie naturalnie i ma bardzo bliskie, osobiste korzenie – to mały ukłon w stronę mojej dziewczyny, której nazwisko idealnie naprowadziło nas na ten motyw. Bóbr to w końcu symbol solidnej, nieustannej roboty, budowania mocnych rzeczy i nieustępliwości. Poza tym – kto nie lubi bobrów? Tak powstało hasło: <strong className="text-[#FF6B00]">Sprzęt twardy jak tama</strong>.
                 </p>
               </div>
+
+              <p>
+                <strong className="text-white">Za FootBubr nie stoi żadna korporacja.</strong> Tworzę ten projekt sam, z ogromnym wsparciem mojej dziewczyny, która pomaga mi ogarniać wszystko poza boiskiem. Ja odpowiadam za to, co najważniejsze: <strong className="text-[#FF6B00]">każdy produkt testuję osobiście w ligowych meczach i na treningach</strong>. Wypuszczamy tylko to, w czym sam bez wahania wychodzę walczyć o 3 punkty.
+              </p>
 
               <p className="text-neutral-400">
                 Kupując tutaj, wspierasz niezależną, zajawkową markę tworzoną przez gracza dla graczy. Zero ściemy, uczciwe ceny i sprzęt, który ma po prostu robić robotę na murawie.
@@ -391,6 +391,7 @@ export default function Footer() {
           </div>
         </div>
       )}
+
 
     </footer>
   );
