@@ -312,7 +312,7 @@ export default function Footer() {
         </div>
       </div>
 
-      {/* 4. MODAL O NAS */}
+            {/* 4. MODAL O NAS (AUTORSKI PROJEKT JEDNOOSOBOWY) */}
       {isAboutOpen && (
         <div 
           className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in"
@@ -337,7 +337,7 @@ export default function Footer() {
               </div>
               <div>
                 <span className="text-[11px] font-black uppercase text-[#FF6B00] tracking-widest block">
-                  Polska Marka Piłkarska
+                  Autorski projekt piłkarski
                 </span>
                 <h3 className="text-xl font-black text-white uppercase tracking-tight">
                   Historia FootBubr
@@ -345,40 +345,40 @@ export default function Footer() {
               </div>
             </div>
 
-            {/* Opowieść */}
+            {/* Opowieść z perspektywy twórcy */}
             <div className="space-y-4 text-xs sm:text-sm leading-relaxed text-neutral-300">
               <p>
-                Gram w piłkę od dzieciaka. Każdy, kto spędził setki godzin na ligowych boiskach, orlikach czy w szatniach, zna ten sam ból: wielkie, plastikowe ochraniacze uwierające w piszczel, getry zsuwające się do kostek i stopa ślizgająca się w bucie przy każdym zrywie. 
+                W piłkę gram od dzieciaka i spędziłem na boiskach setki godzin. Zawsze irytował mnie ten sam problem: plastikowe, niewygodne ochraniacze, getry lecące do kostek i stopa pływająca w bucie przy każdym zwrocie. Kiedy widziałem, jak wielkie koncerny każą sobie płacić grube pieniądze za podstawowe akcesoria, postanowiłem wziąć sprawy w swoje ręce.
               </p>
 
               <p>
-                Kiedy do tego dochodziły absurdalne ceny za kawałek gumy czy skarpety z logiem gigantów, w głowie pojawiła się prosta myśl: <strong className="text-white">dość tego, zróbmy to po swojemu</strong>. Pomysł narodził się spontanicznie, ale wynikał z czystej potrzeby z boiska.
+                <strong className="text-white">FootBubr to w 100% mój własny, jednoosobowy projekt.</strong> Nie stoi za mną żadna korporacja ani sztab marketingowców. Sam wymyślam detale, sam sprawdzam jakość, sam pakuję każdą paczkę i – co najważniejsze – <strong className="text-[#FF6B00]">sam wszystko testuję na własnych nogach podczas ligowych meczów i treningów</strong>. Wypuszczam tylko to, w czym sam bez wahania wychodzę na boisko.
               </p>
 
               <div className="bg-black/50 border border-neutral-800 rounded-2xl p-4 space-y-2">
                 <div className="flex items-center gap-2 text-white font-bold text-xs uppercase">
                   <Flame className="w-4 h-4 text-[#FF6B00]" />
-                  Dlaczego Bóbr?
+                  Skąd ten bóbr?
                 </div>
                 <p className="text-xs text-neutral-400">
-                  Jesteśmy w 100% polską marką, a bóbr to nasz narodowy symbol nieustępliwości, sprytu i budowania solidnych konstrukcji. Poza tym... powiedzmy sobie szczerze: <span className="text-neutral-200 font-semibold">kto nie lubi bobrów?</span> Stąd wzięło się nasze motto: <strong className="text-[#FF6B00]">Sprzęt twardy jak tama</strong>.
+                  Marka jest w pełni polska, a bóbr to symbol ciężkiej, nieustannej pracy, sprytu i budowania solidnych rzeczy. Poza tym – powiedzmy sobie szczerze, kto nie lubi bobrów? Stąd nasze motto: <strong className="text-[#FF6B00]">Sprzęt twardy jak tama</strong>.
                 </p>
               </div>
 
-              <p>
-                W FootBubr nie ma marketingu od ludzi w garniturach. <strong className="text-white">Każdy produkt – deski, skarpety antypoślizgowe i taśmy – testuję osobiście w meczach i na treningach</strong>. Wypuszczamy tylko to, w czym sami wychodzimy na boisko walczyć o 3 punkty.
+              <p className="text-neutral-400">
+                Kupując tutaj, wspierasz niezależną, zajawkową markę tworzoną przez gracza dla graczy. Zero ściemy, uczciwe ceny i sprzęt, który ma po prostu robić robotę na murawie.
               </p>
             </div>
 
-            {/* Wyróżniki marki */}
+            {/* Wyróżniki */}
             <div className="grid grid-cols-2 gap-3 mt-6 pt-5 border-t border-neutral-800/80">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-[#FF6B00] flex-shrink-0" />
-                <span className="text-xs font-bold text-white">Testowane w grze</span>
+                <span className="text-xs font-bold text-white">Testowane osobiście</span>
               </div>
               <div className="flex items-center gap-2">
                 <HeartHandshake className="w-4 h-4 text-[#FF6B00] flex-shrink-0" />
-                <span className="text-xs font-bold text-white">Polska jakość i cena</span>
+                <span className="text-xs font-bold text-white">100% Polska marka</span>
               </div>
             </div>
 
@@ -391,6 +391,7 @@ export default function Footer() {
           </div>
         </div>
       )}
+
     </footer>
   );
 }
