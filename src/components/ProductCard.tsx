@@ -19,23 +19,12 @@ export default function ProductCard({ product }: ProductCardProps) {
 
   const [ratingStats, setRatingStats] = useState<{ avg: string; count: number } | null>(null);
 
-  const pName = (product.name || '').toLowerCase();
-  const pBrand = (product.brand || '').toLowerCase();
-  const pModel = (product.model || '').toLowerCase();
-  const isAccessory =
-    pBrand === 'footbubr' ||
-    pName.includes('skarpety') ||
-    pName.includes('ochraniacze') ||
-    pName.includes('taśma') ||
-    pName.includes('tasma') ||
-    pName.includes('zestaw') ||
-    pModel.includes('skarpety') ||
-    pModel.includes('ochraniacze') ||
-    Boolean(product.accessory_type);
+  const discountPercent =
+    product.original_price && product.original_price > product.price
+      ? Math.round(((product.original_price - product.price) / product.original_price) * 100)
+      : null;
 
   useEffect(() => {
-    if (!isAccessory) return;
-
     const fetchRating = async () => {
       const { data } = await supabase
         .from('reviews')
@@ -52,7 +41,7 @@ export default function ProductCard({ product }: ProductCardProps) {
     };
 
     fetchRating();
-  }, [product.id, isAccessory]);
+  }, [product.id]);
 
   const isSold = product.status === 'sold';
   const mainImage = product.images?.[0] || null;
@@ -108,7 +97,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           </div>
         )}
 
-        {/* Przycisk ulubione (serduszko) - zawsze dostępny w prawym górnym rogu */}
+        {/* Przycisk ulubione (serduszko) */}
         <button
           type="button"
           onClick={(e) => {
@@ -127,18 +116,17 @@ export default function ProductCard({ product }: ProductCardProps) {
           />
         </button>
 
-        {/* Badge rozmiaru w lewym górnym rogu */}
+        {/* Badge rozmiaru i rabatu w lewym górnym rogu */}
         <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 flex-wrap max-w-[70%]">
-          {!isAccessory && product.surface_type && (
-            <span className="bg-black/60 backdrop-blur-md text-white border border-white/15 font-black text-[10px] uppercase px-2 py-1 rounded-xl shadow-lg tracking-wider">
-              {product.surface_type}
-            </span>
-          )}
           <div className="bg-[#FF6B00] text-black font-black text-[10px] sm:text-xs uppercase px-2.5 py-1 rounded-xl shadow-lg truncate">
-            {isAccessory 
-              ? ((product as any).badge_label || product.size_eu || 'ONE SIZE') 
-              : `EU ${product.size_eu}`}
+            {(product as any).badge_label || product.size_eu || 'ONE SIZE'}
           </div>
+
+          {discountPercent !== null && (
+            <div className="bg-black/75 backdrop-blur-md text-[#FF6B00] border border-[#FF6B00]/40 font-black text-[10px] sm:text-xs px-2 py-1 rounded-xl shadow-lg">
+              -{discountPercent}%
+            </div>
+          )}
         </div>
 
         {isSold && (
@@ -155,10 +143,10 @@ export default function ProductCard({ product }: ProductCardProps) {
         <div className="space-y-1.5">
           <div className="flex items-center justify-between gap-2">
             <span className="text-[11px] font-black text-[#FF6B00] uppercase tracking-wider truncate">
-              {product.brand}
+              {product.brand || 'FOOTBUBR'}
             </span>
 
-            {isAccessory && ratingStats && (
+            {ratingStats && (
               <div className="flex items-center gap-1 bg-white/5 border border-neutral-800 px-2 py-0.5 rounded-lg flex-shrink-0">
                 <Star className="w-3 h-3 text-[#FF6B00] fill-[#FF6B00]" />
                 <span className="text-[11px] font-bold text-white font-mono">{ratingStats.avg}</span>
@@ -180,23 +168,24 @@ export default function ProductCard({ product }: ProductCardProps) {
             >
               {product.condition}
             </span>
-
-            {!isAccessory && product.surface_type && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border border-neutral-700 bg-white/5 text-neutral-300 uppercase">
-                {product.surface_type}
-              </span>
-            )}
           </div>
         </div>
 
         {/* Ceny i przyciski akcji */}
         <div className="space-y-3 pt-2">
-          <div className="flex items-baseline gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="text-base sm:text-lg font-black text-white">{formatPrice(product.price)}</span>
-            {product.original_price && (
-              <span className="text-xs text-neutral-500 line-through">
-                {formatPrice(product.original_price)}
-              </span>
+            {product.original_price && product.original_price > product.price && (
+              <>
+                <span className="text-xs text-neutral-500 line-through">
+                  {formatPrice(product.original_price)}
+                </span>
+                {discountPercent !== null && (
+                  <span className="text-[10px] font-black text-[#FF6B00] bg-[#FF6B00]/15 border border-[#FF6B00]/30 px-1.5 py-0.5 rounded-md">
+                    -{discountPercent}%
+                  </span>
+                )}
+              </>
             )}
           </div>
 
