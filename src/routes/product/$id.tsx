@@ -177,8 +177,8 @@ function ProductPage() {
   }
 
   const isSold = product.status === 'sold';
-  const images = product.images.length > 0 ? product.images : [null];
-  const validImages = product.images.filter(Boolean);
+  const images = Array.isArray(product.images) && product.images.length > 0 ? product.images : [null];
+  const validImages = Array.isArray(product.images) ? product.images.filter(Boolean) : [];
 
   const currentPrice = Number(product.price) || 0;
   const originalPrice = product.original_price ? Number(product.original_price) : 0;
@@ -222,30 +222,32 @@ function ProductPage() {
     ? realBundleStock
     : currentVariant ? currentVariant.stock : (product.stock_quantity ?? 1);
 
-  const getProductForCart = () => {
+  const getProductVariantLabel = () => {
     if (isBundle) {
       const shinGuardLabel = bundleShinGuard === 'S' ? 'S (10×6 cm)' : 'XS (8×5 cm)';
-      return {
-        ...product,
-        size_eu: `Skarpety: One Size (41-44) | Ochraniacze: ${shinGuardLabel} | Taśma: ${bundleTapeColor}`,
-      };
+      return `Skarpety: One Size (41-44) | Ochraniacze: ${shinGuardLabel} | Taśma: ${bundleTapeColor}`;
     }
+    return selectedSize || product.size_eu || 'ONE SIZE';
+  };
 
+  const getProductForCart = (variantLabel: string) => {
     return {
       ...product,
-      size_eu: selectedSize || product.size_eu,
+      size_eu: variantLabel,
     };
   };
 
   const handleAddToCart = () => {
-    const itemToAdd = getProductForCart();
-    addItemSilent(itemToAdd, isAccessory ? quantity : 1);
-    toast.success('Dodano do koszyka', { description: `${quantity}x ${itemToAdd.name} (${itemToAdd.size_eu})` });
+    const chosenVariant = getProductVariantLabel();
+    const itemToAdd = getProductForCart(chosenVariant);
+    addItemSilent(itemToAdd, isAccessory ? quantity : 1, chosenVariant);
+    toast.success('Dodano do koszyka', { description: `${quantity}x ${itemToAdd.name} (${chosenVariant})` });
   };
 
   const handleBuyNow = () => {
-    const itemToAdd = getProductForCart();
-    addItem(itemToAdd, isAccessory ? quantity : 1);
+    const chosenVariant = getProductVariantLabel();
+    const itemToAdd = getProductForCart(chosenVariant);
+    addItem(itemToAdd, isAccessory ? quantity : 1, chosenVariant);
     navigate({ to: '/checkout' });
   };
 
@@ -375,7 +377,7 @@ function ProductPage() {
                       {formatPrice(originalPrice)}
                     </span>
                     <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 px-2.5 py-1 rounded-lg">
-                      -{discountPercent}%
+                      -{discountPercent}% taniej
                     </span>
                   </>
                 )}
