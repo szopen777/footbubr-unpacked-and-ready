@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { Heart, ShoppingBag, Zap, Star } from 'lucide-react';
 import { Product, supabase } from '@/lib/supabase';
-import { formatPrice, cn, CONDITION_COLORS } from '@/lib/utils';
+import { formatPrice, cn } from '@/lib/utils';
 import { useFavorites } from '@/lib/favorites-context';
 import { useCart } from '@/lib/cart-context';
 import { toast } from 'sonner';
@@ -92,7 +92,7 @@ export default function ProductCard({ product }: ProductCardProps) {
       params={{ id: product.id }}
       className="group relative bg-[#141414] border border-neutral-800/80 hover:border-neutral-700 rounded-3xl overflow-hidden flex flex-col justify-between transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.5)]"
     >
-      {/* Zdjęcie i badge */}
+      {/* Zdjęcie i badge rozmiaru */}
       <div className="relative aspect-square w-full bg-[#1c1c1c] overflow-hidden">
         {mainImage ? (
           <img
@@ -126,17 +126,11 @@ export default function ProductCard({ product }: ProductCardProps) {
           />
         </button>
 
-        {/* Badge rozmiaru i rabatu w lewym górnym rogu */}
+        {/* Tylko czysty badge rozmiaru w rogu */}
         <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 flex-wrap max-w-[70%]">
           <div className="bg-[#FF6B00] text-black font-black text-[10px] sm:text-xs uppercase px-2.5 py-1 rounded-xl shadow-lg truncate">
             {(product as any).badge_label || product.size_eu || 'ONE SIZE'}
           </div>
-
-          {discountPercent !== null && (
-            <div className="bg-black/80 backdrop-blur-md text-[#FF6B00] border border-[#FF6B00]/40 font-black text-[10px] sm:text-xs px-2 py-1 rounded-xl shadow-lg">
-              -{discountPercent}%
-            </div>
-          )}
         </div>
 
         {isSold && (
@@ -169,15 +163,11 @@ export default function ProductCard({ product }: ProductCardProps) {
             {product.name}
           </h3>
 
-          {product.condition && (
-            <div className="flex items-center gap-1.5 pt-0.5 flex-wrap">
-              <span
-                className={cn(
-                  'text-[10px] font-medium px-2 py-0.5 rounded-full border',
-                  CONDITION_COLORS[product.condition] || 'text-neutral-400 bg-white/5 border-neutral-800'
-                )}
-              >
-                {product.condition}
+          {/* Zielona plakietka rabatu zamiast "Nowe z metką" */}
+          {discountPercent !== null && (
+            <div className="pt-0.5 flex items-center">
+              <span className="text-[11px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 px-2.5 py-0.5 rounded-md">
+                -{discountPercent}% taniej
               </span>
             </div>
           )}
@@ -185,17 +175,12 @@ export default function ProductCard({ product }: ProductCardProps) {
 
         {/* Ceny i przyciski akcji */}
         <div className="space-y-3 pt-2">
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-baseline gap-2 flex-wrap">
             <span className="text-base sm:text-lg font-black text-white">{formatPrice(currentPrice)}</span>
-            {discountPercent !== null && (
-              <>
-                <span className="text-xs text-neutral-500 line-through">
-                  {formatPrice(originalPrice)}
-                </span>
-                <span className="text-[10px] font-black text-[#FF6B00] bg-[#FF6B00]/15 border border-[#FF6B00]/30 px-1.5 py-0.5 rounded-md">
-                  -{discountPercent}%
-                </span>
-              </>
+            {originalPrice > currentPrice && (
+              <span className="text-xs text-neutral-500 line-through">
+                {formatPrice(originalPrice)}
+              </span>
             )}
           </div>
 
