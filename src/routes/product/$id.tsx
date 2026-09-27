@@ -7,7 +7,7 @@ import LiveViewersCounter from '@/components/LiveViewersCounter';
 import ShareButton from '@/components/ShareButton';
 import ProductReviews from '@/components/ProductReviews';
 import { Skeleton } from '@/components/skeleton';
-import { cn, formatPrice, SURFACE_LABELS, CONDITION_COLORS } from '@/lib/utils';
+import { cn, formatPrice, SURFACE_LABELS } from '@/lib/utils';
 import { 
   ShoppingBag, ArrowLeft, CircleAlert as AlertCircle, Package, 
   ZoomIn, Zap, Ruler, Plus, Minus, Heart, Eye, Check
@@ -180,6 +180,13 @@ function ProductPage() {
   const images = product.images.length > 0 ? product.images : [null];
   const validImages = product.images.filter(Boolean);
 
+  const currentPrice = Number(product.price) || 0;
+  const originalPrice = product.original_price ? Number(product.original_price) : 0;
+  const discountPercent =
+    originalPrice > currentPrice && originalPrice > 0
+      ? Math.round(((originalPrice - currentPrice) / originalPrice) * 100)
+      : null;
+
   const pName = (product.name || '').toLowerCase();
   const pBrand = (product.brand || '').toLowerCase();
   const isAccessory =
@@ -341,9 +348,6 @@ function ProductPage() {
             <div>
               <div className="flex items-center gap-2 sm:gap-3 mb-2 flex-wrap">
                 <span className="text-sm font-bold text-[#FF6B00] uppercase tracking-wider">{product.brand}</span>
-                <span className={cn('text-xs font-medium px-2 py-0.5 rounded-full border backdrop-blur-md', CONDITION_COLORS[product.condition] || 'text-neutral-300 bg-white/5 border-neutral-700')}>
-                  {product.condition}
-                </span>
               </div>
               <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-white leading-tight uppercase tracking-tight">{product.name}</h1>
 
@@ -356,17 +360,24 @@ function ProductPage() {
                         ? `Dostępne w tej konfiguracji: ${maxStock} kpl.`
                         : isAccessory
                         ? `Dostępne w magazynie: ${maxStock} szt.`
-                        : 'Tylko 1 sztuka w magazynie — unikat!'}
+                        : 'Dostępne w magazynie: 1 szt.'}
                     </span>
                   </div>
                   <LiveViewersCounter productId={product.id} />
                 </div>
               )}
 
-              <div className="flex items-baseline gap-2 sm:gap-3 mt-4">
-                <span className="text-2xl sm:text-3xl font-black text-white">{formatPrice(product.price)}</span>
-                {product.original_price && (
-                  <span className="text-base sm:text-lg text-neutral-500 line-through">{formatPrice(product.original_price)}</span>
+              <div className="flex items-baseline gap-2.5 sm:gap-3 mt-4 flex-wrap">
+                <span className="text-2xl sm:text-3xl font-black text-white">{formatPrice(currentPrice)}</span>
+                {originalPrice > currentPrice && (
+                  <>
+                    <span className="text-base sm:text-lg text-neutral-500 line-through">
+                      {formatPrice(originalPrice)}
+                    </span>
+                    <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 px-2.5 py-1 rounded-lg">
+                      -{discountPercent}% taniej
+                    </span>
+                  </>
                 )}
               </div>
             </div>
@@ -595,7 +606,6 @@ function ProductPage() {
                     { label: 'Nawierzchnia', value: SURFACE_LABELS[product.surface_type] || product.surface_type },
                     { label: 'Poziom', value: product.level },
                   ] : []),
-                  { label: 'Stan', value: product.condition },
                 ].map(({ label, value }) => (
                   <div key={label} className="flex items-center justify-between px-4 py-2.5">
                     <span className="text-sm text-neutral-500">{label}</span>
