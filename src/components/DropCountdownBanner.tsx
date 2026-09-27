@@ -39,11 +39,26 @@ function CountdownUnit({ value, label }: { value: number; label: string }) {
   );
 }
 
-function FeaturedProductPreview({ product }: { product: Product }) {
+function formatProductSize(product: Product & { badge_label?: string | null }): string {
+  if (product.badge_label) return product.badge_label;
+  if (!product.size_eu) return '';
+
+  const raw = String(product.size_eu);
+  if (raw.includes('/')) return 'S / XS';
+
+  return raw
+    .replace(/^EU\s*/i, '')
+    .split('-')[0]
+    .trim();
+}
+
+function FeaturedProductPreview({ product }: { product: Product & { badge_label?: string | null } }) {
+  const cleanSize = formatProductSize(product);
+
   return (
-    <div className="inline-flex items-center gap-3 bg-black border-2 border-black px-3 py-2 rounded-sm shadow-[4px_4px_0_0_#fff] -rotate-1 max-w-xs">
-      <div className="w-10 h-10 rounded-md overflow-hidden bg-white/5 border border-white/20 flex-shrink-0">
-        {product.images[0] ? (
+    <div className="inline-flex items-center gap-3 bg-black border-2 border-black px-3.5 py-2.5 rounded-sm shadow-[4px_4px_0_0_#fff] -rotate-1 max-w-sm sm:max-w-md w-full">
+      <div className="w-11 h-11 rounded-md overflow-hidden bg-white/5 border border-white/20 flex-shrink-0">
+        {product.images && product.images[0] ? (
           <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-white/30 text-[10px]">Brak</div>
@@ -52,7 +67,10 @@ function FeaturedProductPreview({ product }: { product: Product }) {
       <div className="flex-1 min-w-0 text-left">
         <p className="text-[9px] font-black text-[#FF6B00] uppercase tracking-wider">Zapowiedź</p>
         <p className="text-xs font-bold text-white truncate">{product.name}</p>
-        <p className="text-[10px] text-white/60">{product.brand} · EU {product.size_eu}</p>
+        <p className="text-[11px] text-white/70 truncate">
+          {product.brand || 'FOOTBUBR'}
+          {cleanSize ? ` · ${cleanSize}` : ''}
+        </p>
       </div>
     </div>
   );
@@ -100,7 +118,7 @@ export default function DropCountdownBanner({ dropSettings, featuredProduct, cou
             </p>
           )}
 
-          {/* Countdown — only when a valid future date exists */}
+          {/* Countdown — widoczny tylko przy ustalonej przyszłej dacie */}
           {!isTbd && countdown && (
             <div className="flex items-center gap-2 sm:gap-3">
               <CountdownUnit value={countdown.days} label="Dni" />
@@ -113,7 +131,7 @@ export default function DropCountdownBanner({ dropSettings, featuredProduct, cou
             </div>
           )}
 
-          {/* Featured product preview */}
+          {/* Kafel zapowiedzi z kompaktowym rozmiarem */}
           {featuredProduct && (
             <FeaturedProductPreview product={featuredProduct} />
           )}
