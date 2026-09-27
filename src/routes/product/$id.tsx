@@ -375,7 +375,7 @@ function ProductPage() {
                       {formatPrice(originalPrice)}
                     </span>
                     <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 px-2.5 py-1 rounded-lg">
-                      -{discountPercent}% taniej
+                      -{discountPercent}%
                     </span>
                   </>
                 )}
