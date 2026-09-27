@@ -6,13 +6,13 @@ import { Link } from '@tanstack/react-router';
 import CartCrossSell from '@/components/CartCrossSell';
 
 export default function CartDrawer() {
-  const { items, removeItem, updateQuantity, isOpen, closeCart, total, discountAmount, discountedTotal, promoCode } = useCart();
+  const { items = [], removeItem, updateQuantity, isOpen, closeCart, total = 0, discountAmount = 0, discountedTotal, promoCode } = useCart();
 
   if (!isOpen) return null;
 
-  const currentTotal = discountedTotal ?? total ?? 0;
+  const currentTotal = Number(discountedTotal ?? total) || 0;
   const missingForFreeShipping = Math.max(0, FREE_SHIPPING_THRESHOLD - currentTotal);
-  const progressPercent = Math.min(100, Math.round((currentTotal / FREE_SHIPPING_THRESHOLD) * 100));
+  const progressPercent = Math.min(100, Math.max(0, Math.round((currentTotal / FREE_SHIPPING_THRESHOLD) * 100)));
 
   return (
     <>
@@ -31,7 +31,7 @@ export default function CartDrawer() {
             <h2 className="font-bold text-lg text-white uppercase tracking-tight">Koszyk</h2>
             {items.length > 0 && (
               <span className="text-sm text-neutral-500">
-                ({items.reduce((acc, i) => acc + i.quantity, 0)} szt.)
+                ({items.reduce((acc, i) => acc + (i.quantity || 1), 0)} szt.)
               </span>
             )}
           </div>
@@ -52,7 +52,8 @@ export default function CartDrawer() {
             </div>
           ) : (
             <>
-              {items.map(({ product, quantity, variant }) => {
+              {items.map(({ product, quantity = 1, variant }) => {
+                if (!product) return null;
                 const mainImage = Array.isArray(product.images) && product.images.length > 0 ? product.images[0] : null;
                 const itemPrice = Number(product.price) || 0;
 
@@ -71,7 +72,7 @@ export default function CartDrawer() {
                     
                     <div className="flex-1 min-w-0 flex flex-col justify-between">
                       <div>
-                        <p className="font-semibold text-sm text-white leading-tight truncate">{product.name}</p>
+                        <p className="font-semibold text-sm text-white leading-tight truncate">{product.name || 'Produkt'}</p>
                         <p className="text-neutral-400 text-xs mt-0.5 truncate">
                           {product.brand || 'FOOTBUBR'} · {variant ? variant : `Rozmiar: ${product.size_eu || 'ONE SIZE'}`}
                         </p>
@@ -82,14 +83,14 @@ export default function CartDrawer() {
                       <div className="flex items-center gap-2 mt-2">
                         <div className="flex items-center bg-black/40 border border-neutral-800 rounded-lg overflow-hidden">
                           <button
-                            onClick={() => updateQuantity(product.id, quantity - 1, variant)}
+                            onClick={() => updateQuantity && updateQuantity(product.id, quantity - 1, variant)}
                             className="p-1 text-neutral-400 hover:text-white hover:bg-white/5 transition-colors"
                           >
                             <Minus className="w-3.5 h-3.5" />
                           </button>
                           <span className="w-8 text-center font-bold text-white text-xs">{quantity}</span>
                           <button
-                            onClick={() => updateQuantity(product.id, quantity + 1, variant)}
+                            onClick={() => updateQuantity && updateQuantity(product.id, quantity + 1, variant)}
                             disabled={Boolean(product.stock_quantity && quantity >= product.stock_quantity)}
                             className="p-1 text-neutral-400 hover:text-white hover:bg-white/5 transition-colors disabled:opacity-30"
                           >
@@ -103,7 +104,7 @@ export default function CartDrawer() {
                     </div>
 
                     <button
-                      onClick={() => removeItem(product.id, variant)}
+                      onClick={() => removeItem && removeItem(product.id, variant)}
                       className="p-1.5 text-neutral-600 hover:text-red-400 transition-colors self-start active:scale-90"
                       title="Usuń produkt"
                     >
@@ -113,7 +114,6 @@ export default function CartDrawer() {
                 );
               })}
 
-              {/* Rekomendacja akcesoriów FOOTBUBR (Cross-sell) */}
               <CartCrossSell />
             </>
           )}
